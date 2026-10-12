@@ -1,0 +1,18 @@
+# Local development services.
+#
+#   docker compose -f docker-compose.dev.yml up -d
+#
+# Redis backs the BullMQ job queue. `noeviction` is required by BullMQ; AOF
+# persistence keeps queued jobs across restarts. This is a dev convenience only —
+# production uses an external/managed Redis (or the chart's bundled instance).
+services:
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--maxmemory-policy", "noeviction", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+volumes:
+  redis-data:

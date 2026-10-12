@@ -1,0 +1,158 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ecocide.fullname" . }}
+  labels:
+    {{- include "ecocide.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "ecocide.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "ecocide.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "ecocide.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- if .Values.migrations.enabled }}
+      initContainers:
+        - name: migrate
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          # Standalone drizzle-kit migration runner (apps/server/src/migrate-cli.ts).
+          # Applies pending migrations to the shared data volume, then exits so the
+          # main container starts with a fully migrated schema.
+          command: ["node", "dist/migrate-cli.js"]
+          env:
+            - name: DB_PATH
+              value: "{{ .Values.persistence.mountPath }}/dossiers.db"
+          {{- if .Values.persistence.enabled }}
+          volumeMounts:
+            - name: data
+              mountPath: {{ .Values.persistence.mountPath }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          env:
+            - name: PORT
+              value: {{ .Values.service.port | quote }}
+            - name: STATIC_DIR
+              value: "/app/web/dist"
+            - name: DB_PATH
+              value: "{{ .Values.persistence.mountPath }}/dossiers.db"
+            {{- if .Values.migrations.enabled }}
+            # DDL is owned by the "migrate" init container; skip boot migrations
+            # so schema changes are applied exactly once per pod start.
+            - name: AUTO_MIGRATE
+              value: "false"
+            {{- end }}
+            - name: AVATAR_ENGINE
+              value: {{ .Values.avatarEngine | quote }}
+            - name: APP_BASE_URL
+              value: {{ .Values.appBaseUrl | quote }}
+            - name: REDIS_URL
+              value: {{ include "ecocide.redisUrl" . | quote }}
+            {{- if or .Values.geminiApiKey .Values.existingSecret }}
+            - name: GEMINI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "ecocide.secretName" . }}
+                  key: {{ .Values.existingSecretKey | default "GEMINI_API_KEY" }}
+                  optional: true
+            {{- end }}
+            {{- if .Values.smtp.host }}
+            - name: SMTP_HOST
+              value: {{ .Values.smtp.host | quote }}
+            - name: SMTP_PORT
+              value: {{ .Values.smtp.port | quote }}
+            - name: SMTP_SECURE
+              value: {{ .Values.smtp.secure | quote }}
+            - name: MAIL_FROM
+              value: {{ .Values.smtp.from | quote }}
+            {{- if .Values.smtp.user }}
+            - name: SMTP_USER
+              value: {{ .Values.smtp.user | quote }}
+            {{- end }}
+            {{- if .Values.smtp.replyTo }}
+            - name: MAIL_REPLY_TO
+              value: {{ .Values.smtp.replyTo | quote }}
+            {{- end }}
+            - name: SMTP_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ if .Values.smtp.existingSecret }}{{ .Values.smtp.existingSecret }}{{ else }}{{ include "ecocide.secretName" . }}{{ end }}
+                  key: {{ .Values.smtp.existingSecretKey | default "SMTP_PASSWORD" }}
+                  optional: true
+            {{- end }}
+            {{- if and .Values.bullBoard.enabled .Values.bullBoard.user }}
+            - name: BULL_BOARD_USER
+              value: {{ .Values.bullBoard.user | quote }}
+            - name: BULL_BOARD_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ if .Values.bullBoard.existingSecret }}{{ .Values.bullBoard.existingSecret }}{{ else }}{{ include "ecocide.secretName" . }}{{ end }}
+                  key: {{ .Values.bullBoard.existingSecretKey | default "BULL_BOARD_PASSWORD" }}
+                  optional: true
+            {{- end }}
+            {{- range $key, $val := .Values.env }}
+            - name: {{ $key }}
+              value: {{ $val | quote }}
+            {{- end }}
+          {{- if .Values.persistence.enabled }}
+          volumeMounts:
+            - name: data
+              mountPath: {{ .Values.persistence.mountPath }}
+          {{- end }}
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- if .Values.persistence.enabled }}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "ecocide.fullname" . }}-data
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

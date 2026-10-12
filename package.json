@@ -1,0 +1,25 @@
+{
+  "name": "ecocide",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter @ecocide/web dev",
+    "dev:all": "concurrently \"pnpm run dev:server\" \"pnpm run dev:web\"",
+    "dev:web": "pnpm --filter @ecocide/web dev",
+    "dev:server": "pnpm --filter @ecocide/server dev",
+    "build": "pnpm --filter @ecocide/types build && pnpm --filter @ecocide/server build && pnpm --filter @ecocide/web build",
+    "test": "vitest run",
+    "scan-costs": "node scripts/show-scan-costs.mjs"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.5"
+  },
+  "packageManager": "pnpm@10.32.1"
+}

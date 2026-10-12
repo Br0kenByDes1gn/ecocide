@@ -1,0 +1,11 @@
+node_modules
+dist
+.env
+*.local
+data/*.db*
+apps/server/data/*.db*
+.DS_Store
+.vscode/
+
+# Local Playwright MCP snapshots/console dumps
+.playwright-mcp/

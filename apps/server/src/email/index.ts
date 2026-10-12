@@ -1,0 +1,9 @@
+export { loadMailConfig } from './config.js';
+export type { MailConfig } from './config.js';
+export { normalizeEmail } from './address.js';
+export { createMailer } from './mailer.js';
+export type { EmailMessage, Mailer } from './mailer.js';
+export { verdictEmail } from './templates/verdict.js';
+export type { RenderedEmail } from './templates/verdict.js';
+export { appealRulingEmail } from './templates/appeal.js';
+export { vaultOtpEmail } from './templates/otp.js';
