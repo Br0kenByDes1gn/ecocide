@@ -1,4 +1,3 @@
-import { GoogleGenAI } from '@google/genai';
 import sharp from 'sharp';
 import {
   type AvatarGenerationInput,
@@ -9,6 +8,7 @@ import {
 } from './types.js';
 import { calculateApiCost } from '../cost.js';
 import { getCasteLifeStageTitle } from '@ecocide/types';
+import { createGeminiClient } from '../gemini/config.js';
 
 export class GeminiImageProvider implements AvatarProvider {
   readonly id: string;
@@ -23,12 +23,9 @@ export class GeminiImageProvider implements AvatarProvider {
   }
 
   async generate(input: AvatarGenerationInput): Promise<AvatarGenerationResult> {
-    const { image, userProfile, apiKey, targetSize = 256 } = input;
-    if (!apiKey) {
-      throw new Error('GEMINI_API_KEY required for GeminiImageProvider');
-    }
+    const { image, userProfile, targetSize = 256 } = input;
 
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = createGeminiClient();
     const { cleanBase64: photoData, mimeType } = cleanBase64(image);
     const castePrompt = getCasteStylePrompt(userProfile.caste);
 

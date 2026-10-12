@@ -34,8 +34,27 @@ pnpm test           # vitest (hermetic — no Redis/SMTP/API key needed)
 ```
 
 Environment: copy `.env.example` to `.env`. Everything is optional — without
-`GEMINI_API_KEY` the server uses the offline simulation verdict, without
+Gemini credentials the server uses the offline simulation verdict, without
 `SMTP_HOST` emails are logged, without `REDIS_URL` jobs run inline.
+
+### Gemini billing: Vertex AI vs API key
+
+The verdict/avatar engine runs through `@google/genai` on either:
+
+- **Gemini Developer API** — set `GEMINI_API_KEY`. Usage is billed by AI Studio.
+- **Vertex AI (recommended for production)** — bills to your GCP project's
+  Cloud billing account instead. Set `GEMINI_MODE=vertex` (auto-detected when
+  unset), `GEMINI_PROJECT=<project id>`, and provide credentials via
+  `GCP_SA_KEY` (inline service-account JSON) or
+  `GOOGLE_APPLICATION_CREDENTIALS` (ADC file path). The endpoint defaults to
+  `global` — the only endpoint currently serving `gemini-3.8-flash` and the
+  image models on every project (regional endpoints like `asia-southeast1`,
+  Singapore, return NOT_FOUND for them as of Oct 2026). Override with
+  `GEMINI_LOCATION` once the models are available in your region. The model
+  defaults to `gemini-3.8-flash`; override with `GEMINI_MODEL`.
+
+Prereqs on GCP: billing account attached to the project, the **Vertex AI API**
+enabled, and a service account with `Vertex AI User` (`roles/aiplatform.user`).
 
 ## Zero-token workflow
 

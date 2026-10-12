@@ -4,7 +4,6 @@ import { getFaction } from '@ecocide/lore';
 export interface AvatarGenerationInput {
   image: string; // Base64 reference image (with or without data URL prefix)
   userProfile: UserProfile;
-  apiKey?: string;
   targetSize?: number; // default 256
 }
 

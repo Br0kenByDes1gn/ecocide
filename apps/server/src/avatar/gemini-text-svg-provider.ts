@@ -8,6 +8,7 @@ import {
 } from './types.js';
 import { calculateApiCost } from '../cost.js';
 import { getCasteLifeStageTitle } from '@ecocide/types';
+import { createGeminiClient, getGeminiModel } from '../gemini/config.js';
 
 export class GeminiTextSvgProvider implements AvatarProvider {
   readonly id = 'gemini-text-svg';
@@ -15,12 +16,10 @@ export class GeminiTextSvgProvider implements AvatarProvider {
   readonly outputType = 'svg' as const;
 
   async generate(input: AvatarGenerationInput): Promise<AvatarGenerationResult> {
-    const { image, userProfile, apiKey, targetSize = 256 } = input;
-    if (!apiKey) {
-      throw new Error('GEMINI_API_KEY required for GeminiTextSvgProvider');
-    }
+    const { image, userProfile, targetSize = 256 } = input;
 
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = createGeminiClient();
+    const model = getGeminiModel();
     const { cleanBase64: photoData, mimeType } = cleanBase64(image);
     const casteLore = getCasteStylePrompt(userProfile.caste);
 
@@ -54,7 +53,7 @@ CRITICAL SVG SPECIFICATIONS:
 
     const startTime = performance.now();
     const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
+      model,
       contents: [
         {
           role: 'user',
@@ -102,7 +101,7 @@ CRITICAL SVG SPECIFICATIONS:
     const thoughtsTokens = (response.usageMetadata as any)?.thoughtsTokenCount || 0;
     const totalTokens = response.usageMetadata?.totalTokenCount || (promptTokens + candidatesTokens + thoughtsTokens);
 
-    const cost = calculateApiCost('gemini-3.8-flash', {
+    const cost = calculateApiCost(model, {
       promptTokens,
       candidatesTokens,
       thoughtsTokens,
@@ -114,7 +113,7 @@ CRITICAL SVG SPECIFICATIONS:
       engineId: this.id,
       sizeBytes,
       usage: {
-        model: 'gemini-3.8-flash',
+        model,
         provider: 'google',
         promptTokens,
         candidatesTokens,

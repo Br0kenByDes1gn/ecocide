@@ -28,11 +28,27 @@ import { createAuth } from './auth/index.js';
 import { loadAuthConfig } from './auth/config.js';
 import type { AuthVariables } from './auth/middleware.js';
 import { createVaultRoutes } from './vault/routes.js';
+import { geminiConfigured, geminiModeLabel } from './gemini/config.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-dotenv.config({ path: path.resolve(__dirname, '../.env') });
-dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+
+// .env resolution order (first file to define a key wins; a real process env var
+// always beats the files; missing files are skipped silently):
+//   1. DOTENV_CONFIG_PATH — explicit override for custom deployments.
+//   2. apps/server/.env  — package-local override.
+//   3. Repo/workspace root .env — where README/.env.example tell you to put it.
+//   4. cwd/.env — fallback when launched from an unexpected directory.
+// __dirname is one level inside apps/server in both `src/` (tsx dev) and
+// `dist/` (compiled), so the third entry is the workspace root either way.
+dotenv.config({
+  path: [
+    ...(process.env.DOTENV_CONFIG_PATH ? [process.env.DOTENV_CONFIG_PATH] : []),
+    path.resolve(__dirname, '../.env'),
+    path.resolve(__dirname, '../../../.env'),
+    path.resolve(process.cwd(), '.env'),
+  ],
+});
 
 // Explicitly boot the database: open the connection, apply drizzle-kit migrations,
 // then build the typed repository interface the routes call. Top-level await is
@@ -46,6 +62,10 @@ if (process.env.AUTO_MIGRATE !== 'false') {
   await runMigrations(db);
 }
 const repositories = createRepositories(db);
+
+// Boot-time engine status: makes a missing/typo'd env file obvious immediately
+// instead of only surfacing as a simulated verdict on the first scan.
+console.log(`[Oracle] Gemini engine ${geminiConfigured() ? `online — ${geminiModeLabel()}` : 'offline — simulated verdicts enabled.'}`);
 
 // Email + async jobs. With REDIS_URL set the job system runs an in-process
 // BullMQ worker (durable, retried); without it, handlers run inline so local
@@ -126,17 +146,16 @@ app.post('/api/oracle/scan', async (c) => {
       return c.json({ error: 'Missing image or biometric telemetry payload' }, 400);
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
     let result: OraclePayload;
     let oracleResult: OracleVerdictResult | null = null;
 
-    if (apiKey) {
-      // Invoke Gemini 3.8 Flash Multimodal Vision + Sarcastic Fortune
-      oracleResult = await generateOracleVerdict(image, telemetry, apiKey);
+    if (geminiConfigured()) {
+      // Invoke the live Gemini engine (Vertex AI or API key) — see gemini/config.ts.
+      oracleResult = await generateOracleVerdict(image, telemetry);
       result = oracleResult.payload;
     } else {
       // Development mock fallback
-      console.warn('[Oracle] GEMINI_API_KEY not configured, using dynamic simulated oracle engine.');
+      console.warn('[Oracle] Gemini engine offline — using dynamic simulated oracle engine.');
       result = generateSimulatedVerdict(telemetry);
     }
 
@@ -260,13 +279,12 @@ app.post('/api/citizen/:id/appeal', async (c) => {
       return c.json({ error: 'Appeal text is required' }, 400);
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
     let verdict: AppealVerdict;
-    if (apiKey) {
-      const result = await generateAppealVerdict(record, appeal, apiKey);
+    if (geminiConfigured()) {
+      const result = await generateAppealVerdict(record, appeal);
       verdict = result.verdict;
     } else {
-      console.warn('[Appeal] GEMINI_API_KEY not configured, using simulated appeal ruling.');
+      console.warn('[Appeal] Gemini engine offline, using simulated appeal ruling.');
       verdict = generateSimulatedAppealVerdict(record, appeal);
     }
 
@@ -333,11 +351,10 @@ app.post('/api/citizen/:id/appeals/:appealId/apply', async (c) => {
 
   // Re-arbitrate like a brand-new scan: the ORIGINAL oracle vision prompt is
   // re-run against the archived photo snapshot, with the appeal acknowledged
-  // only in paragraph 1. Text-only simulation when no vision key is present.
-  const apiKey = process.env.GEMINI_API_KEY;
+  // only in paragraph 1. Simulation when the engine is offline.
   let fresh: ReArbitrationVerdict;
-  if (apiKey && record.sourceSnapshot) {
-    fresh = await generateReArbitrationVerdict(record, appeal, apiKey);
+  if (geminiConfigured() && record.sourceSnapshot) {
+    fresh = await generateReArbitrationVerdict(record, appeal);
   } else {
     fresh = generateSimulatedReArbitration(record, appeal);
   }

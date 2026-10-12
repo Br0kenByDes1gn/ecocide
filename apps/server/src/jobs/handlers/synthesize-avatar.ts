@@ -1,5 +1,6 @@
 import { avatarRegistry } from '../../avatar/registry.js';
 import type { JobContext, JobPayloads } from '../types.js';
+import { geminiConfigured } from '../../gemini/config.js';
 
 /**
  * Durable avatar synthesis: loads the dossier (and its archived 360px source
@@ -24,9 +25,8 @@ export function makeSynthesizeAvatar(ctx: JobContext) {
 
     await ctx.repositories.updateDossierAvatar(payload.dossierId, null, 'synthesizing', provider.id);
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      console.warn(`[Jobs] avatar:synthesize skipped — no GEMINI_API_KEY for ${payload.dossierId}.`);
+    if (!geminiConfigured()) {
+      console.warn(`[Jobs] avatar:synthesize skipped — Gemini engine offline for ${payload.dossierId}.`);
       await ctx.repositories.updateDossierAvatar(payload.dossierId, null, 'failed', provider.id);
       return;
     }
@@ -36,7 +36,6 @@ export function makeSynthesizeAvatar(ctx: JobContext) {
       const result = await provider.generate({
         image: photo,
         userProfile: record.profile,
-        apiKey,
         targetSize: 256,
       });
 

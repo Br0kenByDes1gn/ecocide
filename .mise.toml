@@ -1,0 +1,6 @@
+[tools]
+gcloud = "latest"
+node = "24.13.0"
+pnpm = "10.32.1"
+# Declared in packages/package.json + used by charts/ and gcloud/Vertex workflows.
+helm = "3.18.2"

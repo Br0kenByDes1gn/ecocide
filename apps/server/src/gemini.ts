@@ -1,4 +1,3 @@
-import { GoogleGenAI } from '@google/genai';
 import type {
   AppealVerdict,
   BiometricTelemetry,
@@ -16,6 +15,7 @@ import {
 } from '@ecocide/lore';
 import { calculateApiCost } from './cost.js';
 import type { ApiCallUsage } from './avatar/types.js';
+import { createGeminiClient, getGeminiModel } from './gemini/config.js';
 
 export interface OracleVerdictResult {
   payload: OraclePayload;
@@ -34,11 +34,11 @@ export function buildOraclePrompt(telemetry: BiometricTelemetry): string {
 
 export async function generateOracleVerdict(
   imageBase64: string,
-  telemetry: BiometricTelemetry,
-  apiKey: string
+  telemetry: BiometricTelemetry
 ): Promise<OracleVerdictResult> {
   const startTime = performance.now();
-  const ai = new GoogleGenAI({ apiKey });
+  const ai = createGeminiClient();
+  const model = getGeminiModel();
 
   // Clean base64 image
   let mimeType = 'image/jpeg';
@@ -53,7 +53,7 @@ export async function generateOracleVerdict(
   const prompt = buildOraclePrompt(telemetry);
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3.8-flash',
+    model,
     contents: [
       {
         role: 'user',
@@ -82,7 +82,7 @@ export async function generateOracleVerdict(
   const thoughtsTokens = (response.usageMetadata as any)?.thoughtsTokenCount || 0;
   const totalTokens = response.usageMetadata?.totalTokenCount || (promptTokens + candidatesTokens + thoughtsTokens);
 
-  const cost = calculateApiCost('gemini-3.8-flash', {
+  const cost = calculateApiCost(model, {
     promptTokens,
     candidatesTokens,
     thoughtsTokens,
@@ -114,7 +114,7 @@ export async function generateOracleVerdict(
   };
 
   const usage: ApiCallUsage = {
-    model: 'gemini-3.8-flash',
+    model,
     provider: 'google',
     promptTokens,
     candidatesTokens,
@@ -149,15 +149,15 @@ export function buildAppealPrompt(dossier: CitizenRecord, appeal: string): strin
 /** Runs the appeal ruling through Gemini (text-only, small). */
 export async function generateAppealVerdict(
   dossier: CitizenRecord,
-  appeal: string,
-  apiKey: string
+  appeal: string
 ): Promise<{ verdict: AppealVerdict; usage: ApiCallUsage }> {
   const startTime = performance.now();
-  const ai = new GoogleGenAI({ apiKey });
+  const ai = createGeminiClient();
+  const model = getGeminiModel();
   const prompt = buildAppealPrompt(dossier, appeal);
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3.8-flash',
+    model,
     contents: [{ role: 'user', parts: [{ text: prompt }] }],
     config: { responseMimeType: 'application/json', temperature: 0.9 },
   });
@@ -168,7 +168,7 @@ export async function generateAppealVerdict(
   const thoughtsTokens = (response.usageMetadata as any)?.thoughtsTokenCount || 0;
   const totalTokens =
     response.usageMetadata?.totalTokenCount || (promptTokens + candidatesTokens + thoughtsTokens);
-  const cost = calculateApiCost('gemini-3.8-flash', { promptTokens, candidatesTokens, thoughtsTokens });
+  const cost = calculateApiCost(model, { promptTokens, candidatesTokens, thoughtsTokens });
 
   const parsed = JSON.parse(response.text || '{}');
 
@@ -182,7 +182,7 @@ export async function generateAppealVerdict(
   };
 
   const usage: ApiCallUsage = {
-    model: 'gemini-3.8-flash',
+    model,
     provider: 'google',
     promptTokens,
     candidatesTokens,
@@ -252,10 +252,10 @@ export function buildReArbitrationPrompt(dossier: CitizenRecord, appeal: Citizen
 /** Runs the full re-arbitration (multimodal when the archive holds a snapshot). */
 export async function generateReArbitrationVerdict(
   dossier: CitizenRecord,
-  appeal: CitizenAppeal,
-  apiKey: string
+  appeal: CitizenAppeal
 ): Promise<ReArbitrationVerdict> {
-  const ai = new GoogleGenAI({ apiKey });
+  const ai = createGeminiClient();
+  const model = getGeminiModel();
   const prompt = buildReArbitrationPrompt(dossier, appeal);
 
   const parts: Array<{ text?: string; inlineData?: { data: string; mimeType: string } }> = [];
@@ -268,7 +268,7 @@ export async function generateReArbitrationVerdict(
   parts.push({ text: prompt });
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3.8-flash',
+    model,
     contents: [{ role: 'user', parts }],
     config: { responseMimeType: 'application/json', temperature: 0.95 },
   });
