@@ -6,6 +6,7 @@
 // ---------------------------------------------------------------------------
 
 export { IDENTITY } from './identity.js';
+export { PALETTE, CONFETTI_COLORS } from './art.js';
 export {
   FACTIONS,
   FACTION_IDS,

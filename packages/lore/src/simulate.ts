@@ -59,7 +59,7 @@ export function generateSimulatedVerdictContent(input: SimVerdictInput): SimVerd
     life_stage: lifeStage,
     apparent_presentation: presentation,
     headline: `CLASSIFICATION RECORD: ${faction.name.toUpperCase()} — PROVISIONAL`,
-    paragraph_1: `Attention ${title}. The ${IDENTITY.entityShortName} registers your Compliance Ratio at ${input.complianceRatio}% and places you under ${faction.name}, bearing an energy level of ${faction.simulated.energy.toLowerCase()}.`,
+    paragraph_1: `Attention ${title}. The ${IDENTITY.entityName} registers your Compliance Ratio at ${input.complianceRatio}% and places you under ${faction.name}, bearing an energy level of ${faction.simulated.energy.toLowerCase()}.`,
     paragraph_2: faction.simulated.occupation,
     paragraph_3: faction.simulated.notice,
   };

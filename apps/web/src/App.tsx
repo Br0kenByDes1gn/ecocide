@@ -11,7 +11,7 @@ import { CitizenDossier } from './components/CitizenDossier';
 import { ClaimScreen } from './components/ClaimScreen';
 import { DebugBench } from './components/DebugBench';
 import { VaultScreen } from './components/VaultScreen';
-import { IDENTITY } from '@ecocide/lore';
+import { IDENTITY, CONFETTI_COLORS } from '@ecocide/lore';
 import { soundFx } from './lib/audio';
 import { downscaleDataUrl } from './lib/downscaleImage';
 
@@ -236,7 +236,7 @@ export function App() {
         particleCount: 50,
         spread: 60,
         origin: { y: 0.7 },
-        colors: ['#00f3ff', '#00ff66', '#ff007f'],
+        colors: [...CONFETTI_COLORS],
       });
     } catch (err) {
       console.warn('API error, falling back to local oracle simulation:', err);

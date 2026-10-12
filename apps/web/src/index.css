@@ -10,6 +10,8 @@
 
 @layer base {
   :root {
+    /* Palette tokens — JS-consumed hexes live in packages/lore/src/art.ts
+       (PALETTE). Keep the two in sync or read from art.ts (see STORY.md). */
     --neon-green: #00ff66;
     --neon-cyan: #00f3ff;
     --neon-magenta: #ff007f;

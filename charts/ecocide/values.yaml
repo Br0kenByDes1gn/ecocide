@@ -97,7 +97,7 @@ smtp:
   user: ""
   # Provide the password inline, or reference a key in an existing secret below
   password: ""
-  from: "AI Supreme Arbiter <arbiter@ecocide.local>"
+  from: "ECOCIDE <no-reply@ecocide.local>"
   replyTo: ""
   existingSecret: ""
   existingSecretKey: "SMTP_PASSWORD"
