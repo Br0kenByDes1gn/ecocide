@@ -7,7 +7,7 @@
     "dev:all": "concurrently \"pnpm run dev:server\" \"pnpm run dev:web\"",
     "dev:web": "pnpm --filter @ecocide/web dev",
     "dev:server": "pnpm --filter @ecocide/server dev",
-    "build": "pnpm --filter @ecocide/types build && pnpm --filter @ecocide/server build && pnpm --filter @ecocide/web build",
+    "build": "pnpm --filter @ecocide/lore build && pnpm --filter @ecocide/types build && pnpm --filter @ecocide/server build && pnpm --filter @ecocide/web build",
     "test": "vitest run",
     "scan-costs": "node scripts/show-scan-costs.mjs"
   },

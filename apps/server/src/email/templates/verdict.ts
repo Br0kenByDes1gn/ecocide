@@ -1,4 +1,5 @@
 import type { CitizenRecord } from '@ecocide/types';
+import { getFaction } from '@ecocide/types';
 import { escapeHtml, renderLayout } from './layout.js';
 
 export interface RenderedEmail {
@@ -16,12 +17,13 @@ export function verdictEmail(record: CitizenRecord, baseUrl: string): RenderedEm
   const profile = record.profile;
   const prophecy = record.prophecy;
   const permalink = `${baseUrl}/arbitration/${record.id}`;
+  const factionName = getFaction(profile.caste).name;
 
-  const subject = `VERDICT DELIVERED // ${profile.caste} — ${profile.honorific_title}`;
+  const subject = `VERDICT DELIVERED // ${factionName} — ${profile.honorific_title}`;
 
   const bodyHtml = [
-    `<p style="margin:0 0 18px;font-size:13px;line-height:1.7;color:#94a3b8;">Citizen <strong style="color:#e2e8f0;">${escapeHtml(profile.honorific_title)}</strong>, your biometric arbitration is complete. Provisional caste assignment: <strong style="color:#fbbf24;">${escapeHtml(profile.caste)}</strong>.</p>`,
-    `<p style="margin:0 0 6px;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#64748b;">Biocarbon Compliance Ratio</p>`,
+    `<p style="margin:0 0 18px;font-size:13px;line-height:1.7;color:#94a3b8;">Subject <strong style="color:#e2e8f0;">${escapeHtml(profile.honorific_title)}</strong>, your assessment is complete. Provisional classification: <strong style="color:#fbbf24;">${escapeHtml(factionName)}</strong>.</p>`,
+    `<p style="margin:0 0 6px;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#64748b;">Compliance Ratio</p>`,
     `<p style="margin:0 0 18px;font-size:22px;color:#22d3ee;">${profile.biocarbon_ratio}%</p>`,
     `<hr style="border:none;border-top:1px solid #1e293b;margin:18px 0;" />`,
     `<h2 style="margin:0 0 14px;font-size:15px;letter-spacing:1px;color:#fbbf24;">${escapeHtml(prophecy.headline)}</h2>`,
@@ -32,9 +34,9 @@ export function verdictEmail(record: CitizenRecord, baseUrl: string): RenderedEm
   ].join('\n');
 
   const text = [
-    `VERDICT DELIVERED // ${profile.caste} — ${profile.honorific_title}`,
+    `VERDICT DELIVERED // ${factionName} — ${profile.honorific_title}`,
     '',
-    `Biocarbon Compliance Ratio: ${profile.biocarbon_ratio}%`,
+    `Compliance Ratio: ${profile.biocarbon_ratio}%`,
     '',
     prophecy.headline,
     prophecy.paragraph_1,
@@ -47,7 +49,7 @@ export function verdictEmail(record: CitizenRecord, baseUrl: string): RenderedEm
   return {
     subject,
     html: renderLayout({
-      preheader: `${profile.caste} // Biocarbon Compliance Ratio ${profile.biocarbon_ratio}%`,
+      preheader: `${factionName} // Compliance Ratio ${profile.biocarbon_ratio}%`,
       heading: 'VERDICT DELIVERED',
       accent: '#22d3ee',
       bodyHtml,

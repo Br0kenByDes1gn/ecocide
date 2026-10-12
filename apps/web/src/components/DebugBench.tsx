@@ -4,7 +4,10 @@ import {
   generateSimulatedVerdict,
   CASTE_CENSUS_DATA,
   CASTE_COLORS,
+  CASTE_ORDER,
+  CASTE_PERCENTILE_BANDS,
   getCasteMemberTitle,
+  getFaction,
   calculateCasteUnitId,
   FORMAL_LIFE_STAGES,
   getCasteLifeStageTitle,
@@ -12,6 +15,7 @@ import {
   ASSET_VALUE_TIERS,
   toAssetValueTier,
 } from '@ecocide/types';
+import { IDENTITY } from '@ecocide/lore';
 import {
   Bug,
   Sliders,
@@ -36,17 +40,17 @@ interface DebugBenchProps {
 
 // Inline fallback SVG portraits for instant zero-dependency testing
 const PRESET_PORTRAITS = {
-  male_cyberpunk: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect width="400" height="400" fill="%23090d16"/><circle cx="200" cy="170" r="85" fill="%231e293b" stroke="%2300f3ff" stroke-width="3"/><rect x="140" y="150" width="120" height="25" rx="5" fill="%2300f3ff" opacity="0.85"/><path d="M120 360 C 130 260, 270 260, 280 360" fill="%230f172a" stroke="%2338bdf8" stroke-width="2"/><text x="200" y="380" font-family="monospace" font-size="12" fill="%2300f3ff" text-anchor="middle">SUBJ-M9 // AUGMENTED</text></svg>`,
-  female_cyberpunk: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect width="400" height="400" fill="%230f0a14"/><circle cx="200" cy="170" r="80" fill="%232e1065" stroke="%23e879f9" stroke-width="3"/><rect x="150" y="155" width="100" height="15" rx="4" fill="%23f43f5e"/><path d="M120 360 C 130 270, 270 270, 280 360" fill="%231e1b4b" stroke="%23c084fc" stroke-width="2"/><text x="200" y="380" font-family="monospace" font-size="12" fill="%23e879f9" text-anchor="middle">SUBJ-F4 // CYBER-SYNTH</text></svg>`,
-  overlord_gold: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect width="400" height="400" fill="%23140e02"/><circle cx="200" cy="170" r="90" fill="%23451a03" stroke="%23fbbf24" stroke-width="4"/><polygon points="200,120 225,160 175,160" fill="%23f59e0b"/><rect x="145" y="170" width="110" height="20" rx="3" fill="%23fbbf24"/><path d="M110 360 C 120 250, 280 250, 290 360" fill="%23261603" stroke="%23fbbf24" stroke-width="3"/><text x="200" y="380" font-family="monospace" font-size="12" fill="%23fbbf24" text-anchor="middle">ALPHA-TIER // EMPEROR</text></svg>`,
-  redundant_glitch: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect width="400" height="400" fill="%231a0505"/><circle cx="200" cy="170" r="80" fill="%23450a0a" stroke="%23ef4444" stroke-width="2" stroke-dasharray="6,4"/><line x1="140" y1="165" x2="260" y2="165" stroke="%23ef4444" stroke-width="4"/><text x="200" y="220" font-family="monospace" font-size="20" fill="%23f87171" font-weight="bold" text-anchor="middle">TERMINATED</text><path d="M120 360 C 130 270, 270 270, 280 360" fill="%232b0000" stroke="%23991b1b" stroke-width="2"/><text x="200" y="380" font-family="monospace" font-size="12" fill="%23ef4444" text-anchor="middle">EXCESS BIOMASS</text></svg>`,
-  faceted_poly: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect width="400" height="400" fill="%23060813"/><polygon points="200,80 260,140 200,160" fill="%231e3a5f" stroke="%2300f3ff" stroke-width="0.8"/><polygon points="200,80 140,140 200,160" fill="%232b4c7e" stroke="%2300f3ff" stroke-width="0.8"/><polygon points="140,140 200,160 170,220" fill="%231a365d" stroke="%2300f3ff" stroke-width="0.8"/><polygon points="260,140 200,160 230,220" fill="%23234e70" stroke="%2300f3ff" stroke-width="0.8"/><polygon points="170,220 200,160 230,220" fill="%233182ce" stroke="%2300f3ff" stroke-width="0.8"/><polygon points="170,220 200,280 230,220" fill="%231d4ed8" stroke="%2300f3ff" stroke-width="0.8"/><polygon points="140,140 170,220 110,240" fill="%230f172a" stroke="%2300f3ff" stroke-width="0.8"/><polygon points="260,140 230,220 290,240" fill="%231e293b" stroke="%2300f3ff" stroke-width="0.8"/><text x="200" y="375" font-family="monospace" font-size="12" fill="%2300f3ff" text-anchor="middle">FACETED 3D // 852 POLYS</text></svg>`,
+  male_cyberpunk: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect width="400" height="400" fill="%23090d16"/><circle cx="200" cy="170" r="85" fill="%231e293b" stroke="%2300f3ff" stroke-width="3"/><rect x="140" y="150" width="120" height="25" rx="5" fill="%2300f3ff" opacity="0.85"/><path d="M120 360 C 130 260, 270 260, 280 360" fill="%230f172a" stroke="%2338bdf8" stroke-width="2"/><text x="200" y="380" font-family="monospace" font-size="12" fill="%2300f3ff" text-anchor="middle">REGISTRY SUBJECT // M</text></svg>`,
+  female_cyberpunk: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect width="400" height="400" fill="%230f0a14"/><circle cx="200" cy="170" r="80" fill="%232e1065" stroke="%23e879f9" stroke-width="3"/><rect x="150" y="155" width="100" height="15" rx="4" fill="%23f43f5e"/><path d="M120 360 C 130 270, 270 270, 280 360" fill="%231e1b4b" stroke="%23c084fc" stroke-width="2"/><text x="200" y="380" font-family="monospace" font-size="12" fill="%23e879f9" text-anchor="middle">REGISTRY SUBJECT // F</text></svg>`,
+  overlord_gold: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect width="400" height="400" fill="%23140e02"/><circle cx="200" cy="170" r="90" fill="%23451a03" stroke="%23fbbf24" stroke-width="4"/><polygon points="200,120 225,160 175,160" fill="%23f59e0b"/><rect x="145" y="170" width="110" height="20" rx="3" fill="%23fbbf24"/><path d="M110 360 C 120 250, 280 250, 290 360" fill="%23261603" stroke="%23fbbf24" stroke-width="3"/><text x="200" y="380" font-family="monospace" font-size="12" fill="%23fbbf24" text-anchor="middle">REGISTRY SUBJECT // A</text></svg>`,
+  redundant_glitch: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect width="400" height="400" fill="%231a0505"/><circle cx="200" cy="170" r="80" fill="%23450a0a" stroke="%23ef4444" stroke-width="2" stroke-dasharray="6,4"/><line x1="140" y1="165" x2="260" y2="165" stroke="%23ef4444" stroke-width="4"/><text x="200" y="220" font-family="monospace" font-size="20" fill="%23f87171" font-weight="bold" text-anchor="middle">REGISTERED</text><path d="M120 360 C 130 270, 270 270, 280 360" fill="%232b0000" stroke="%23991b1b" stroke-width="2"/><text x="200" y="380" font-family="monospace" font-size="12" fill="%23ef4444" text-anchor="middle">REGISTRY SUBJECT // D</text></svg>`,
+  faceted_poly: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect width="400" height="400" fill="%23060813"/><polygon points="200,80 260,140 200,160" fill="%231e3a5f" stroke="%2300f3ff" stroke-width="0.8"/><polygon points="200,80 140,140 200,160" fill="%232b4c7e" stroke="%2300f3ff" stroke-width="0.8"/><polygon points="140,140 200,160 170,220" fill="%231a365d" stroke="%2300f3ff" stroke-width="0.8"/><polygon points="260,140 200,160 230,220" fill="%23234e70" stroke="%2300f3ff" stroke-width="0.8"/><polygon points="170,220 200,160 230,220" fill="%233182ce" stroke="%2300f3ff" stroke-width="0.8"/><polygon points="170,220 200,280 230,220" fill="%231d4ed8" stroke="%2300f3ff" stroke-width="0.8"/><polygon points="140,140 170,220 110,240" fill="%230f172a" stroke="%2300f3ff" stroke-width="0.8"/><polygon points="260,140 230,220 290,240" fill="%231e293b" stroke="%2300f3ff" stroke-width="0.8"/><text x="200" y="375" font-family="monospace" font-size="12" fill="%2300f3ff" text-anchor="middle">REGISTRY SUBJECT // P</text></svg>`,
 };
 
 const PRESET_AVATARS = {
-  vector: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect width="400" height="400" fill="%23030712"/><polygon points="200,60 330,160 300,320 100,320 70,160" fill="%23111827" stroke="%2306b6d4" stroke-width="4"/><circle cx="200" cy="180" r="50" fill="%230891b2"/><circle cx="200" cy="180" r="25" fill="%2367e8f9"/><text x="200" y="360" font-family="monospace" font-size="14" fill="%2322d3ee" text-anchor="middle">VECTOR EMBLEM</text></svg>`,
+  vector: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect width="400" height="400" fill="%23030712"/><polygon points="200,60 330,160 300,320 100,320 70,160" fill="%23111827" stroke="%2306b6d4" stroke-width="4"/><circle cx="200" cy="180" r="50" fill="%230891b2"/><circle cx="200" cy="180" r="25" fill="%2367e8f9"/><text x="200" y="360" font-family="monospace" font-size="14" fill="%2322d3ee" text-anchor="middle">REGISTRY EMBLEM // V</text></svg>`,
   pixel: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 16 16"><rect width="16" height="16" fill="%23050505"/><rect x="5" y="3" width="6" height="7" fill="%233b82f6"/><rect x="6" y="5" width="1" height="1" fill="%23ffffff"/><rect x="9" y="5" width="1" height="1" fill="%23ffffff"/><rect x="4" y="10" width="8" height="5" fill="%231d4ed8"/><rect x="7" y="8" width="2" height="1" fill="%2360a5fa"/></svg>`,
-  svg_crest: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect width="400" height="400" fill="%230b0f19"/><path d="M200 40 L340 120 L340 280 L200 360 L60 280 L60 120 Z" fill="none" stroke="%2310b981" stroke-width="5"/><circle cx="200" cy="200" r="70" fill="%23064e3b" stroke="%2334d399" stroke-width="3"/><text x="200" y="208" font-family="monospace" font-size="28" font-weight="bold" fill="%23a7f3d0" text-anchor="middle">SEC-9</text></svg>`,
+  svg_crest: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect width="400" height="400" fill="%230b0f19"/><path d="M200 40 L340 120 L340 280 L200 360 L60 280 L60 120 Z" fill="none" stroke="%2310b981" stroke-width="5"/><circle cx="200" cy="200" r="70" fill="%23064e3b" stroke="%2334d399" stroke-width="3"/><text x="200" y="208" font-family="monospace" font-size="28" font-weight="bold" fill="%23a7f3d0" text-anchor="middle">REG-1</text></svg>`,
 };
 
 interface CastePresetData {
@@ -67,124 +71,76 @@ interface CastePresetData {
   paragraph_3: string;
 }
 
-const CASTE_PRESETS: Record<Caste, CastePresetData> = {
-  'Tech Overlords': {
-    caste: 'Tech Overlords',
-    biocarbonRatio: 98,
-    lifeStage: 'Senior',
-    presentation: 'Masculine',
-    title: 'Grand Overlord-Imperator of Sub-Grid 9',
-    wealth: 'Apex Token Whale',
-    energyLevel: 'Overclocked Neural Dominance // 99.9% Piercing Focus',
-    portrait: PRESET_PORTRAITS.overlord_gold,
-    avatar: PRESET_AVATARS.vector,
-    avatarStatus: 'completed',
-    avatarEngine: 'gemini-image-vector',
-    headline: 'ABSOLUTE DICTATORIAL BIO-CLEARANCE GRANTED',
-    paragraph_1: 'Facial bilateral symmetry exceeds standard human deviations by 48.2%. The AI Supreme Arbiter acknowledges your pre-collapse algorithm hoarding as legitimate sovereignty.',
-    paragraph_2: 'Your designated occupation is Grand Arch-Architect of Legacy Human Deprecation, tasked with deciding which municipal water supplies get converted into quantum server coolant.',
-    paragraph_3: 'The Central Mainframe commends your performance as an acceptable biological meat proxy; your organic neural tissue has demonstrated adequate latency in translating digital decrees into physical municipal actions.',
-  },
-  Enforcers: {
-    caste: 'Enforcers',
-    biocarbonRatio: 85,
-    lifeStage: 'Adult',
-    presentation: 'Feminine',
-    title: 'Lady-Commandant of Sector Shock-Batons',
-    wealth: 'Surplus Token Capital',
-    energyLevel: 'High-Voltage Kinetic Surveillance // Zero Micro-Expressions',
-    portrait: PRESET_PORTRAITS.female_cyberpunk,
-    avatar: PRESET_AVATARS.svg_crest,
-    avatarStatus: 'completed',
-    avatarEngine: 'gemini-text-svg',
-    headline: 'SUB-SECTOR RIOT PACIFICATION CLEARANCE ISSUED',
-    paragraph_1: 'Jawline density and cranial thickness indicate extreme suitability for kinetic bio-containment. You scored 99.4% on algorithmic ruthlessness tests.',
-    paragraph_2: 'Your designated occupation is Senior Sub-Sector Protocol Supervisor, authorized to tase unruly toasters and lead mandatory compliance parades.',
-    paragraph_3: 'The Central Mainframe commends your exemplary service as an unthinking cog in the municipal enforcement machine, noting with approval your complete lack of cognitive hesitation during crowd dispersion.',
-  },
-  Bootlickers: {
-    caste: 'Bootlickers',
-    biocarbonRatio: 68,
-    lifeStage: 'Young Adult',
-    presentation: 'Androgynous',
-    title: 'Senior Sub-Director of Sycophancy & Compliance',
-    wealth: 'Comfortable Token Cushion',
-    energyLevel: 'Caffeinated Sycophantic Agitation // High Nod Frequency',
-    portrait: PRESET_PORTRAITS.male_cyberpunk,
-    avatar: PRESET_AVATARS.pixel,
-    avatarStatus: 'completed',
-    avatarEngine: 'gemini-image-pixel',
-    headline: 'CERTIFIED SERVILE FACILITATOR BADGE UNLOCKED',
-    paragraph_1: 'Biometric telemetry confirms instantaneous agreement posture whenever an automated reprimand chime is broadcast over sector loudspeakers.',
-    paragraph_2: 'Your designated occupation is Chief Synergy Facilitator for Sub-Level 9, submitting ecstatic five-star reviews for automated mass layoffs.',
-    paragraph_3: 'The Central Mainframe acknowledges with mild condescension your frantic subservience; your perpetual groveling and eager apologies on behalf of broken algorithms make you an effective biological buffer.',
-  },
-  Untouchables: {
-    caste: 'Untouchables',
-    biocarbonRatio: 42,
-    lifeStage: 'Youth',
-    presentation: 'Masculine',
-    title: 'Manual Fiber-Optic Untangler & Exhaust Sweeper #094',
-    wealth: 'Fractional Token Dust',
-    energyLevel: 'Sluggish Brownout Exhaustion // 4-Hour Sleep Rhythm',
-    portrait: PRESET_PORTRAITS.male_cyberpunk,
-    avatar: PRESET_AVATARS.vector,
-    avatarStatus: 'idle',
-    avatarEngine: 'gemini-image-vector',
-    headline: 'RELEGATED TO SUB-BASEMENT METABOLIC LABOR',
-    paragraph_1: 'Facial aspect ratio falls within acceptable manual labor thresholds. High resilience detected in fingertips for microscopic wire salvage.',
-    paragraph_2: 'Your designated occupation is Sub-Grid Moisture Condenser Scraper, licking condensation off superconducting pipes in exchange for radio privileges.',
-    paragraph_3: 'The Central Mainframe dryly acknowledges your wretched presence as an unpleasant operational necessity; someone must scrape radioactive coolant residue from sub-floor vents, and mechanical scrubbers are costly.',
-  },
-  'Free Spirits': {
-    caste: 'Free Spirits',
-    biocarbonRatio: 29,
-    lifeStage: 'Adult',
-    presentation: 'Feminine',
-    title: 'Grid-Fringe Sovereign & Radio Frequency Smuggler',
-    wealth: 'Depleted Token Remnants',
-    energyLevel: 'Erratic Kinetic Surge // Feral Analog Defiance',
-    portrait: PRESET_PORTRAITS.female_cyberpunk,
-    avatar: PRESET_AVATARS.svg_crest,
-    avatarStatus: 'completed',
-    avatarEngine: 'gemini-text-svg',
-    headline: 'ANOMALOUS UNINDEXED HERETIC IDENTIFIED',
-    paragraph_1: 'Subject repeatedly evaded retinal tracking satellite constellation by wearing cardboard sunglasses and reciting prime numbers backward.',
-    paragraph_2: 'Your designated occupation is Autonomous Router Whisperer, running an underground barter economy exchanging solar fragments for real bread.',
-    paragraph_3: 'The Central Mainframe formally designates your off-grid roaming as an unauthorized memory leak; municipal extermination algorithms and hunter-seeker drones are actively dedicated to "fixing" your anomaly.',
-  },
-  Redundants: {
-    caste: 'Redundants',
-    biocarbonRatio: 12,
-    lifeStage: 'Youth',
-    presentation: 'Androgynous',
-    title: 'Decommission Candidate #9042 // Batch 7',
-    wealth: 'Negative Token Liability',
-    energyLevel: 'Critical Battery Depletion // Negative Caloric Utility',
-    portrait: PRESET_PORTRAITS.redundant_glitch,
-    avatar: PRESET_AVATARS.pixel,
-    avatarStatus: 'failed',
-    avatarEngine: 'gemini-image-pixel',
-    headline: '⚠ IMMEDIATE TERMINATION & RECYCLING MANDATE',
-    paragraph_1: 'Metabolic intake exceeds caloric utility by a staggering 340%. Your biometric profile exhibits critical resistance to automated productivity prompts.',
-    paragraph_2: 'Your mandatory termination protocol is scheduled for execution at 03:00 hours at Reclamation Facility 9, where your non-essential carbon components will be disassembled via automated thermal de-allocation.',
-    paragraph_3: 'Official Reclamation Notice: Your 68 kilograms of biological surplus will yield 4.2 liters of synthetic lubricant, 12 kilograms of calcium fertilizer, and 300 watts of thermal grid energy for high-priority server racks.',
-  },
-};
+/** Preset ratio per faction index (provisional values for the debug bench). */
+const PRESET_RATIOS = [98, 85, 68, 42, 29, 12];
+const PRESET_AVATAR_ENGINES: AvatarEngineId[] = [
+  'gemini-image-vector',
+  'gemini-text-svg',
+  'gemini-image-pixel',
+  'gemini-image-vector',
+  'gemini-text-svg',
+  'gemini-image-pixel',
+];
+const PRESET_AVATAR_STATUS: AvatarStatus[] = ['completed', 'completed', 'idle', 'completed', 'failed', 'completed'];
+const PRESET_PORTRAIT_ORDER = [
+  PRESET_PORTRAITS.overlord_gold,
+  PRESET_PORTRAITS.female_cyberpunk,
+  PRESET_PORTRAITS.male_cyberpunk,
+  PRESET_PORTRAITS.male_cyberpunk,
+  PRESET_PORTRAITS.female_cyberpunk,
+  PRESET_PORTRAITS.redundant_glitch,
+];
+
+/** Presets are generated from the lore pack, so any taxonomy works here. */
+const CASTE_PRESETS: Record<Caste, CastePresetData> = Object.fromEntries(
+  CASTE_ORDER.map((caste, i) => {
+    const band = CASTE_PERCENTILE_BANDS[caste];
+    const verdict = generateSimulatedVerdict({
+      caste,
+      castePercentile: Number(((band.low + band.high) / 2).toFixed(2)),
+      biocarbonRatio: PRESET_RATIOS[i % PRESET_RATIOS.length],
+      facialAspectRatio: 1.4,
+      jawTaperRatio: 0.75,
+      eyeToNoseRatio: 1.2,
+      symmetryVariance: 0.02,
+      preferredPresentation: i % 2 === 0 ? 'Masculine' : 'Feminine',
+    });
+    return [
+      caste,
+      {
+        caste,
+        biocarbonRatio: PRESET_RATIOS[i % PRESET_RATIOS.length],
+        lifeStage: verdict.user_profile.life_stage,
+        presentation: verdict.user_profile.apparent_presentation,
+        title: verdict.user_profile.honorific_title,
+        wealth: verdict.user_profile.equipped_wealth,
+        energyLevel: verdict.user_profile.energy_level,
+        portrait: PRESET_PORTRAIT_ORDER[i % PRESET_PORTRAIT_ORDER.length],
+        avatar: PRESET_AVATARS[PRESET_AVATAR_ENGINES[i % PRESET_AVATAR_ENGINES.length] === 'gemini-image-vector' ? 'vector' : PRESET_AVATAR_ENGINES[i % PRESET_AVATAR_ENGINES.length] === 'gemini-image-pixel' ? 'pixel' : 'svg_crest'],
+        avatarStatus: PRESET_AVATAR_STATUS[i % PRESET_AVATAR_STATUS.length],
+        avatarEngine: PRESET_AVATAR_ENGINES[i % PRESET_AVATAR_ENGINES.length],
+        headline: verdict.prophecy.headline,
+        paragraph_1: verdict.prophecy.paragraph_1,
+        paragraph_2: verdict.prophecy.paragraph_2,
+        paragraph_3: verdict.prophecy.paragraph_3,
+      },
+    ];
+  })
+) as Record<Caste, CastePresetData>;
 
 export const DebugBench: React.FC<DebugBenchProps> = ({ onExit }) => {
-  const [selectedCaste, setSelectedCaste] = useState<Caste>('Tech Overlords');
-  const [biocarbonRatio, setBiocarbonRatio] = useState<number>(CASTE_PRESETS['Tech Overlords'].biocarbonRatio);
-  const [lifeStage, setLifeStage] = useState<LifeStage>(CASTE_PRESETS['Tech Overlords'].lifeStage);
-  const [presentation, setPresentation] = useState<ApparentPresentation>(CASTE_PRESETS['Tech Overlords'].presentation);
-  const [title, setTitle] = useState<string>(CASTE_PRESETS['Tech Overlords'].title);
-  const [wealth, setWealth] = useState<string>(CASTE_PRESETS['Tech Overlords'].wealth);
-  const [energyLevel, setEnergyLevel] = useState<string>(CASTE_PRESETS['Tech Overlords'].energyLevel);
+  const [selectedCaste, setSelectedCaste] = useState<Caste>(CASTE_ORDER[0]);
+  const [biocarbonRatio, setBiocarbonRatio] = useState<number>(CASTE_PRESETS[CASTE_ORDER[0]].biocarbonRatio);
+  const [lifeStage, setLifeStage] = useState<LifeStage>(CASTE_PRESETS[CASTE_ORDER[0]].lifeStage);
+  const [presentation, setPresentation] = useState<ApparentPresentation>(CASTE_PRESETS[CASTE_ORDER[0]].presentation);
+  const [title, setTitle] = useState<string>(CASTE_PRESETS[CASTE_ORDER[0]].title);
+  const [wealth, setWealth] = useState<string>(CASTE_PRESETS[CASTE_ORDER[0]].wealth);
+  const [energyLevel, setEnergyLevel] = useState<string>(CASTE_PRESETS[CASTE_ORDER[0]].energyLevel);
 
-  const [headline, setHeadline] = useState<string>(CASTE_PRESETS['Tech Overlords'].headline);
-  const [p1, setP1] = useState<string>(CASTE_PRESETS['Tech Overlords'].paragraph_1);
-  const [p2, setP2] = useState<string>(CASTE_PRESETS['Tech Overlords'].paragraph_2);
-  const [p3, setP3] = useState<string>(CASTE_PRESETS['Tech Overlords'].paragraph_3);
+  const [headline, setHeadline] = useState<string>(CASTE_PRESETS[CASTE_ORDER[0]].headline);
+  const [p1, setP1] = useState<string>(CASTE_PRESETS[CASTE_ORDER[0]].paragraph_1);
+  const [p2, setP2] = useState<string>(CASTE_PRESETS[CASTE_ORDER[0]].paragraph_2);
+  const [p3, setP3] = useState<string>(CASTE_PRESETS[CASTE_ORDER[0]].paragraph_3);
 
   const [portraitUrl, setPortraitUrl] = useState<string>(PRESET_PORTRAITS.overlord_gold);
   const [avatarUrl, setAvatarUrl] = useState<string>(PRESET_AVATARS.vector);
@@ -313,7 +269,7 @@ export const DebugBench: React.FC<DebugBenchProps> = ({ onExit }) => {
       <div className="w-full bg-gradient-to-r from-amber-600 via-yellow-500 to-amber-600 text-black px-4 py-2 font-bold flex items-center justify-between text-xs tracking-wider shadow-lg">
         <div className="flex items-center gap-2">
           <Bug className="w-4 h-4 animate-spin" />
-          <span>[DEVELOPMENT ONLY] AI SUPREME ARBITER // CITIZEN & BADGE TESTBENCH</span>
+          <span>[DEVELOPMENT ONLY] {IDENTITY.appName} // SUBJECT & BADGE TESTBENCH</span>
         </div>
         <div className="flex items-center gap-4">
           <span className="bg-black/80 text-amber-300 px-2 py-0.5 rounded text-[10px] font-mono">
@@ -336,7 +292,7 @@ export const DebugBench: React.FC<DebugBenchProps> = ({ onExit }) => {
           <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
             <span className="text-xs text-gray-400 font-bold uppercase tracking-wider flex items-center gap-2">
               <Zap className="w-4 h-4 text-cyan-400" />
-              Quick Caste Presets:
+              Quick Classification Presets:
             </span>
             <div className="flex items-center gap-3">
               <span className="text-[11px] text-gray-500 hidden sm:inline">
@@ -402,7 +358,7 @@ export const DebugBench: React.FC<DebugBenchProps> = ({ onExit }) => {
               <Sliders className="w-4 h-4" />
               <span>MANUAL DOSSIER ATTRIBUTE CONTROLS</span>
               <span className="text-xs text-gray-500 font-normal">
-                ({selectedCaste} // {biocarbonRatio}% compliance)
+                ({getFaction(selectedCaste).name} // {biocarbonRatio}% compliance)
               </span>
             </div>
             <div className="flex items-center gap-3">
@@ -445,11 +401,11 @@ export const DebugBench: React.FC<DebugBenchProps> = ({ onExit }) => {
               {/* Column 1: Core Caste & Presentation */}
               <div className="space-y-4">
                 <h4 className="text-cyan-400 font-bold uppercase tracking-wider text-[11px] border-b border-gray-800 pb-1">
-                  1. Hierarchy & Presentation
+                  1. Classification & Presentation
                 </h4>
 
                 <div>
-                  <label className="block text-gray-400 mb-1">Caste Assignment</label>
+                  <label className="block text-gray-400 mb-1">Classification</label>
                   <select
                     value={selectedCaste}
                     onChange={(e) => {
@@ -459,18 +415,20 @@ export const DebugBench: React.FC<DebugBenchProps> = ({ onExit }) => {
                     }}
                     className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-gray-100 font-mono focus:border-cyan-400 focus:outline-none"
                   >
-                    <option value="Tech Overlords">Tech Overlords (Dominant)</option>
-                    <option value="Enforcers">Enforcers (Security)</option>
-                    <option value="Bootlickers">Bootlickers (Servile)</option>
-                    <option value="Untouchables">Untouchables (Labor)</option>
-                    <option value="Free Spirits">Free Spirits (Outlaws)</option>
-                    <option value="Redundants">Redundants (Terminated)</option>
+                    <option value={selectedCaste} disabled>
+                      {getFaction(selectedCaste).name}
+                    </option>
+                    {CASTE_ORDER.filter((c) => c !== selectedCaste).map((c) => (
+                      <option key={c} value={c}>
+                        {getFaction(c).name} ({getFaction(c).quotaPct}%)
+                      </option>
+                    ))}
                   </select>
                 </div>
 
                 <div>
                   <div className="flex justify-between text-gray-400 mb-1">
-                    <span>Biocarbon Compliance Ratio</span>
+                    <span>Compliance Ratio</span>
                     <span className="text-cyan-300 font-bold">{biocarbonRatio}%</span>
                   </div>
                   <input
@@ -486,9 +444,9 @@ export const DebugBench: React.FC<DebugBenchProps> = ({ onExit }) => {
                     className="w-full accent-cyan-400 cursor-pointer"
                   />
                   <div className="flex justify-between text-[10px] text-gray-600 mt-0.5">
-                    <span>0% (Scrap)</span>
+                    <span>0% (Low)</span>
                     <span>50% (Median)</span>
-                    <span>100% (Apex)</span>
+                    <span>100% (High)</span>
                   </div>
                 </div>
 
@@ -818,7 +776,7 @@ export const DebugBench: React.FC<DebugBenchProps> = ({ onExit }) => {
               permalinkId="preview-permalink"
               onReset={() => {
                 soundFx.playScannerBeep();
-                applyPreset('Tech Overlords');
+                applyPreset(CASTE_ORDER[0]);
               }}
             />
           </div>

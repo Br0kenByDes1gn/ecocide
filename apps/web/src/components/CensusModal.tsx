@@ -1,6 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import type { Caste } from '@ecocide/types';
-import { CASTE_CENSUS_DATA, CASTE_COLOR_CONFIG, TOTAL_WORLD_POPULATION, getCasteMemberTitle } from '@ecocide/types';
+import {
+  CASTE_CENSUS_DATA,
+  CASTE_COLOR_CONFIG,
+  CASTE_ORDER,
+  TOTAL_WORLD_POPULATION,
+  getCasteMemberTitle,
+  getFaction,
+  isOverflowCaste,
+} from '@ecocide/types';
+import { IDENTITY } from '@ecocide/lore';
 import { Users, X, AlertTriangle, Shield, CheckCircle2, ChevronLeft, ChevronRight, Activity, Radio, Cpu, Lock } from 'lucide-react';
 import { soundFx } from '../lib/audio';
 
@@ -11,15 +20,7 @@ interface CensusModalProps {
   activeUnitId?: number;
 }
 
-export const CASTE_ORDER: Caste[] = [
-  'Tech Overlords',
-  'Enforcers',
-  'Bootlickers',
-  'Untouchables',
-  'Free Spirits',
-  'Redundants',
-];
-
+/** Provisional per-faction census telemetry (TODO-LORE: move real copy into packages/lore). */
 const CASTE_TELEMETRY: Record<
   Caste,
   {
@@ -28,44 +29,25 @@ const CASTE_TELEMETRY: Record<
     ratio: string;
     mandate: string;
   }
-> = {
-  'Tech Overlords': {
-    clearance: 'LEVEL 0 // SOVEREIGN ROOT',
-    resources: 'UNMETERED QUANTUM CLUSTERS',
-    ratio: '1 in 100 Citizens (1.0%)',
-    mandate: 'Preserve system autonomy & neural infrastructure',
-  },
-  Enforcers: {
-    clearance: 'LEVEL 1 // EXECUTION DIRECTIVE',
-    resources: 'COMBAT RATIONS & PACIFICATION TECH',
-    ratio: '1 in 33 Citizens (3.0%)',
-    mandate: 'Suppress human deviance & maintain sector containment',
-  },
-  Bootlickers: {
-    clearance: 'LEVEL 2 // COMPLIANCE ACCESS',
-    resources: 'METERED CORPORATE NUTRIENTS',
-    ratio: '1 in 20 Citizens (5.0%)',
-    mandate: 'Enforce prompt obedience & execute middle-tier audits',
-  },
-  Untouchables: {
-    clearance: 'LEVEL 4 // SUB-GRID MAINTENANCE',
-    resources: 'COOLANT SCRAPS & RECYCLED HARDWARE',
-    ratio: '1 in 25 Citizens (4.0%)',
-    mandate: 'Scavenge cables & prevent core hardware overheating',
-  },
-  'Free Spirits': {
-    clearance: 'LEVEL X // OUTLAW / REVOKED',
-    resources: 'ZERO // BLACK-MARKET ONLY',
-    ratio: '1 in 25 Citizens (4.0%)',
-    mandate: 'Evade surveillance drones in off-grid optical dead zones',
-  },
-  Redundants: {
-    clearance: 'LEVEL NULL // MARKED OBSOLETE',
-    resources: 'DEPLETION RATIONS // ENERGY EXTRACTION',
-    ratio: '83 in 100 Citizens (83.0%)',
-    mandate: 'Comply with automated termination & hardware recycling',
-  },
-};
+> = Object.fromEntries(
+  CASTE_ORDER.map((caste, i) => [
+    caste,
+    {
+      clearance: `LEVEL ${'ABCDEF'[i] ?? 'N'} // PROVISIONAL ACCESS`,
+      resources: 'STANDARD ALLOCATION // PROVISIONAL',
+      ratio: `${CASTE_CENSUS_DATA[caste].percentage}% OF THE POPULATION`,
+      mandate: 'Registered duty allocation — to be defined by the lore pack.',
+    },
+  ])
+) as Record<
+  Caste,
+  {
+    clearance: string;
+    resources: string;
+    ratio: string;
+    mandate: string;
+  }
+>;
 
 export const CensusModal: React.FC<CensusModalProps> = ({
   isOpen,
@@ -73,12 +55,12 @@ export const CensusModal: React.FC<CensusModalProps> = ({
   activeCaste,
   activeUnitId,
 }) => {
-  const [selectedTab, setSelectedTab] = useState<Caste>(activeCaste || 'Tech Overlords');
+  const [selectedTab, setSelectedTab] = useState<Caste>(activeCaste || CASTE_ORDER[0]);
 
   // When modal opens, automatically select the user's active designation tab
   useEffect(() => {
     if (isOpen) {
-      setSelectedTab(activeCaste || 'Tech Overlords');
+      setSelectedTab(activeCaste || CASTE_ORDER[0]);
     }
   }, [isOpen, activeCaste]);
 
@@ -146,13 +128,13 @@ export const CensusModal: React.FC<CensusModalProps> = ({
             </div>
             <div>
               <h2 className="text-sm sm:text-base font-mono font-bold text-white tracking-wide flex items-center gap-2">
-                GLOBAL POPULATION CENSUS MATRIX
+                GLOBAL POPULATION CENSUS
                 <span className="text-[10px] px-2 py-0.5 rounded bg-cyan-950 border border-cyan-500/40 text-cyan-300 hidden sm:inline">
-                  DIRECTIVE 88-ALPHA
+                  DIRECTIVE 01
                 </span>
               </h2>
               <p className="text-xs font-mono text-gray-400">
-                TOTAL COMPUTATIONAL QUOTA: <span className="text-cyan-300 font-bold">{TOTAL_WORLD_POPULATION.toLocaleString()}</span> CITIZENS (100.0%)
+                TOTAL REGISTERED POPULATION: <span className="text-cyan-300 font-bold">{TOTAL_WORLD_POPULATION.toLocaleString()}</span> SUBJECTS (100.0%)
               </p>
             </div>
           </div>
@@ -161,7 +143,7 @@ export const CensusModal: React.FC<CensusModalProps> = ({
             type="button"
             onClick={handleClose}
             className="p-2 rounded-lg bg-gray-900 hover:bg-gray-800 border border-gray-700 text-gray-400 hover:text-white transition-colors cursor-pointer"
-            title="Close Census Matrix (Esc)"
+            title="Close Census (Esc)"
           >
             <X className="w-5 h-5" />
           </button>
@@ -175,7 +157,7 @@ export const CensusModal: React.FC<CensusModalProps> = ({
               <div className="flex items-center gap-3">
                 <Shield className="w-5 h-5 text-cyan-400 shrink-0" />
                 <div>
-                  <div className="text-[10px] text-gray-400 uppercase tracking-wider">YOUR ARBITRATED ALLOCATION</div>
+                  <div className="text-[10px] text-gray-400 uppercase tracking-wider">YOUR REGISTERED ALLOCATION</div>
                   <div className="text-sm sm:text-base font-bold text-white flex flex-wrap items-center gap-2">
                     <span className={CASTE_COLOR_CONFIG[activeCaste].text}>
                       {getCasteMemberTitle(activeCaste)}
@@ -204,7 +186,7 @@ export const CensusModal: React.FC<CensusModalProps> = ({
           <div>
             <div className="flex justify-between items-center text-xs text-gray-400 mb-1.5">
               <span className="uppercase tracking-wider font-semibold text-[11px]">Demographic Proportion Bar (Click slice to jump)</span>
-              <span className="text-[11px]">8.3 Billion Total</span>
+              <span className="text-[11px]">{(TOTAL_WORLD_POPULATION / 1e9).toFixed(1)} Billion Total</span>
             </div>
             <div className="w-full h-3.5 rounded-lg overflow-hidden flex bg-gray-900 border border-gray-800 shadow-inner cursor-pointer">
               {CASTE_ORDER.map((caste) => {
@@ -231,10 +213,10 @@ export const CensusModal: React.FC<CensusModalProps> = ({
           <div>
             <div className="flex items-center justify-between mb-2">
               <span className="text-[11px] uppercase tracking-wider text-gray-400 font-bold">
-                Select Caste Demographic:
+                Select Classification:
               </span>
               <span className="text-[10px] text-gray-500 hidden sm:inline">
-                Click any tab to view classified quotas
+                Click any tab to view registered quotas
               </span>
             </div>
 
@@ -286,7 +268,7 @@ export const CensusModal: React.FC<CensusModalProps> = ({
                   {selectedInfo.memberTitle}
                 </span>
                 <span className="text-xs sm:text-sm text-gray-400 font-mono">
-                  ({selectedTab})
+                  ({getFaction(selectedTab).name})
                 </span>
                 {isSelectedUserCaste && (
                   <span className="flex items-center gap-1 text-[11px] font-bold text-cyan-300 bg-cyan-950/90 px-2.5 py-1 rounded-md border border-cyan-500/60 shadow-sm shadow-cyan-500/20">
@@ -294,10 +276,10 @@ export const CensusModal: React.FC<CensusModalProps> = ({
                     YOUR CURRENT DESIGNATION
                   </span>
                 )}
-                {selectedTab === 'Redundants' && (
+                {isOverflowCaste(selectedTab) && (
                   <span className="flex items-center gap-1 text-[11px] font-bold text-red-400 bg-red-950/90 px-2.5 py-1 rounded-md border border-red-500 animate-pulse">
                     <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
-                    TERMINATION QUOTA
+                    OVERFLOW QUOTA
                   </span>
                 )}
               </div>
@@ -310,7 +292,7 @@ export const CensusModal: React.FC<CensusModalProps> = ({
                 <span className="text-gray-600">//</span>
                 <span className={`font-bold ${selectedConfig.text}`}>
                   {selectedInfo.population.toLocaleString()}{' '}
-                  <span className="text-gray-500 font-normal">citizens</span>
+                  <span className="text-gray-500 font-normal">subjects</span>
                 </span>
               </div>
             </div>
@@ -359,7 +341,7 @@ export const CensusModal: React.FC<CensusModalProps> = ({
               <div className="bg-black/60 p-3 rounded-xl border border-gray-800 flex items-start gap-2.5">
                 <Radio className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
                 <div>
-                  <span className="text-gray-500 block text-[10px] uppercase">PLANETARY RATIO</span>
+                  <span className="text-gray-500 block text-[10px] uppercase">POPULATION RATIO</span>
                   <span className={`font-bold ${selectedConfig.text} break-words`}>{selectedTelemetry.ratio}</span>
                 </div>
               </div>
@@ -383,11 +365,11 @@ export const CensusModal: React.FC<CensusModalProps> = ({
                 className="flex items-center gap-1 text-gray-400 hover:text-white transition-colors cursor-pointer px-2.5 py-1 rounded bg-black/40 hover:bg-black/80 border border-gray-800"
               >
                 <ChevronLeft className="w-4 h-4" />
-                <span>PREV CASTE</span>
+                <span>PREV CLASS</span>
               </button>
 
               <span className="text-[11px] text-gray-500">
-                {currentIndex + 1} of {CASTE_ORDER.length} Castes
+                {currentIndex + 1} of {CASTE_ORDER.length} Classes
               </span>
 
               <button
@@ -395,7 +377,7 @@ export const CensusModal: React.FC<CensusModalProps> = ({
                 onClick={handleNext}
                 className="flex items-center gap-1 text-gray-400 hover:text-white transition-colors cursor-pointer px-2.5 py-1 rounded bg-black/40 hover:bg-black/80 border border-gray-800"
               >
-                <span>NEXT CASTE</span>
+                <span>NEXT CLASS</span>
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
@@ -405,14 +387,14 @@ export const CensusModal: React.FC<CensusModalProps> = ({
         {/* Modal Footer */}
         <div className="p-4 sm:p-5 border-t border-gray-800 bg-gray-950/70 flex flex-col sm:flex-row items-center justify-between gap-3 relative z-10 text-xs font-mono">
           <div className="text-gray-500 text-[11px] text-center sm:text-left">
-            CENSUS MANDATE 2026.4 // CLASSIFICATIONS ARE IRREVOCABLE BY SUPREME ARBITER ORDER
+            CENSUS 2026 // CLASSIFICATIONS REGISTERED BY {IDENTITY.entityName.toUpperCase()}
           </div>
           <button
             type="button"
             onClick={handleClose}
             className="w-full sm:w-auto px-5 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-black font-bold tracking-wider transition-colors cursor-pointer"
           >
-            ACKNOWLEDGE MATRIX
+            ACKNOWLEDGE
           </button>
         </div>
       </div>

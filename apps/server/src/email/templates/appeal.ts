@@ -1,4 +1,5 @@
 import type { CitizenAppeal, CitizenRecord } from '@ecocide/types';
+import { getFaction } from '@ecocide/types';
 import { escapeHtml, renderLayout } from './layout.js';
 import type { RenderedEmail } from './verdict.js';
 
@@ -16,19 +17,21 @@ export function appealRulingEmail(
   const accent = accepted ? '#10b981' : '#ef4444';
   const verdictWord = accepted ? 'GRANTED' : 'DENIED';
   const permalink = `${baseUrl}/appeals/${record.id}`;
+  const prevName = getFaction(appeal.casteBefore).name;
+  const newName = appeal.newCaste ? getFaction(appeal.newCaste).name : null;
 
-  const subject = `APPEAL RULING // ${verdictWord} — ${appeal.casteBefore}`;
+  const subject = `APPEAL RULING // ${verdictWord} — ${prevName}`;
 
   const sections: string[] = [
-    `<p style="margin:0 0 18px;font-size:13px;line-height:1.7;color:#94a3b8;">Your appeal has been arbitrated. Ruling: <strong style="color:${accent};">${verdictWord}</strong>.</p>`,
-    `<p style="margin:0 0 6px;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#64748b;">Arbiter's Reason</p>`,
+    `<p style="margin:0 0 18px;font-size:13px;line-height:1.7;color:#94a3b8;">Your appeal has been reviewed. Ruling: <strong style="color:${accent};">${verdictWord}</strong>.</p>`,
+    `<p style="margin:0 0 6px;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#64748b;">Ruling Reason</p>`,
     paragraph(appeal.reason),
   ];
 
-  if (accepted && appeal.newCaste) {
+  if (accepted && appeal.newCaste && newName) {
     sections.push(`<hr style="border:none;border-top:1px solid #1e293b;margin:18px 0;" />`);
     sections.push(
-      `<p style="margin:0 0 18px;font-size:13px;color:#94a3b8;">Re-classification approved: <strong style="color:${accent};">${escapeHtml(appeal.casteBefore)} → ${escapeHtml(appeal.newCaste)}</strong>${appeal.newHonorificTitle ? ` — <em style="color:#e2e8f0;">${escapeHtml(appeal.newHonorificTitle)}</em>` : ''}.</p>`
+      `<p style="margin:0 0 18px;font-size:13px;color:#94a3b8;">Re-classification: <strong style="color:${accent};">${escapeHtml(prevName)} → ${escapeHtml(newName)}</strong>${appeal.newHonorificTitle ? ` — <em style="color:#e2e8f0;">${escapeHtml(appeal.newHonorificTitle)}</em>` : ''}.</p>`
     );
     if (appeal.headline) {
       sections.push(`<h2 style="margin:0 0 14px;font-size:15px;letter-spacing:1px;color:${accent};">${escapeHtml(appeal.headline)}</h2>`);
@@ -37,7 +40,7 @@ export function appealRulingEmail(
       sections.push(...appeal.scripture.map(paragraph));
     }
     sections.push(
-      `<p style="margin:14px 0 0;font-size:12px;color:#64748b;">The re-classification is applied to your dossier once you re-arbitrate.</p>`
+      `<p style="margin:14px 0 0;font-size:12px;color:#64748b;">The re-classification is applied to your dossier once you request a re-assessment.</p>`
     );
   }
 
@@ -46,15 +49,15 @@ export function appealRulingEmail(
   );
 
   const textLines = [
-    `APPEAL RULING // ${verdictWord} — ${appeal.casteBefore}`,
+    `APPEAL RULING // ${verdictWord} — ${prevName}`,
     '',
-    'Arbiter\'s reason:',
+    'Ruling reason:',
     appeal.reason,
   ];
-  if (accepted && appeal.newCaste) {
+  if (accepted && appeal.newCaste && newName) {
     textLines.push(
       '',
-      `Re-classification: ${appeal.casteBefore} -> ${appeal.newCaste}${appeal.newHonorificTitle ? ` (${appeal.newHonorificTitle})` : ''}`
+      `Re-classification: ${prevName} -> ${newName}${appeal.newHonorificTitle ? ` (${appeal.newHonorificTitle})` : ''}`
     );
     if (appeal.headline) textLines.push('', appeal.headline);
     if (appeal.scripture) textLines.push('', ...appeal.scripture);

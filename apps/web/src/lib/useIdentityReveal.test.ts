@@ -6,19 +6,19 @@ import {
   COMPLIANCE_COUNT_STEPS,
 } from './useIdentityReveal';
 
-const techOverlordProfile: UserProfile = {
-  caste: 'Tech Overlords',
+const firstClassProfile: UserProfile = {
+  caste: 'class-i',
   biocarbon_ratio: 98,
   life_stage: 'Adult',
-  equipped_wealth: 'Apex Token Whale',
-  energy_level: 'Overclocked Neural Dominance',
+  equipped_wealth: 'Baseline',
+  energy_level: 'Peak Output',
   apparent_presentation: 'Masculine',
-  honorific_title: 'Grand Overlord-Imperator',
+  honorific_title: 'Class I Member #1234',
 };
 
 describe('useIdentityReveal helpers', () => {
   it('fills the stats in the mandated order: title, presentation, utility grade, asset value, energy level', () => {
-    const steps = buildIdentityRevealSteps(techOverlordProfile);
+    const steps = buildIdentityRevealSteps(firstClassProfile);
     expect(steps.map((s) => s.phase)).toEqual([
       'title',
       'presentation',
@@ -29,12 +29,12 @@ describe('useIdentityReveal helpers', () => {
   });
 
   it('maps each reveal step to the exact dossier stat value', () => {
-    const steps = buildIdentityRevealSteps(techOverlordProfile);
-    expect(steps[0].value).toBe('Grand Overlord-Imperator'); // title
+    const steps = buildIdentityRevealSteps(firstClassProfile);
+    expect(steps[0].value).toBe('Class I Member #1234'); // title
     expect(steps[1].value).toBe('Masculine'); // presentation
-    expect(steps[2].value).toBe('Production Root'); // utility grade (Adult)
-    expect(steps[3].value).toBe('Apex Token Whale'); // asset value
-    expect(steps[4].value).toBe('Overclocked Neural Dominance'); // energy level
+    expect(steps[2].value).toBe('Adult'); // utility grade (Adult)
+    expect(steps[3].value).toBe('Baseline'); // asset value
+    expect(steps[4].value).toBe('Peak Output'); // energy level
   });
 
   it('keeps the Biocarbon Compliance Ratio count-up as a bounded step count', () => {
@@ -43,24 +43,24 @@ describe('useIdentityReveal helpers', () => {
   });
 
   it('fullIdentityReveal reveals every stat immediately with formatted values', () => {
-    const reveal = fullIdentityReveal(techOverlordProfile);
+    const reveal = fullIdentityReveal(firstClassProfile);
     expect(reveal.isComplete).toBe(true);
     expect(reveal.phase).toBe('done');
     expect(reveal.meshVisible).toBe(true);
-    expect(reveal.titleText).toBe('Grand Overlord-Imperator');
+    expect(reveal.titleText).toBe('Class I Member #1234');
     expect(reveal.presentationText).toBe('Masculine');
-    expect(reveal.utilityText).toBe('Production Root');
-    expect(reveal.assetText).toBe('Apex Token Whale');
-    expect(reveal.energyText).toBe('Overclocked Neural Dominance');
+    expect(reveal.utilityText).toBe('Adult');
+    expect(reveal.assetText).toBe('Baseline');
+    expect(reveal.energyText).toBe('Peak Output');
     expect(reveal.complianceText).toBe('98%');
   });
 
   it('fullIdentityReveal resolves the caste life stage title from legacy stages too', () => {
     const legacyProfile: UserProfile = {
-      ...techOverlordProfile,
+      ...firstClassProfile,
       life_stage: 'Champion',
     };
     const reveal = fullIdentityReveal(legacyProfile);
-    expect(reveal.utilityText).toBe('Production Root');
+    expect(reveal.utilityText).toBe('Adult');
   });
 });

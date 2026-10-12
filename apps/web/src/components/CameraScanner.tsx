@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { BiometricTelemetry, Caste } from '@ecocide/types';
-import { CASTE_COLORS } from '@ecocide/types';
+import { CASTE_COLORS, CASTE_ORDER } from '@ecocide/types';
 import { Activity, AlertTriangle, RefreshCw, Upload, Zap } from 'lucide-react';
 import { soundFx } from '../lib/audio';
 import {
@@ -16,6 +16,8 @@ import type { Landmark3D } from '../lib/face-geometry';
 import { renderPolygonPortrait } from '../lib/polygon-portrait';
 import type { FaceLandmarker } from '@mediapipe/tasks-vision';
 
+type ReticleVariant = 'v1' | 'v2' | 'v3' | 'v4' | 'v5' | 'v6' | 'default';
+
 interface CrypticSignature {
   code: string;
   subcode: string;
@@ -27,122 +29,67 @@ interface CrypticSignature {
   reticleSpeed: string;
   statusBadge: string;
   badgeStyle: string;
-  reticleType: 'overlord' | 'enforcer' | 'bootlicker' | 'untouchable' | 'freespirit' | 'redundant' | 'default';
+  reticleType: ReticleVariant;
 }
 
+/** Provisional channel labels (TODO-LORE: replace with the real vocabulary). */
+const SIGNATURE_CODES = ['SIG-01', 'SIG-02', 'SIG-03', 'SIG-04', 'SIG-05', 'SIG-06'];
+const SIGNATURE_SUBCODES = [
+  'PROVISIONAL // A',
+  'PROVISIONAL // B',
+  'PROVISIONAL // C',
+  'PROVISIONAL // D',
+  'PROVISIONAL // E',
+  'PROVISIONAL // F',
+];
+const SIGNATURE_BADGES = [
+  '◆ LOCK ACQUIRED',
+  '⌖ CHANNEL LOCKED',
+  '● SIGNAL STABLE',
+  '✦ SIGNATURE FOUND',
+  '◈ SPECTRUM FLAT',
+  '⚠ ANOMALY PROFILE',
+];
+const SIGNATURE_EQ = ['eq-high', 'eq-tactical', 'eq-rhythm', 'eq-glitch', 'eq-organic', 'eq-heartbeat'];
+const SIGNATURE_SPEEDS = ['2s', '3s', '4.5s', '5s', '6s', '2.4s'];
+const RETICLE_VARIANTS: ReticleVariant[] = ['v1', 'v2', 'v3', 'v4', 'v5', 'v6'];
+
+/**
+ * Post-lock scan signature: per-faction accent colors from the lore pack over
+ * neutral registry channel codes (placeholders).
+ */
 function getCrypticSignature(caste?: Caste): CrypticSignature {
-  switch (caste) {
-    case 'Tech Overlords': {
-      const c = CASTE_COLORS['Tech Overlords'];
-      return {
-        code: 'FREQ-Ω // 99.8 GHz',
-        subcode: 'SIGMA-HARMONIC // ALPHA',
-        color: c.hex,
-        glowColor: c.glowHex,
-        barColor: c.barColor,
-        barShadow: 'shadow-[0_0_8px_rgba(251,191,36,0.6)]',
-        eqAnimation: 'eq-high',
-        reticleSpeed: '2s',
-        statusBadge: '◆ SYNAPSE LOCKED',
-        badgeStyle: `${c.border} ${c.text} bg-amber-950/40`,
-        reticleType: 'overlord',
-      };
-    }
-    case 'Enforcers': {
-      const c = CASTE_COLORS['Enforcers'];
-      return {
-        code: 'DEF-TAC // 96.4 GHz',
-        subcode: 'PROTOCOL: COMBAT CALIBRATED',
-        color: c.hex,
-        glowColor: c.glowHex,
-        barColor: c.barColor,
-        barShadow: 'shadow-[0_0_8px_rgba(148,163,184,0.6)]',
-        eqAnimation: 'eq-tactical',
-        reticleSpeed: '3s',
-        statusBadge: '⌖ TACTICAL LOCK',
-        badgeStyle: `${c.border} ${c.text} bg-slate-950/50`,
-        reticleType: 'enforcer',
-      };
-    }
-    case 'Bootlickers': {
-      const c = CASTE_COLORS['Bootlickers'];
-      return {
-        code: 'SYN-FLX // 92.1 GHz',
-        subcode: 'SUB-CYCLE: SYSTEM COMPLIANT',
-        color: c.hex,
-        glowColor: c.glowHex,
-        barColor: c.barColor,
-        barShadow: 'shadow-[0_0_8px_rgba(194,159,83,0.6)]',
-        eqAnimation: 'eq-rhythm',
-        reticleSpeed: '4.5s',
-        statusBadge: '● SYNERGY STABLE',
-        badgeStyle: `${c.border} ${c.text} bg-[#1a1508]/60`,
-        reticleType: 'bootlicker',
-      };
-    }
-    case 'Untouchables': {
-      const c = CASTE_COLORS['Untouchables'];
-      return {
-        code: 'FRG-ANM // 88.7 GHz',
-        subcode: 'PARALLAX: SIGNAL ANOMALY',
-        color: c.hex,
-        glowColor: c.glowHex,
-        barColor: c.barColor,
-        barShadow: 'shadow-[0_0_8px_rgba(59,130,246,0.6)]',
-        eqAnimation: 'eq-glitch',
-        reticleSpeed: '5s',
-        statusBadge: '✦ SIGNAL ANOMALY',
-        badgeStyle: `${c.border} ${c.text} bg-blue-950/40`,
-        reticleType: 'untouchable',
-      };
-    }
-    case 'Free Spirits': {
-      const c = CASTE_COLORS['Free Spirits'];
-      return {
-        code: 'WLD-NOD // 84.3 GHz',
-        subcode: 'OUTLIER: BIO-SPECTRAL DRIFT',
-        color: c.hex,
-        glowColor: c.glowHex,
-        barColor: c.barColor,
-        barShadow: 'shadow-[0_0_8px_rgba(16,185,129,0.6)]',
-        eqAnimation: 'eq-organic',
-        reticleSpeed: '6s',
-        statusBadge: '☵ ANALOG RESONANCE',
-        badgeStyle: `${c.border} ${c.text} bg-emerald-950/40`,
-        reticleType: 'freespirit',
-      };
-    }
-    case 'Redundants': {
-      const c = CASTE_COLORS['Redundants'];
-      return {
-        code: 'RES-AUD // 82.0 GHz',
-        subcode: 'ENTROPY: METABOLIC SURPLUS',
-        color: c.hex,
-        glowColor: c.glowHex,
-        barColor: c.barColor,
-        barShadow: 'shadow-[0_0_12px_rgba(239,68,68,0.8)]',
-        eqAnimation: 'eq-heartbeat',
-        reticleSpeed: '2.4s',
-        statusBadge: '⚠ METRIC SPIKE',
-        badgeStyle: `${c.border} ${c.text} bg-red-950/70 animate-pulse`,
-        reticleType: 'redundant',
-      };
-    }
-    default:
-      return {
-        code: 'ACQUIRING NEURAL CARRIER...',
-        subcode: 'ALIGNING 3D MESH MATRIX',
-        color: '#00f3ff',
-        glowColor: 'rgba(0, 243, 255, 0.3)',
-        barColor: 'bg-cyan-400/50',
-        barShadow: 'shadow-[0_0_6px_rgba(0,243,255,0.3)]',
-        eqAnimation: 'eq-rhythm',
-        reticleSpeed: '6s',
-        statusBadge: '○ SCANNING...',
-        badgeStyle: 'border-cyan-500/40 text-cyan-400 bg-black/60',
-        reticleType: 'default',
-      };
+  if (!caste || CASTE_ORDER.indexOf(caste) < 0) {
+    return {
+      code: 'ACQUIRING NEURAL CARRIER...',
+      subcode: 'ALIGNING 3D MESH MATRIX',
+      color: '#00f3ff',
+      glowColor: 'rgba(0, 243, 255, 0.3)',
+      barColor: 'bg-cyan-400/50',
+      barShadow: 'shadow-[0_0_6px_rgba(0,243,255,0.3)]',
+      eqAnimation: 'eq-rhythm',
+      reticleSpeed: '6s',
+      statusBadge: '○ SCANNING...',
+      badgeStyle: 'border-cyan-500/40 text-cyan-400 bg-black/60',
+      reticleType: 'default',
+    };
   }
+
+  const idx = Math.max(CASTE_ORDER.indexOf(caste), 0);
+  const c = CASTE_COLORS[caste];
+  return {
+    code: `${SIGNATURE_CODES[idx % SIGNATURE_CODES.length]} // REGISTRY FREQUENCY`,
+    subcode: SIGNATURE_SUBCODES[idx % SIGNATURE_SUBCODES.length],
+    color: c.hex,
+    glowColor: c.glowHex,
+    barColor: c.barColor,
+    barShadow: 'shadow-[0_0_8px_rgba(0,243,255,0.45)]',
+    eqAnimation: SIGNATURE_EQ[idx % SIGNATURE_EQ.length],
+    reticleSpeed: SIGNATURE_SPEEDS[idx % SIGNATURE_SPEEDS.length],
+    statusBadge: SIGNATURE_BADGES[idx % SIGNATURE_BADGES.length],
+    badgeStyle: `${c.border} ${c.text} bg-black/60`,
+    reticleType: RETICLE_VARIANTS[idx % RETICLE_VARIANTS.length],
+  };
 }
 
 /**
@@ -176,14 +123,7 @@ type CrypticTextSet = Pick<
  * ever suggesting which caste was detected.
  */
 const CRYPTIC_TEXT_POOL: CrypticTextSet[] = (() => {
-  const castes: Caste[] = [
-    'Tech Overlords',
-    'Enforcers',
-    'Bootlickers',
-    'Untouchables',
-    'Free Spirits',
-    'Redundants',
-  ];
+  const castes: Caste[] = [...CASTE_ORDER];
   const extract = (caste?: Caste): CrypticTextSet => {
     const s = getCrypticSignature(caste);
     return {
@@ -651,16 +591,16 @@ export const CameraScanner: React.FC<CameraScannerProps> = ({ onLockIn, isLoadin
               }}
             />
 
-            {/* Overlord: Subtle nested gold ring, slow elegant spin */}
-            {scanSignature.reticleType === 'overlord' && (
+            {/* V1: Subtle accent ring, slow elegant spin */}
+            {scanSignature.reticleType === 'v1' && (
               <div
                 className="absolute inset-3 rounded-full border border-t-amber-400/80 border-b-amber-400/80 border-l-transparent border-r-transparent animate-spin"
                 style={{ animationDuration: '4s', animationDirection: 'reverse' }}
               />
             )}
 
-            {/* Enforcer: Subtle corner tick brackets framing the face */}
-            {scanSignature.reticleType === 'enforcer' && (
+            {/* V2: Subtle corner tick brackets framing the face */}
+            {scanSignature.reticleType === 'v2' && (
               <>
                 <div className="absolute top-0 left-0 border-t border-l border-orange-500/80 w-4 h-4" />
                 <div className="absolute top-0 right-0 border-t border-r border-orange-500/80 w-4 h-4" />
@@ -669,32 +609,32 @@ export const CameraScanner: React.FC<CameraScannerProps> = ({ onLockIn, isLoadin
               </>
             )}
 
-            {/* Bootlicker: Subtle cyan quadrant notches */}
-            {scanSignature.reticleType === 'bootlicker' && (
+            {/* V3: Subtle cyan quadrant notches */}
+            {scanSignature.reticleType === 'v3' && (
               <div
                 className="absolute inset-4 rounded-full border border-cyan-400/40 animate-spin"
                 style={{ animationDuration: '6s' }}
               />
             )}
 
-            {/* Untouchable: Faint violet dashed ring with gentle wobble */}
-            {scanSignature.reticleType === 'untouchable' && (
+            {/* V4: Faint violet dashed ring with gentle wobble */}
+            {scanSignature.reticleType === 'v4' && (
               <div
                 className="absolute inset-3 rounded-full border border-dotted border-purple-400/60"
                 style={{ animation: 'reticle-wobble 4s linear infinite' }}
               />
             )}
 
-            {/* Free Spirit: Delicate emerald breathing ring */}
-            {scanSignature.reticleType === 'freespirit' && (
+            {/* V5: Delicate emerald breathing ring */}
+            {scanSignature.reticleType === 'v5' && (
               <div
                 className="absolute inset-3 rounded-full border border-emerald-400/60 animate-spin"
                 style={{ animationDuration: '10s', animationDirection: 'reverse' }}
               />
             )}
 
-            {/* Redundant: Subtle thin crimson hazard border, completely open center (NO warning icon) */}
-            {scanSignature.reticleType === 'redundant' && (
+            {/* V6: Subtle crimson hazard border, completely open center (no warning icon) */}
+            {scanSignature.reticleType === 'v6' && (
               <div
                 className="absolute inset-2 rounded-full border border-red-500/60 animate-pulse"
                 style={{ animationDuration: '2s' }}

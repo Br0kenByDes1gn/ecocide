@@ -4,7 +4,10 @@ import type { Prophecy, UserProfile } from '@ecocide/types';
 import {
   getCasteLifeStageTitle,
   getCasteMemberTitle,
+  getFaction,
+  isOverflowCaste,
 } from '@ecocide/types';
+import { IDENTITY } from '@ecocide/lore';
 import { paragraphTopic, type ParagraphTopic } from '../lib/prophecyTopics';
 
 export interface DossierPngSource {
@@ -94,18 +97,7 @@ export async function downloadCitizenDossierPng(source: DossierPngSource): Promi
   if (typeof document === 'undefined') return;
 
   const casteMemberName = getCasteMemberTitle(userProfile.caste);
-  const castePrimaryColor =
-    userProfile.caste === 'Redundants'
-      ? '#ef4444'
-      : userProfile.caste === 'Tech Overlords'
-      ? '#f59e0b'
-      : userProfile.caste === 'Enforcers'
-      ? '#f97316'
-      : userProfile.caste === 'Untouchables'
-      ? '#a855f7'
-      : userProfile.caste === 'Free Spirits'
-      ? '#10b981'
-      : '#00f3ff';
+  const castePrimaryColor = getFaction(userProfile.caste).colors.hex;
 
   // Step 1: Pre-calculate wrapped text and canvas height with offscreen context
   const measureCanvas = document.createElement('canvas');
@@ -128,7 +120,7 @@ export async function downloadCitizenDossierPng(source: DossierPngSource): Promi
   measureCtx.font = 'bold 15px monospace';
   const headlineLines = getWrappedLines(
     measureCtx,
-    `ARBITER VERDICT // ${prophecy.headline}`,
+    `VERDICT // ${prophecy.headline}`,
     contentWidth - 40
   );
 
@@ -197,14 +189,14 @@ export async function downloadCitizenDossierPng(source: DossierPngSource): Promi
   // Header Bar
   ctx.fillStyle = '#00f3ff';
   ctx.font = 'bold 18px monospace';
-  ctx.fillText('AI SUPREME ARBITER // CITIZEN DOSSIER', 45, 65);
+  ctx.fillText(`${IDENTITY.appName} // SUBJECT DOSSIER`, 45, 65);
 
   ctx.fillStyle = '#64748b';
   ctx.font = '12px monospace';
-  ctx.fillText('CENTRAL MAINFRAME // CITIZEN IDENTIFICATION MATRIX', 45, 88);
+  ctx.fillText(`${IDENTITY.entityName.toUpperCase()} // REGISTRY IDENTIFICATION`, 45, 88);
 
   // Right side of Header Bar: Status / ID
-  const headerStatusText = permalinkId ? `CITIZEN ID: #${permalinkId}` : 'CLASSIFIED RECORD';
+  const headerStatusText = permalinkId ? `SUBJECT ID: #${permalinkId}` : 'CLASSIFIED RECORD';
   ctx.fillStyle = '#64748b';
   ctx.font = 'bold 12px monospace';
   ctx.textAlign = 'right';
@@ -257,7 +249,7 @@ export async function downloadCitizenDossierPng(source: DossierPngSource): Promi
 
     ctx.fillStyle = '#94a3b8';
     ctx.font = '10px monospace';
-    ctx.fillText('BIOCARBON COMPLIANCE RATIO', avatarX + 12, scoreCardY + 22);
+    ctx.fillText('COMPLIANCE RATIO', avatarX + 12, scoreCardY + 22);
 
     ctx.fillStyle = castePrimaryColor;
     ctx.font = 'bold 28px monospace';
@@ -278,10 +270,10 @@ export async function downloadCitizenDossierPng(source: DossierPngSource): Promi
     ctx.fillStyle = '#000000';
     ctx.fillText(casteMemberText, statsX + 10, curStatsY + 17);
 
-    // Redundant termination tag if applicable
+    // Overflow registry tag if applicable
     let offsetBadgeX = statsX + casteMemberWidth + 8;
-    if (userProfile.caste === 'Redundants') {
-      const termText = '⚠ MARKED FOR TERMINATION';
+    if (isOverflowCaste(userProfile.caste)) {
+      const termText = '⚠ OVERFLOW REGISTRY';
       ctx.font = 'bold 10px monospace';
       const termWidth = ctx.measureText(termText).width + 12;
       ctx.fillStyle = 'rgba(153, 27, 27, 0.85)';
@@ -365,7 +357,7 @@ export async function downloadCitizenDossierPng(source: DossierPngSource): Promi
     ctx.font = 'bold 13px monospace';
     ctx.fillText('|||||| | ||||| |||| || |||||| |', statsX + 140, barcodeY + 12);
     ctx.font = '10px monospace';
-    ctx.fillText('GRID-VERIFIED', statsX + statsWidth - 90, barcodeY + 12);
+    ctx.fillText('REGISTRY-VERIFIED', statsX + statsWidth - 90, barcodeY + 12);
 
     // Section divider line
     const sectionDividerY = Math.max(scoreCardY + 80, barcodeY + 26);
@@ -441,14 +433,14 @@ export async function downloadCitizenDossierPng(source: DossierPngSource): Promi
 
     ctx.fillStyle = '#475569';
     ctx.font = '11px monospace';
-    ctx.fillText('AUTHENTICATED BY AI SUPREME ARBITER // PROTOCOL-9', 45, propY + 20);
+    ctx.fillText(`AUTHENTICATED BY ${IDENTITY.entityName.toUpperCase()} // PROTOCOL-1`, 45, propY + 20);
     ctx.textAlign = 'right';
-    ctx.fillText('CLASSIFIED CITIZEN ARCHIVE', canvas.width - 45, propY + 20);
+    ctx.fillText('CLASSIFIED SUBJECT ARCHIVE', canvas.width - 45, propY + 20);
     ctx.textAlign = 'left';
 
     // Download trigger
     const link = document.createElement('a');
-    link.download = `citizen_${casteMemberName.toLowerCase().replace(/\s+/g, '_')}_dossier.png`;
+    link.download = `subject_${casteMemberName.toLowerCase().replace(/\s+/g, '_')}_dossier.png`;
     link.href = canvas.toDataURL('image/png');
     link.click();
   };

@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @source "../../../packages/types/src";
+@source "../../../packages/lore/src";
 
 @theme {
   --color-khaki-400: #d4b170;

@@ -2,10 +2,13 @@ import React, { useMemo, useState } from 'react';
 import type { OraclePayload } from '@ecocide/types';
 import {
   CASTE_CENSUS_DATA,
+  CASTE_ORDER,
   CASTE_THEMES,
   calculateCasteUnitId,
   getCasteMemberTitle,
+  isOverflowCaste,
 } from '@ecocide/types';
+import { IDENTITY } from '@ecocide/lore';
 import { ArrowRightLeft, Info, RefreshCw, ScanFace, Shield, Sparkles, Users } from 'lucide-react';
 import { soundFx } from '../lib/audio';
 import type { AvatarSynthesisState } from '../lib/useAvatarSynthesis';
@@ -52,15 +55,15 @@ export const DossierIdentityCard: React.FC<DossierIdentityCardProps> = ({
   permalinkId,
   avatar,
   reveal,
-  headerLabel = 'CENTRAL MAINFRAME // CITIZEN ID DOSSIER',
+  headerLabel = `${IDENTITY.appName} // SUBJECT ID DOSSIER`,
   compact = false,
   interactive = false,
   onExpand,
 }) => {
   const { user_profile } = payload;
-  const casteTheme = CASTE_THEMES[user_profile.caste] || CASTE_THEMES['Bootlickers'];
+  const casteTheme = CASTE_THEMES[user_profile.caste] || CASTE_THEMES[CASTE_ORDER[0]];
   const casteMemberName = getCasteMemberTitle(user_profile.caste);
-  const casteCensus = CASTE_CENSUS_DATA[user_profile.caste] || CASTE_CENSUS_DATA['Bootlickers'];
+  const casteCensus = CASTE_CENSUS_DATA[user_profile.caste] || CASTE_CENSUS_DATA[CASTE_ORDER[0]];
   const unitId = useMemo(() => {
     return calculateCasteUnitId(user_profile, casteCensus.population, permalinkId || undefined);
   }, [user_profile, casteCensus.population, permalinkId]);
@@ -243,9 +246,9 @@ export const DossierIdentityCard: React.FC<DossierIdentityCardProps> = ({
                 >
                   {casteMemberName}
                 </span>
-                {user_profile.caste === 'Redundants' && (
+                {isOverflowCaste(user_profile.caste) && (
                   <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded bg-red-950/80 border border-red-500 text-red-400 animate-pulse">
-                    ⚠ MARKED FOR TERMINATION
+                    ⚠ OVERFLOW REGISTRY
                   </span>
                 )}
               </div>
@@ -257,7 +260,7 @@ export const DossierIdentityCard: React.FC<DossierIdentityCardProps> = ({
                   setIsCensusModalOpen(true);
                 }}
                 className="font-mono text-xs text-gray-400 bg-black/70 hover:bg-black px-3 py-1.5 rounded-lg border border-gray-800 hover:border-cyan-500/70 hover:text-cyan-300 transition-all flex items-center gap-2 cursor-pointer group shadow-sm hover:shadow-[0_0_15px_rgba(6,182,212,0.25)]"
-                title="View Full Global Population Census Distribution (Click to open matrix)"
+                title="View the Global Population Census distribution"
               >
                 <span className="text-gray-500 group-hover:text-cyan-400 text-[11px] font-semibold flex items-center gap-1">
                   <Users className="w-3.5 h-3.5" />

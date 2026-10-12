@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import type { OraclePayload } from '@ecocide/types';
-import { CASTE_CENSUS_DATA, calculateCasteUnitId, getCasteMemberTitle } from '@ecocide/types';
+import { CASTE_CENSUS_DATA, CASTE_ORDER, calculateCasteUnitId, getCasteMemberTitle } from '@ecocide/types';
 import { downloadCitizenDossierPng } from '../lib/dossierCardPng';
 import { useAvatarSynthesis } from '../lib/useAvatarSynthesis';
 import { fullIdentityReveal } from '../lib/useIdentityReveal';
@@ -34,7 +34,7 @@ export const CitizenDossier: React.FC<CitizenDossierProps> = ({
   const typewriter = useProphecyTypewriter(prophecy);
 
   const casteMemberName = getCasteMemberTitle(user_profile.caste);
-  const casteCensus = CASTE_CENSUS_DATA[user_profile.caste] || CASTE_CENSUS_DATA['Bootlickers'];
+  const casteCensus = CASTE_CENSUS_DATA[user_profile.caste] || CASTE_CENSUS_DATA[CASTE_ORDER[0]];
   const unitId = useMemo(() => {
     return calculateCasteUnitId(user_profile, casteCensus.population, permalinkId || undefined);
   }, [user_profile, casteCensus.population, permalinkId]);

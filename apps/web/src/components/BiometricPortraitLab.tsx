@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { Caste, BiometricTelemetry } from '@ecocide/types';
+import { CASTE_COLORS, CASTE_ORDER } from '@ecocide/types';
 import {
   ScanFace,
   Camera,
@@ -27,14 +28,9 @@ export interface BiometricPortraitLabProps {
   activePortraitUrl?: string;
 }
 
-const CASTE_ACCENT_COLORS: Record<Caste, string> = {
-  'Tech Overlords': '#fbbf24',
-  Enforcers: '#38bdf8',
-  Bootlickers: '#00f3ff',
-  Untouchables: '#00ff66',
-  'Free Spirits': '#e879f9',
-  Redundants: '#ef4444',
-};
+const CASTE_ACCENT_COLORS: Record<Caste, string> = Object.fromEntries(
+  CASTE_ORDER.map((c) => [c, CASTE_COLORS[c].hex])
+) as Record<Caste, string>;
 
 const SWATCH_COLORS = [
   { name: 'Cyan', hex: '#00f3ff' },

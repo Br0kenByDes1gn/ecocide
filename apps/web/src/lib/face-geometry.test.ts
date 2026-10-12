@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { CASTE_COLORS, getCasteFromPercentile, type Caste } from '@ecocide/types';
+import {
+  CASTE_COLORS,
+  CASTE_ORDER,
+  CASTE_OVERFLOW,
+  CASTE_PERCENTAGES,
+  CASTE_PERCENTILE_BANDS,
+  getCasteFromPercentile,
+  type Caste,
+} from '@ecocide/types';
 import { SCAN_MESH_COLOR_UNCLASSIFIED } from './mediapipe-service';
 import {
   buildCasteShellTable,
@@ -61,15 +69,7 @@ describe('face-geometry engine', () => {
     expect(res1.percentile).toBeGreaterThanOrEqual(0);
     expect(res1.percentile).toBeLessThanOrEqual(100);
 
-    const castes = [
-      'Tech Overlords',
-      'Enforcers',
-      'Bootlickers',
-      'Untouchables',
-      'Free Spirits',
-      'Redundants',
-    ];
-    expect(castes).toContain(res1.caste);
+    expect(CASTE_ORDER).toContain(res1.caste);
   });
 
   it('calculateCaste is 100% deterministic on identical ratios', () => {
@@ -80,19 +80,26 @@ describe('face-geometry engine', () => {
     expect(first.percentile).toBe(second.percentile);
   });
 
-  it('correctly maps percentiles across all 6 caste tiers', () => {
-    // Generate signatures to ensure we hit various percentiles
+  it('correctly maps percentiles across all registered classifications', () => {
+    // Sample a normal population (bins are equal-probability, so every band
+    // must be reachable and actually hit at this sample size).
+    const rnd = mulberry32(20261012);
+    const gauss = () => {
+      const u = Math.max(rnd(), 1e-9);
+      const v = rnd();
+      return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+    };
     const testedCastes = new Set<string>();
-    for (let i = 1; i <= 500; i++) {
+    for (let i = 0; i < 2000; i++) {
       const res = calculateCaste({
-        facialAspectRatio: 1.0 + (i * 0.03),
-        jawTaperRatio: 0.5 + (i * 0.02),
-        eyeToNoseRatio: 0.8 + (i * 0.01),
+        facialAspectRatio: CASTE_RATIO_CALIBRATION.facialAspectRatio.mu + gauss() * CASTE_RATIO_CALIBRATION.facialAspectRatio.sigma,
+        jawTaperRatio: CASTE_RATIO_CALIBRATION.jawTaperRatio.mu + gauss() * CASTE_RATIO_CALIBRATION.jawTaperRatio.sigma,
+        eyeToNoseRatio: CASTE_RATIO_CALIBRATION.eyeToNoseRatio.mu + gauss() * CASTE_RATIO_CALIBRATION.eyeToNoseRatio.sigma,
       });
       testedCastes.add(res.caste);
     }
-    // Redundants make up 83% so they must definitely be encountered
-    expect(testedCastes.has('Redundants')).toBe(true);
+    expect(testedCastes.size).toBe(CASTE_ORDER.length);
+    expect(testedCastes.has(CASTE_OVERFLOW)).toBe(true);
   });
 
   it('calculateSymmetryPercent rates symmetrical faces higher than asymmetrical faces', () => {
@@ -174,10 +181,9 @@ describe('distance-shell caste engine', () => {
     expect(table.casteByRank.length).toBe(630);
     expect(table.percentileByRank.length).toBe(630);
 
-    // Each caste's ranks form a single contiguous block, in apex→redundant order
-    const order: Caste[] = ['Tech Overlords', 'Enforcers', 'Bootlickers', 'Untouchables', 'Free Spirits', 'Redundants'];
+    // Each caste's ranks form a single contiguous block, in ordered band sequence
     let cursor = 0;
-    for (const caste of order) {
+    for (const caste of CASTE_ORDER) {
       const indices: number[] = [];
       table.casteByRank.forEach((c, i) => {
         if (c === caste) indices.push(i);
@@ -197,23 +203,27 @@ describe('distance-shell caste engine', () => {
     }
   });
 
-  it('the statistical center of face-space is apex; outliers are Redundant', () => {
+  it('the statistical center of face-space is apex; outliers land in the overflow', () => {
     // The modal (population-center) face lands the innermost rank → apex caste
     const center = calculateCaste(MU);
-    expect(center.caste).not.toBe('Redundants');
-    expect(center.percentile).toBeGreaterThanOrEqual(83);
+    expect(center.caste).not.toBe(CASTE_OVERFLOW);
+    expect(center.percentile).toBeGreaterThanOrEqual(CASTE_PERCENTILE_BANDS[CASTE_ORDER[0]].low);
 
-    // Extreme / degenerate faces clamp to the outermost combos → Redundants
+    // Extreme / degenerate faces clamp to the outermost combos → overflow
     for (const extreme of [
       { facialAspectRatio: 0.1, jawTaperRatio: 0.1, eyeToNoseRatio: 0.1 },
       { facialAspectRatio: 99, jawTaperRatio: 99, eyeToNoseRatio: 99 },
       { facialAspectRatio: 5, jawTaperRatio: 0.2, eyeToNoseRatio: 0.5 },
     ]) {
-      expect(calculateCaste(extreme).caste).toBe('Redundants');
+      expect(calculateCaste(extreme).caste).toBe(CASTE_OVERFLOW);
     }
   });
 
-  it('is stable under re-scan jitter (flip rate < 3%)', () => {
+  it('is stable under re-scan jitter (flip rate < 6%)', () => {
+    // NOTE: the flip rate is a property of the quota shape. The placeholder
+    // pack uses near-equal bands, so every boundary density is high (~3-4%
+    // measured). A skewed distribution (one large overflow band) drops this
+    // well under 1%. Tune the lore quotas, then this bar, together.
     const rnd = mulberry32(20261002);
     const gauss = () => {
       const u = Math.max(rnd(), 1e-9);
@@ -242,7 +252,7 @@ describe('distance-shell caste engine', () => {
         if (calculateCaste(jitter).caste !== baseCaste) flips++;
       }
     }
-    expect(flips / trials).toBeLessThan(0.03);
+    expect(flips / trials).toBeLessThan(0.06);
   });
 
   it('matches the target demographic mix over a normal population', () => {
@@ -253,7 +263,7 @@ describe('distance-shell caste engine', () => {
       return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
     };
 
-    const target: Record<Caste, number> = { 'Tech Overlords': 1, Enforcers: 3, Bootlickers: 5, Untouchables: 4, 'Free Spirits': 4, Redundants: 83 };
+    const target: Record<Caste, number> = { ...CASTE_PERCENTAGES };
     const counts: Record<string, number> = {};
 
     const n = 200000;
@@ -268,7 +278,7 @@ describe('distance-shell caste engine', () => {
 
     for (const [caste, pct] of Object.entries(target)) {
       const got = ((counts[caste] || 0) / n) * 100;
-      const tolerance = caste === 'Redundants' ? 2.5 : 1.5;
+      const tolerance = caste === CASTE_OVERFLOW ? 2.5 : 1.5;
       expect(Math.abs(got - pct)).toBeLessThanOrEqual(tolerance);
     }
   });

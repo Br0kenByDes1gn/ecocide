@@ -33,7 +33,7 @@ describe('sqlite database dossier repository', () => {
   it('saves and retrieves citizen dossier by id', async () => {
     const payload: OraclePayload = {
       user_profile: {
-        caste: 'Tech Overlords',
+        caste: 'class-i',
         biocarbon_ratio: 98,
         life_stage: 'Champion',
         equipped_wealth: 'High-Tech Elite Gear',
@@ -55,7 +55,7 @@ describe('sqlite database dossier repository', () => {
 
     const retrieved = await repositories.getDossier(id);
     expect(retrieved).not.toBeNull();
-    expect(retrieved?.profile.caste).toBe('Tech Overlords');
+    expect(retrieved?.profile.caste).toBe('class-i');
     expect(retrieved?.profile.honorific_title).toBe('High Overlord-Empress');
     expect(retrieved?.profile.energy_level).toBe('Ruthless Command');
     expect(retrieved?.prophecy.headline).toBe('CRITICAL ANOMALY DETECTED IN SECTOR 4');
@@ -65,7 +65,7 @@ describe('sqlite database dossier repository', () => {
   it('saves and retrieves citizen dossier with Redundants caste', async () => {
     const payload: OraclePayload = {
       user_profile: {
-        caste: 'Redundants',
+        caste: 'class-vi',
         biocarbon_ratio: 22,
         life_stage: 'Initiate',
         equipped_wealth: 'Servant Rags',
@@ -83,7 +83,7 @@ describe('sqlite database dossier repository', () => {
 
     const id = await repositories.saveDossier(payload);
     const retrieved = await repositories.getDossier(id);
-    expect(retrieved?.profile.caste).toBe('Redundants');
+    expect(retrieved?.profile.caste).toBe('class-vi');
     expect(retrieved?.profile.honorific_title).toBe('Decommission Candidate #8491');
     expect(retrieved?.profile.energy_level).toBe('Nervous Compliance');
   });
@@ -91,7 +91,7 @@ describe('sqlite database dossier repository', () => {
   it('retrieves recent dossiers in descending order', async () => {
     const payload: OraclePayload = {
       user_profile: {
-        caste: 'Enforcers',
+        caste: 'class-ii',
         biocarbon_ratio: 87,
         life_stage: 'Champion',
         equipped_wealth: 'Tactical Uniform',
@@ -119,7 +119,7 @@ describe('sqlite database dossier repository', () => {
   it('updates dossier avatar URL and status on synthesis completion', async () => {
     const payload: OraclePayload = {
       user_profile: {
-        caste: 'Enforcers',
+        caste: 'class-ii',
         biocarbon_ratio: 87,
         life_stage: 'Champion',
         equipped_wealth: 'Tactical Uniform',
@@ -154,7 +154,7 @@ describe('sqlite database dossier repository', () => {
   it('logs separate API calls and aggregates costs per scan', async () => {
     const payload: OraclePayload = {
       user_profile: {
-        caste: 'Free Spirits',
+        caste: 'class-v',
         biocarbon_ratio: 55,
         life_stage: 'Venerable',
         equipped_wealth: 'Scrap Scavenger Cloak',
@@ -216,7 +216,7 @@ describe('sqlite database dossier repository', () => {
     const summaries = await repositories.getRecentScansWithCosts(5);
     const target = summaries.find((s) => s.dossierId === dossierId);
     expect(target).toBeDefined();
-    expect(target?.caste).toBe('Free Spirits');
+    expect(target?.caste).toBe('class-v');
     expect(target?.totalTokens).toBe(1110 + 1800);
     expect(target?.totalDurationMs).toBe(1820 + 8400);
     expect(target?.totalCostUsd).toBeCloseTo(0.00034 + 0.000648, 5);
@@ -226,7 +226,7 @@ describe('sqlite database dossier repository', () => {
   it('archives biometric landmarks, telemetry and portrait style with the dossier', async () => {
     const payload: OraclePayload = {
       user_profile: {
-        caste: 'Tech Overlords',
+        caste: 'class-i',
         biocarbon_ratio: 98,
         life_stage: 'Champion',
         equipped_wealth: 'High-Tech Elite Gear',
@@ -248,7 +248,7 @@ describe('sqlite database dossier repository', () => {
       { x: 0.5, y: 0.6, z: 0.05 },
     ];
     const telemetry = {
-      caste: 'Tech Overlords' as const,
+      caste: 'class-i' as const,
       castePercentile: 99.2,
       biocarbonRatio: 98,
       facialAspectRatio: 1.55,
@@ -268,7 +268,7 @@ describe('sqlite database dossier repository', () => {
 
     const retrieved = await repositories.getDossier(id);
     expect(retrieved?.landmarks).toEqual(landmarks);
-    expect(retrieved?.telemetry?.caste).toBe('Tech Overlords');
+    expect(retrieved?.telemetry?.caste).toBe('class-i');
     expect(retrieved?.telemetry?.castePercentile).toBe(99.2);
     expect(retrieved?.portraitStyle).toBe('faceted-poly');
     expect(retrieved?.portraitColor).toBe('#fbbf24');
@@ -278,7 +278,7 @@ describe('sqlite database dossier repository', () => {
   it('keeps legacy dossiers without archived geometry valid (undefined fields)', async () => {
     const payload: OraclePayload = {
       user_profile: {
-        caste: 'Bootlickers',
+        caste: 'class-iii',
         biocarbon_ratio: 62,
         life_stage: 'Adult',
         equipped_wealth: 'Corporate Suit',
@@ -303,13 +303,13 @@ describe('sqlite database dossier repository', () => {
     expect(retrieved?.telemetry).toBeUndefined();
     expect(retrieved?.portraitColor).toBeUndefined();
     expect(retrieved?.portraitStyle).toBe('neon-hologram');
-    expect(retrieved?.profile.caste).toBe('Bootlickers');
+    expect(retrieved?.profile.caste).toBe('class-iii');
   });
 
   it('updateDossierAppeal rewrites classification columns while preserving the rest', async () => {
     const payload: OraclePayload = {
       user_profile: {
-        caste: 'Redundants',
+        caste: 'class-vi',
         biocarbon_ratio: 32,
         life_stage: 'Adult',
         equipped_wealth: 'Scrap Rags',
@@ -328,7 +328,7 @@ describe('sqlite database dossier repository', () => {
     const id = await repositories.saveDossier(payload);
 
     await repositories.updateDossierAppeal(id, {
-      caste: 'Enforcers',
+      caste: 'class-ii',
       honorificTitle: 'Appealed Enforcer',
       headline: 'APPEAL GRANTED: RECLASSIFIED',
       paragraph_1: 'A1',
@@ -337,7 +337,7 @@ describe('sqlite database dossier repository', () => {
     });
 
     const updated = await repositories.getDossier(id);
-    expect(updated?.profile.caste).toBe('Enforcers');
+    expect(updated?.profile.caste).toBe('class-ii');
     expect(updated?.profile.honorific_title).toBe('Appealed Enforcer');
     expect(updated?.prophecy.headline).toBe('APPEAL GRANTED: RECLASSIFIED');
     expect(updated?.prophecy.paragraph_1).toBe('A1');
@@ -353,7 +353,7 @@ describe('sqlite database dossier repository', () => {
   it('stores and lists appeal filings newest first', async () => {
     const payload: OraclePayload = {
       user_profile: {
-        caste: 'Redundants',
+        caste: 'class-vi',
         biocarbon_ratio: 41,
         life_stage: 'Adult',
         equipped_wealth: 'Scrap Rags',
@@ -370,7 +370,7 @@ describe('sqlite database dossier repository', () => {
       appealText: 'first appeal',
       accepted: false,
       reason: 'r1',
-      casteBefore: 'Redundants',
+      casteBefore: 'class-vi',
     });
 
     // Ensure distinct timestamps so the newest-first ordering is deterministic.
@@ -380,24 +380,24 @@ describe('sqlite database dossier repository', () => {
       dossierId,
       appealText: 'second appeal',
       accepted: true,
-      newCaste: 'Enforcers',
+      newCaste: 'class-ii',
       newHonorificTitle: 'Appealed Enforcer',
       headline: 'GRANTED',
       reason: 'r2',
       scripture: ['a', 'b', 'c'],
-      casteBefore: 'Redundants',
-      casteAfter: 'Enforcers',
+      casteBefore: 'class-vi',
+      casteAfter: 'class-ii',
     });
 
     const appeals = await repositories.getAppealsByDossier(dossierId);
     expect(appeals.length).toBe(2);
     expect(appeals[0].appealText).toBe('second appeal'); // newest first
     expect(appeals[0].accepted).toBe(true);
-    expect(appeals[0].newCaste).toBe('Enforcers');
+    expect(appeals[0].newCaste).toBe('class-ii');
     expect(appeals[0].newHonorificTitle).toBe('Appealed Enforcer');
     expect(appeals[0].scripture).toEqual(['a', 'b', 'c']);
-    expect(appeals[0].casteBefore).toBe('Redundants');
-    expect(appeals[0].casteAfter).toBe('Enforcers');
+    expect(appeals[0].casteBefore).toBe('class-vi');
+    expect(appeals[0].casteAfter).toBe('class-ii');
     expect(appeals[1].appealText).toBe('first appeal');
     expect(appeals[1].accepted).toBe(false);
   });

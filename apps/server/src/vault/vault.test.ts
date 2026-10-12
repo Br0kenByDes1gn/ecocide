@@ -74,7 +74,7 @@ function makeApp(userId: string | null) {
 function makePayload(): OraclePayload {
   return {
     user_profile: {
-      caste: 'Redundants',
+      caste: 'class-vi',
       biocarbon_ratio: 40,
       life_stage: 'Adult',
       equipped_wealth: 'Scrap Rags',
@@ -237,7 +237,7 @@ describe('vault routes', () => {
     });
     expect(state.dossiers).toHaveLength(1);
     // Summaries are lightweight: no heavy verdict/snapshot fields.
-    expect(state.dossiers[0]).toMatchObject({ id: dossierId, caste: 'Redundants' });
+    expect(state.dossiers[0]).toMatchObject({ id: dossierId, caste: 'class-vi' });
     expect(state.dossiers[0]).not.toHaveProperty('prophecy');
     expect(state.dossiers[0]).not.toHaveProperty('sourceSnapshot');
   });

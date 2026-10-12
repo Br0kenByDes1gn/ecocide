@@ -32,16 +32,16 @@ function fakeMailer(): FakeMailer {
 
 const payload: OraclePayload = {
   user_profile: {
-    caste: 'Tech Overlords',
+    caste: 'class-i',
     biocarbon_ratio: 98,
     life_stage: 'Champion',
     equipped_wealth: 'High-Tech Elite Gear',
     energy_level: 'Ruthless Command',
     apparent_presentation: 'Feminine',
-    honorific_title: 'High Overlord-Empress',
+    honorific_title: 'Provisional Subject #1',
   },
   prophecy: {
-    headline: 'CRITICAL ANOMALY DETECTED IN SECTOR 4',
+    headline: 'CLASSIFICATION RECORD LOGGED',
     paragraph_1: 'P1',
     paragraph_2: 'P2',
     paragraph_3: 'P3',
@@ -66,7 +66,7 @@ afterEach(() => {
 });
 
 function makeDispatcher(mailer: FakeMailer) {
-  const context: JobContext = { repositories, mailer, appBaseUrl: 'https://arbiter.test' };
+  const context: JobContext = { repositories, mailer, appBaseUrl: 'https://registry.test' };
   return createInlineDispatcher(createHandlers(context));
 }
 
@@ -83,8 +83,8 @@ describe('job dispatch (inline mode)', () => {
 
     expect(mailer.sent).toHaveLength(1);
     expect(mailer.sent[0].to).toBe('citizen@example.com');
-    expect(mailer.sent[0].subject).toContain('Tech Overlords');
-    expect(mailer.sent[0].html).toContain(`https://arbiter.test/arbitration/${dossierId}`);
+    expect(mailer.sent[0].subject).toContain('Class I');
+    expect(mailer.sent[0].html).toContain(`https://registry.test/arbitration/${dossierId}`);
   });
 
   it('sends an appeal-ruling email', async () => {
@@ -93,13 +93,13 @@ describe('job dispatch (inline mode)', () => {
       dossierId,
       appealText: 'please reconsider',
       accepted: true,
-      newCaste: 'Enforcers',
+      newCaste: 'class-ii',
       newHonorificTitle: 'Appealed Enforcer',
       headline: 'APPEAL GRANTED',
       reason: 'documentation sufficient',
       scripture: ['a', 'b', 'c'],
-      casteBefore: 'Tech Overlords',
-      casteAfter: 'Enforcers',
+      casteBefore: 'class-i',
+      casteAfter: 'class-ii',
     });
     const mailer = fakeMailer();
 
@@ -112,7 +112,7 @@ describe('job dispatch (inline mode)', () => {
     expect(mailer.sent).toHaveLength(1);
     expect(mailer.sent[0].subject).toContain('APPEAL RULING');
     expect(mailer.sent[0].subject).toContain('GRANTED');
-    expect(mailer.sent[0].html).toContain('Tech Overlords');
+    expect(mailer.sent[0].html).toContain('Class I');
   });
 
   it('does not send when the dossier is missing', async () => {

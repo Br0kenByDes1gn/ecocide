@@ -1,4 +1,5 @@
 import type { AvatarEngineId, UserProfile } from '@ecocide/types';
+import { getFaction } from '@ecocide/lore';
 
 export interface AvatarGenerationInput {
   image: string; // Base64 reference image (with or without data URL prefix)
@@ -46,19 +47,5 @@ export function cleanBase64(imageBase64: string): { cleanBase64: string; mimeTyp
 }
 
 export function getCasteStylePrompt(caste: string): string {
-  switch (caste) {
-    case 'Tech Overlords':
-      return 'Ornate neural cyberware, polished golden and violet cyber implants, glowing cyan ocular iris, sleek nano-fiber executive armor with high collar, holographic crest, subtle quantum energy field.';
-    case 'Enforcers':
-      return 'Heavy matte-black tactical battle armor, angular orange HUD targeting monocle, reinforced cybernetic jaw, sub-dermal combat plating, militaristic grim determination.';
-    case 'Bootlickers':
-      return 'Corporate compliance collar with pulsating green status indicator, bureaucratic data tether, nervous obedient grin, pressed synthetic corporate uniform, submissive posture.';
-    case 'Untouchables':
-      return 'Scavenged rusted optical lens, exposed copper wiring, jury-rigged cyberware, weathered thermal hood, soot stains, dim flickering amber glow, hardened survivor glare.';
-    case 'Free Spirits':
-      return 'Bioluminescent geometric facial markings, scavenged solar goggles, wild hair, organic vine-woven cyber implants, defiant wild smirk, glowing turquoise and magenta hues.';
-    case 'Redundants':
-    default:
-      return 'Red barcode decommission tattoo stamped on cheek or neck, cracked terminal visor, fading utilitarian jumpsuit, glitching holographic noise, exhausted yet resilient expression.';
-  }
+  return getFaction(caste).stylePrompt;
 }

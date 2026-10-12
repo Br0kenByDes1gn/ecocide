@@ -7,13 +7,13 @@ function makeRecord(): CitizenRecord {
     id: 'abc123',
     createdAt: new Date().toISOString(),
     profile: {
-      caste: 'Tech Overlords',
+      caste: 'class-i',
       biocarbon_ratio: 98,
       life_stage: 'Champion',
       equipped_wealth: 'High-Tech Elite Gear',
       energy_level: 'Ruthless Command',
       apparent_presentation: 'Feminine',
-      honorific_title: 'High Overlord-Empress',
+      honorific_title: 'Provisional Subject #1',
     },
     prophecy: {
       headline: 'CRITICAL ANOMALY DETECTED',
@@ -67,8 +67,8 @@ describe('verdict email template', () => {
     const rendered = verdictEmail(makeRecord(), 'https://arbiter.test');
     const permalink = 'https://arbiter.test/arbitration/abc123';
 
-    expect(rendered.subject).toContain('Tech Overlords');
-    expect(rendered.subject).toContain('High Overlord-Empress');
+    expect(rendered.subject).toContain('Class I');
+    expect(rendered.subject).toContain('Provisional Subject #1');
     expect(rendered.html).toContain(permalink);
     expect(rendered.text).toContain(permalink);
     expect(rendered.html).toContain('98%');

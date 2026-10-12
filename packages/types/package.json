@@ -14,6 +14,9 @@
   "scripts": {
     "build": "tsc"
   },
+  "dependencies": {
+    "@ecocide/lore": "workspace:*"
+  },
   "devDependencies": {
     "typescript": "^5.7.0"
   }

@@ -1,4 +1,11 @@
-import type { BiometricTelemetry, Caste } from '@ecocide/types';
+import {
+  CASTE_ORDER,
+  CASTE_OVERFLOW,
+  CASTE_PERCENTAGES,
+  CASTE_PERCENTILE_BANDS,
+  type BiometricTelemetry,
+  type Caste,
+} from '@ecocide/types';
 
 export interface Landmark3D {
   x: number;
@@ -92,22 +99,16 @@ export function extractFacialRatios(landmarks: Landmark3D[]) {
 
 /**
  * 100% Deterministic Caste Calculator based on anatomical bone geometry.
- * Target Distribution:
- * - Tech Overlords (99.0–100.0) [1%]
- * - Enforcers (96.0–98.9) [3%]
- * - Bootlickers (91.0–95.9) [5%]
- * - Untouchables (87.0–90.9) [4%]
- * - Free Spirits (83.0–86.9) [4%]
- * - Redundants (0.0–82.9) [83%]
  *
  * The assignment uses a "distance shell" over face-geometry space: the three
  * ratios are binned into equal-probability (equal-mass) quantile bins built
  * from a normal population model, and each of the 630 face-type combos is
  * ranked by its z-distance from the population center. Quota bands over that
- * distance-ordered rank axis assign castes — the statistically most average
- * faces live at the center (apex castes) and the statistical outliers are
- * marked Redundant. This is stable under re-scan noise (bins are far wider
- * than measurement jitter) and exact per face-type by construction.
+ * distance-ordered rank axis (taken from the lore pack's faction distribution)
+ * assign castes — the statistically most average faces live at the center
+ * (highest bands) and the statistical outliers are marked into the overflow
+ * faction. This is stable under re-scan noise (bins are far wider than
+ * measurement jitter) and exact per face-type by construction.
  */
 
 /** Population-model calibration for each facial ratio (independent normals). */
@@ -198,38 +199,18 @@ function calibrateAxis(axis: { mu: number; sigma: number; bins: number }): Calib
   return { ...axis, edges };
 }
 
-const CASTE_BANDS: Record<Caste, { low: number; high: number }> = {
-  'Tech Overlords': { low: 99.0, high: 100.0 },
-  Enforcers: { low: 96.0, high: 98.99 },
-  Bootlickers: { low: 91.0, high: 95.99 },
-  Untouchables: { low: 87.0, high: 90.99 },
-  'Free Spirits': { low: 83.0, high: 86.99 },
-  Redundants: { low: 0.0, high: 82.99 },
-};
-
-const CASTE_ORDER: readonly Caste[] = [
-  'Tech Overlords',
-  'Enforcers',
-  'Bootlickers',
-  'Untouchables',
-  'Free Spirits',
-  'Redundants',
-];
-
-/** Target percentage share per caste (1/3/5/4/4/83). */
-const CASTE_PERCENTAGE_SHARES: Record<Caste, number> = {
-  'Tech Overlords': 1,
-  Enforcers: 3,
-  Bootlickers: 5,
-  Untouchables: 4,
-  'Free Spirits': 4,
-  Redundants: 83,
-};
+/**
+ * Canonic quota bands and shares come from the lore pack via @ecocide/types:
+ * CASTE_ORDER (largest percentile band first, overflow last),
+ * CASTE_PERCENTAGES (shares that sum to 100) and CASTE_PERCENTILE_BANDS
+ * (display percentile range per caste). The overflow caste takes the exact
+ * remainder of the 630 combos.
+ */
 
 export interface CasteShellTable {
   /** Combo key ("f-j-e") → distance rank (0 = statistical center of face-space). */
   rankOf: Map<string, number>;
-  /** Caste for each rank (quota blocks, innermost → apex, outermost → Redundants). */
+  /** Caste for each rank (quota blocks, innermost → apex, outermost → overflow). */
   casteByRank: readonly Caste[];
   /** Display percentile for each rank (inside its caste's threshold band). */
   percentileByRank: readonly number[];
@@ -276,7 +257,7 @@ function comboZDistance(
 /**
  * Builds (once, cached) the distance-shell caste table: the 630 face-type
  * combos ordered by distance from the population center, split into quota
- * bands sized to the target distribution (1/3/5/4/4/83 %).
+ * bands sized to the lore pack's faction distribution.
  */
 export function buildCasteShellTable(
   calibration: {
@@ -315,12 +296,12 @@ export function buildCasteShellTable(
 
   let rank = 0;
   for (const caste of CASTE_ORDER) {
-    const band = CASTE_BANDS[caste];
+    const band = CASTE_PERCENTILE_BANDS[caste];
     let count: number;
-    if (caste === 'Redundants') {
+    if (caste === CASTE_OVERFLOW) {
       count = n - rank; // overflow bucket takes the exact remainder
     } else {
-      count = Math.round((n * CASTE_PERCENTAGE_SHARES[caste]) / 100);
+      count = Math.round((n * CASTE_PERCENTAGES[caste]) / 100);
     }
     for (let i = 0; i < count; i++) {
       const percentile =
@@ -377,7 +358,9 @@ export function calculateCaste(ratios: {
 
   // Unreachable via clamped binning; defensive fallback keeps determinism.
   if (rank === undefined) {
-    return { caste: 'Redundants', percentile: 41.01 };
+    const overflowBand = CASTE_PERCENTILE_BANDS[CASTE_OVERFLOW];
+    const fallbackPercentile = Number(((overflowBand.low + overflowBand.high) / 2).toFixed(2));
+    return { caste: CASTE_OVERFLOW, percentile: fallbackPercentile };
   }
 
   return { caste: table.casteByRank[rank], percentile: table.percentileByRank[rank] };
