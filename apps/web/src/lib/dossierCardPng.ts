@@ -240,7 +240,7 @@ export async function downloadCitizenDossierPng(source: DossierPngSource): Promi
     );
     ctx.textAlign = 'left';
 
-    // Biocarbon Compliance Ratio card below avatar
+    // Compliance Ratio card below avatar
     const scoreCardY = avatarY + avatarSize + 12;
     ctx.fillStyle = '#0f1322';
     ctx.fillRect(avatarX, scoreCardY, avatarSize, 68);

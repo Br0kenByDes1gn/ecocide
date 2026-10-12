@@ -368,7 +368,7 @@ export function calculateCaste(ratios: {
 
 /**
  * 0–100 facial symmetry percent. Compares bilateral landmark pairs across the
- * vertical symmetry midline. Secondary component of the Biocarbon Compliance
+ * vertical symmetry midline. Secondary component of the Compliance
  * Ratio (the primary component is shell conformity).
  */
 export function calculateSymmetryPercent(
@@ -412,14 +412,14 @@ export function calculateSymmetryPercent(
   return { percent, variance: meanVariance };
 }
 
-/** Blend weights for the Biocarbon Compliance Ratio (conformity dominates, symmetry nudges). */
+/** Blend weights for the Compliance Ratio (conformity dominates, symmetry nudges). */
 export const COMPLIANCE_CONFORMITY_WEIGHT = 0.85;
 export const COMPLIANCE_SYMMETRY_WEIGHT = 0.15;
 
 /**
  * 0–100 template conformity from the distance shell: how close this face's
  * geometry sits to the statistical population center (0 = extreme outlier,
- * 100 = perfectly average / mainframe-approved template).
+ * 100 = perfectly average / registry-approved template).
  */
 export function calculateComplianceFromShell(ratios: {
   facialAspectRatio: number;

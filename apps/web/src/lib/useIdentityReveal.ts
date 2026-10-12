@@ -23,7 +23,7 @@ export interface IdentityRevealState {
   utilityText: string | null;
   assetText: string | null;
   energyText: string | null;
-  /** Animated count-up text for the Biocarbon Compliance Ratio (percent). */
+  /** Animated count-up text for the Compliance Ratio (percent). */
   complianceText: string | null;
   /** True once every stat (including the ratio finale) has been revealed. */
   isComplete: boolean;
@@ -51,7 +51,7 @@ export interface IdentityRevealStep {
 /**
  * Pure helper: the mandated stat fill-in order.
  * Mesh first, then title, presentation, utility grade, asset value and finally
- * energy level (the Biocarbon Compliance Ratio count-up is the finale).
+ * energy level (the Compliance Ratio count-up is the finale).
  */
 export function buildIdentityRevealSteps(profile: UserProfile): IdentityRevealStep[] {
   return [
@@ -101,7 +101,7 @@ function initialIdentityReveal(): IdentityRevealState {
  *   1. mesh scans in (hold),
  *   2. each stat types out sequentially (title → presentation → utility grade →
  *      asset value → energy level),
- *   3. the Biocarbon Compliance Ratio counts up to its final percent,
+ *   3. the Compliance Ratio counts up to its final percent,
  *   4. done.
  * Returns `skip()` to jump straight to the fully-revealed state.
  */

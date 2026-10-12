@@ -94,7 +94,7 @@ describe('job dispatch (inline mode)', () => {
       appealText: 'please reconsider',
       accepted: true,
       newCaste: 'class-ii',
-      newHonorificTitle: 'Appealed Enforcer',
+      newHonorificTitle: 'Re-Assigned Member',
       headline: 'APPEAL GRANTED',
       reason: 'documentation sufficient',
       scripture: ['a', 'b', 'c'],

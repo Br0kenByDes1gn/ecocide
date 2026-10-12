@@ -1,5 +1,6 @@
 import React from 'react';
 import type { OraclePayload } from '@ecocide/types';
+import { IDENTITY } from '@ecocide/lore';
 import { Gavel, ShieldCheck } from 'lucide-react';
 import { useArbitrationFlow } from '../lib/useArbitrationFlow';
 import { useAvatarSynthesis } from '../lib/useAvatarSynthesis';
@@ -23,7 +24,7 @@ interface ArbitrationDossierProps {
  * Animation sequence:
  *   1. The biometric mesh portrait scans in, then the stats fill one at a time
  *      (title, presentation, utility grade, asset value, energy level) and the
- *      Biocarbon Compliance Ratio counts up.
+ *      Compliance Ratio counts up.
  *   2. Pause, then the filled card compacts into a summary bar (mesh + ratio +
  *      title) freeing space for the verdict.
  *   3. The three prophecy paragraphs type at a larger size, each pausing and
@@ -68,7 +69,7 @@ export const ArbitrationDossier: React.FC<ArbitrationDossierProps> = ({
         permalinkId={permalinkId}
         avatar={avatar}
         reveal={reveal}
-        headerLabel="CENTRAL MAINFRAME // ARBITRATION PROCEEDING"
+        headerLabel={`${IDENTITY.appName} // CLASSIFICATION PROCEEDING`}
         compact={flow.state.cardCompact}
         interactive={flow.state.isComplete}
         onExpand={flow.expandCard}
@@ -117,7 +118,7 @@ export const ArbitrationDossier: React.FC<ArbitrationDossierProps> = ({
             </button>
           </div>
           <p className="text-[10px] font-mono text-gray-500">
-            CLAIM CERTIFIES YOUR DESIGNATION. APPEAL CHALLENGES IT BEFORE THE ARBITER.
+            CLAIM REGISTERS YOUR DESIGNATION. APPEAL CHALLENGES THE RULING.
           </p>
         </div>
       )}

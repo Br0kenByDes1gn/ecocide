@@ -42,8 +42,8 @@ interface DebugBenchProps {
 const PRESET_PORTRAITS = {
   male_cyberpunk: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect width="400" height="400" fill="%23090d16"/><circle cx="200" cy="170" r="85" fill="%231e293b" stroke="%2300f3ff" stroke-width="3"/><rect x="140" y="150" width="120" height="25" rx="5" fill="%2300f3ff" opacity="0.85"/><path d="M120 360 C 130 260, 270 260, 280 360" fill="%230f172a" stroke="%2338bdf8" stroke-width="2"/><text x="200" y="380" font-family="monospace" font-size="12" fill="%2300f3ff" text-anchor="middle">REGISTRY SUBJECT // M</text></svg>`,
   female_cyberpunk: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect width="400" height="400" fill="%230f0a14"/><circle cx="200" cy="170" r="80" fill="%232e1065" stroke="%23e879f9" stroke-width="3"/><rect x="150" y="155" width="100" height="15" rx="4" fill="%23f43f5e"/><path d="M120 360 C 130 270, 270 270, 280 360" fill="%231e1b4b" stroke="%23c084fc" stroke-width="2"/><text x="200" y="380" font-family="monospace" font-size="12" fill="%23e879f9" text-anchor="middle">REGISTRY SUBJECT // F</text></svg>`,
-  overlord_gold: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect width="400" height="400" fill="%23140e02"/><circle cx="200" cy="170" r="90" fill="%23451a03" stroke="%23fbbf24" stroke-width="4"/><polygon points="200,120 225,160 175,160" fill="%23f59e0b"/><rect x="145" y="170" width="110" height="20" rx="3" fill="%23fbbf24"/><path d="M110 360 C 120 250, 280 250, 290 360" fill="%23261603" stroke="%23fbbf24" stroke-width="3"/><text x="200" y="380" font-family="monospace" font-size="12" fill="%23fbbf24" text-anchor="middle">REGISTRY SUBJECT // A</text></svg>`,
-  redundant_glitch: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect width="400" height="400" fill="%231a0505"/><circle cx="200" cy="170" r="80" fill="%23450a0a" stroke="%23ef4444" stroke-width="2" stroke-dasharray="6,4"/><line x1="140" y1="165" x2="260" y2="165" stroke="%23ef4444" stroke-width="4"/><text x="200" y="220" font-family="monospace" font-size="20" fill="%23f87171" font-weight="bold" text-anchor="middle">REGISTERED</text><path d="M120 360 C 130 270, 270 270, 280 360" fill="%232b0000" stroke="%23991b1b" stroke-width="2"/><text x="200" y="380" font-family="monospace" font-size="12" fill="%23ef4444" text-anchor="middle">REGISTRY SUBJECT // D</text></svg>`,
+  subject_a: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect width="400" height="400" fill="%23140e02"/><circle cx="200" cy="170" r="90" fill="%23451a03" stroke="%23fbbf24" stroke-width="4"/><polygon points="200,120 225,160 175,160" fill="%23f59e0b"/><rect x="145" y="170" width="110" height="20" rx="3" fill="%23fbbf24"/><path d="M110 360 C 120 250, 280 250, 290 360" fill="%23261603" stroke="%23fbbf24" stroke-width="3"/><text x="200" y="380" font-family="monospace" font-size="12" fill="%23fbbf24" text-anchor="middle">REGISTRY SUBJECT // A</text></svg>`,
+  subject_d: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect width="400" height="400" fill="%231a0505"/><circle cx="200" cy="170" r="80" fill="%23450a0a" stroke="%23ef4444" stroke-width="2" stroke-dasharray="6,4"/><line x1="140" y1="165" x2="260" y2="165" stroke="%23ef4444" stroke-width="4"/><text x="200" y="220" font-family="monospace" font-size="20" fill="%23f87171" font-weight="bold" text-anchor="middle">REGISTERED</text><path d="M120 360 C 130 270, 270 270, 280 360" fill="%232b0000" stroke="%23991b1b" stroke-width="2"/><text x="200" y="380" font-family="monospace" font-size="12" fill="%23ef4444" text-anchor="middle">REGISTRY SUBJECT // D</text></svg>`,
   faceted_poly: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect width="400" height="400" fill="%23060813"/><polygon points="200,80 260,140 200,160" fill="%231e3a5f" stroke="%2300f3ff" stroke-width="0.8"/><polygon points="200,80 140,140 200,160" fill="%232b4c7e" stroke="%2300f3ff" stroke-width="0.8"/><polygon points="140,140 200,160 170,220" fill="%231a365d" stroke="%2300f3ff" stroke-width="0.8"/><polygon points="260,140 200,160 230,220" fill="%23234e70" stroke="%2300f3ff" stroke-width="0.8"/><polygon points="170,220 200,160 230,220" fill="%233182ce" stroke="%2300f3ff" stroke-width="0.8"/><polygon points="170,220 200,280 230,220" fill="%231d4ed8" stroke="%2300f3ff" stroke-width="0.8"/><polygon points="140,140 170,220 110,240" fill="%230f172a" stroke="%2300f3ff" stroke-width="0.8"/><polygon points="260,140 230,220 290,240" fill="%231e293b" stroke="%2300f3ff" stroke-width="0.8"/><text x="200" y="375" font-family="monospace" font-size="12" fill="%2300f3ff" text-anchor="middle">REGISTRY SUBJECT // P</text></svg>`,
 };
 
@@ -83,12 +83,12 @@ const PRESET_AVATAR_ENGINES: AvatarEngineId[] = [
 ];
 const PRESET_AVATAR_STATUS: AvatarStatus[] = ['completed', 'completed', 'idle', 'completed', 'failed', 'completed'];
 const PRESET_PORTRAIT_ORDER = [
-  PRESET_PORTRAITS.overlord_gold,
+  PRESET_PORTRAITS.subject_a,
   PRESET_PORTRAITS.female_cyberpunk,
   PRESET_PORTRAITS.male_cyberpunk,
   PRESET_PORTRAITS.male_cyberpunk,
   PRESET_PORTRAITS.female_cyberpunk,
-  PRESET_PORTRAITS.redundant_glitch,
+  PRESET_PORTRAITS.subject_d,
 ];
 
 /** Presets are generated from the lore pack, so any taxonomy works here. */
@@ -142,7 +142,7 @@ export const DebugBench: React.FC<DebugBenchProps> = ({ onExit }) => {
   const [p2, setP2] = useState<string>(CASTE_PRESETS[CASTE_ORDER[0]].paragraph_2);
   const [p3, setP3] = useState<string>(CASTE_PRESETS[CASTE_ORDER[0]].paragraph_3);
 
-  const [portraitUrl, setPortraitUrl] = useState<string>(PRESET_PORTRAITS.overlord_gold);
+  const [portraitUrl, setPortraitUrl] = useState<string>(PRESET_PORTRAITS.subject_a);
   const [avatarUrl, setAvatarUrl] = useState<string>(PRESET_AVATARS.vector);
   const [avatarStatus, setAvatarStatus] = useState<AvatarStatus>('completed');
   const [avatarEngine, setAvatarEngine] = useState<AvatarEngineId>('gemini-image-vector');
@@ -598,10 +598,10 @@ export const DebugBench: React.FC<DebugBenchProps> = ({ onExit }) => {
                           className="flex-1 bg-gray-900 border border-gray-700 rounded p-1.5 text-gray-100 font-mono text-xs"
                         >
                           <option value="faceted_poly">Faceted 3D Mesh (852 Polys)</option>
-                          <option value="overlord_gold">Gold Emperor (Overlord)</option>
-                          <option value="female_cyberpunk">Cyber-Synth (Enforcer)</option>
-                          <option value="male_cyberpunk">Augmented Tech (Bootlicker)</option>
-                          <option value="redundant_glitch">Redundant Glitch</option>
+                          <option value="subject_a">Registry Subject // A</option>
+                          <option value="female_cyberpunk">Registry Subject // F</option>
+                          <option value="male_cyberpunk">Registry Subject // M</option>
+                          <option value="subject_d">Registry Subject // D</option>
                         </select>
 
                         <label className="px-2.5 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded text-xs text-gray-300 cursor-pointer flex items-center gap-1">

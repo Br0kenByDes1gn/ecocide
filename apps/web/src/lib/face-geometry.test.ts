@@ -128,7 +128,7 @@ describe('face-geometry engine', () => {
     expect(telemetry.jawTaperRatio).toBeGreaterThan(0);
   });
 
-  it('blends shell conformity (dominant) with symmetry into the biocarbon ratio', () => {
+  it('blends shell conformity (dominant) with symmetry into the compliance ratio', () => {
     // A highly "average" face (population center) has near-maximum conformity
     const centerConformity = calculateComplianceFromShell({
       facialAspectRatio: CASTE_RATIO_CALIBRATION.facialAspectRatio.mu,

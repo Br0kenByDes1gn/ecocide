@@ -51,6 +51,6 @@ export function loadAuthConfig(env: NodeJS.ProcessEnv = process.env): AuthConfig
     secret: secret || DEV_SECRET,
     baseURL,
     trustedOrigins,
-    appName: 'AI Supreme Arbiter',
+    appName: 'ECOCIDE',
   };
 }

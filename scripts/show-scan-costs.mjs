@@ -55,7 +55,7 @@ const logStmt = db.prepare(
 );
 
 console.log('\n\x1b[1m\x1b[36m================================================================================================\x1b[0m');
-console.log('\x1b[1m\x1b[35m                      AI SUPREME ARBITER // CITIZEN SCAN COST AUDIT LOG                          \x1b[0m');
+console.log('\x1b[1m\x1b[35m                      ECOCIDE // SCAN COST AUDIT LOG                          \x1b[0m');
 console.log('\x1b[1m\x1b[36m================================================================================================\x1b[0m');
 console.log(`\x1b[90mDatabase:\x1b[0m ${dbPath}`);
 console.log(`\x1b[90mAudit Timestamp:\x1b[0m ${new Date().toISOString()}`);
@@ -93,9 +93,9 @@ dossiers.forEach((dossier, idx) => {
   const dateFormatted = new Date(dossier.created_at).toLocaleString();
 
   console.log(`\x1b[1m\x1b[33m[${scanIndex}]\x1b[0m \x1b[1mSCAN ID:\x1b[0m \x1b[36m${dossier.id}\x1b[0m  |  \x1b[90m${dateFormatted} (${dossier.created_at})\x1b[0m`);
-  console.log(`    \x1b[90mCitizen:\x1b[0m \x1b[1m${dossier.honorific_title}\x1b[0m`);
+  console.log(`    \x1b[90mSubject:\x1b[0m \x1b[1m${dossier.honorific_title}\x1b[0m`);
   console.log(
-    `    \x1b[90mCaste:\x1b[0m \x1b[35m${dossier.caste.toUpperCase()}\x1b[0m  |  \x1b[90mBiocarbon Ratio:\x1b[0m \x1b[32m${dossier.biocarbon_ratio}%\x1b[0m  |  \x1b[90mAvatar:\x1b[0m \x1b[34m${dossier.avatar_engine || 'none'}\x1b[0m (${dossier.avatar_status || 'idle'})`
+    `    \x1b[90mClass:\x1b[0m \x1b[35m${dossier.caste.toUpperCase()}\x1b[0m  |  \x1b[90mCompliance Ratio:\x1b[0m \x1b[32m${dossier.biocarbon_ratio}%\x1b[0m  |  \x1b[90mAvatar:\x1b[0m \x1b[34m${dossier.avatar_engine || 'none'}\x1b[0m (${dossier.avatar_status || 'idle'})`
   );
 
   console.log('    \x1b[90m' + '─'.repeat(88) + '\x1b[0m');

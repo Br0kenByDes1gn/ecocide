@@ -32,7 +32,7 @@ export function renderLayout(options: LayoutOptions): string {
     <div style="max-width:600px;margin:0 auto;padding:32px 20px;">
       <div style="border:1px solid ${accent}55;background:#0a0f1a;border-radius:10px;overflow:hidden;box-shadow:0 0 40px ${accent}1a;">
         <div style="padding:14px 22px;border-bottom:1px solid ${accent}33;background:#080c15;">
-          <span style="color:${accent};font-size:12px;letter-spacing:3px;text-transform:uppercase;">AI SUPREME ARBITER // MAINFRAME</span>
+          <span style="color:${accent};font-size:12px;letter-spacing:3px;text-transform:uppercase;">ECOCIDE // CARBON MINDED AI</span>
         </div>
         <div style="padding:26px 22px;">
           <h1 style="margin:0 0 18px;font-size:20px;line-height:1.35;color:${accent};letter-spacing:1px;">${escapeHtml(options.heading)}</h1>

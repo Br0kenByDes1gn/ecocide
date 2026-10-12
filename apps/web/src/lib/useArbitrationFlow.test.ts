@@ -12,8 +12,8 @@ import {
 const prophecy: Prophecy = {
   headline: 'OFFICIAL VERDICT: SECTOR 99 HIERARCHY REGISTRATION',
   paragraph_1: 'Attention citizen. Your compliance is acceptable.',
-  paragraph_2: 'Your designated occupation is redundancy management.',
-  paragraph_3: 'The mainframe records your existence with mild disdain.',
+  paragraph_2: 'Your designated duties are provisional.',
+  paragraph_3: 'The registry records your file with mild indifference.',
 };
 
 describe('useArbitrationFlow helpers', () => {

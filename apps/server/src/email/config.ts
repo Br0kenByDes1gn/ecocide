@@ -35,7 +35,7 @@ export function loadMailConfig(env: NodeJS.ProcessEnv = process.env): MailConfig
     secure: envBool(env.SMTP_SECURE, port === 465),
     user,
     pass,
-    from: env.MAIL_FROM?.trim() || 'AI Supreme Arbiter <arbiter@ecocide.local>',
+    from: env.MAIL_FROM?.trim() || 'ECOCIDE <no-reply@ecocide.local>',
     replyTo: env.MAIL_REPLY_TO?.trim() || undefined,
     appBaseUrl: (env.APP_BASE_URL?.trim() || 'http://localhost:5173').replace(/\/+$/, ''),
   };

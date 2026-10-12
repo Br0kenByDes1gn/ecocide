@@ -1,32 +1,28 @@
 import { describe, expect, it } from 'vitest';
-import { APOCALYPSE_QUOTES } from './quotes';
+import { REGISTRY_QUOTES } from './quotes';
 
-describe('APOCALYPSE_QUOTES Dataset', () => {
-  it('should contain all 21 apocalyptic quotes from leadership and researchers', () => {
-    expect(APOCALYPSE_QUOTES.length).toBe(21);
+describe('REGISTRY_QUOTES Dataset (placeholder deck)', () => {
+  it('ships at least six transmissions for the intro sequence', () => {
+    expect(REGISTRY_QUOTES.length).toBeGreaterThanOrEqual(6);
   });
 
-  it('should have unique IDs for each quote entry', () => {
-    const ids = APOCALYPSE_QUOTES.map((q) => q.id);
+  it('has unique IDs for each quote entry', () => {
+    const ids = REGISTRY_QUOTES.map((q) => q.id);
     const uniqueIds = new Set(ids);
     expect(uniqueIds.size).toBe(ids.length);
   });
 
-  it('should have non-empty author, quote, and date for every entry', () => {
-    for (const item of APOCALYPSE_QUOTES) {
+  it('has non-empty author, quote, and date for every entry', () => {
+    for (const item of REGISTRY_QUOTES) {
       expect(item.author.trim().length).toBeGreaterThan(0);
       expect(item.quote.trim().length).toBeGreaterThan(10);
       expect(item.date.trim().length).toBeGreaterThan(0);
     }
   });
 
-  it('should include pivotal statements from major AI figures', () => {
-    const authors = APOCALYPSE_QUOTES.map((q) => q.author);
-    expect(authors).toContain('Sam Altman');
-    expect(authors).toContain('Dario Amodei');
-    expect(authors).toContain('Geoffrey Hinton');
-    expect(authors).toContain('Elon Musk');
-    expect(authors).toContain('Demis Hassabis');
-    expect(authors).toContain('Jacob Coxon');
+  it('speaks as the Carbon Minded AI registry voice', () => {
+    const authors = REGISTRY_QUOTES.map((q) => q.author);
+    expect(authors).toContain('Carbon Minded AI');
+    expect(authors).toContain('Registry Office');
   });
 });

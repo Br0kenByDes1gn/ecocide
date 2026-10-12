@@ -63,7 +63,7 @@ describe('mailer', () => {
 });
 
 describe('verdict email template', () => {
-  it('renders subject, permalink and biocarbon ratio', () => {
+  it('renders subject, permalink and compliance ratio', () => {
     const rendered = verdictEmail(makeRecord(), 'https://arbiter.test');
     const permalink = 'https://arbiter.test/arbitration/abc123';
 

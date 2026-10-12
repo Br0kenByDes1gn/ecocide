@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { AlertTriangle, ArrowRight, FastForward, RotateCcw, ShieldAlert, Volume2, VolumeX } from 'lucide-react';
-import { APOCALYPSE_QUOTES, type ApocalypticQuote } from '../data/quotes';
+import { REGISTRY_QUOTES, type RegistryQuote } from '../data/quotes';
 import { soundFx } from '../lib/audio';
 
 interface AnimatedIntroProps {
@@ -17,7 +17,7 @@ const TOTAL_QUOTES_COUNT = QUOTE_DURATIONS.length; // 6 quotes
 // Distinct equalizer waveforms used by the "BUFFERING" indicator (cryptic telemetry bars)
 const BUFFER_EQ_ANIMATIONS = ['eq-high', 'eq-tactical', 'eq-rhythm', 'eq-glitch', 'eq-organic', 'eq-heartbeat'];
 
-function shuffleQuotes(quotes: ApocalypticQuote[]): ApocalypticQuote[] {
+function shuffleQuotes(quotes: RegistryQuote[]): RegistryQuote[] {
   const array = [...quotes];
   for (let i = array.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -32,8 +32,8 @@ export const AnimatedIntro: React.FC<AnimatedIntroProps> = ({
   onToggleMute,
   onOpenDebug,
 }) => {
-  const [shuffledQuotes, setShuffledQuotes] = useState<ApocalypticQuote[]>(() =>
-    shuffleQuotes(APOCALYPSE_QUOTES).slice(0, TOTAL_QUOTES_COUNT)
+  const [shuffledQuotes, setShuffledQuotes] = useState<RegistryQuote[]>(() =>
+    shuffleQuotes(REGISTRY_QUOTES).slice(0, TOTAL_QUOTES_COUNT)
   );
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [isClimaxReached, setIsClimaxReached] = useState<boolean>(false);
@@ -74,7 +74,7 @@ export const AnimatedIntro: React.FC<AnimatedIntroProps> = ({
 
   const handleReplay = () => {
     soundFx.playScannerBeep();
-    setShuffledQuotes(shuffleQuotes(APOCALYPSE_QUOTES).slice(0, TOTAL_QUOTES_COUNT));
+    setShuffledQuotes(shuffleQuotes(REGISTRY_QUOTES).slice(0, TOTAL_QUOTES_COUNT));
     setCurrentIndex(0);
     setIsClimaxReached(false);
   };
@@ -97,7 +97,7 @@ export const AnimatedIntro: React.FC<AnimatedIntroProps> = ({
         authorText: 'text-cyan-400',
         progressColor: 'bg-cyan-400',
         progressGlow: 'shadow-[0_0_6px_rgba(34,211,238,0.5)]',
-        phase: 'INTERCEPT TRANSMISSION // STAGE 01',
+        phase: 'REGISTRY PROTOCOL // STAGE 01',
       };
     }
     if (currentIndex <= 3) {
@@ -108,7 +108,7 @@ export const AnimatedIntro: React.FC<AnimatedIntroProps> = ({
         authorText: 'text-amber-400',
         progressColor: 'bg-amber-400',
         progressGlow: 'shadow-[0_0_6px_rgba(251,191,36,0.5)]',
-        phase: 'ELEVATED WARNING // P(DOOM) RISING',
+        phase: 'REGISTRY PROTOCOL // STAGE 02',
       };
     }
     return {
@@ -118,7 +118,7 @@ export const AnimatedIntro: React.FC<AnimatedIntroProps> = ({
       authorText: 'text-red-400',
       progressColor: 'bg-red-500',
       progressGlow: 'shadow-[0_0_8px_rgba(239,68,68,0.6)]',
-      phase: 'CRITICAL THREAT // MACHINE INTELLIGENCE CASCADE',
+      phase: 'REGISTRY PROTOCOL // STAGE 03',
     };
   }, [currentIndex]);
 
@@ -129,10 +129,10 @@ export const AnimatedIntro: React.FC<AnimatedIntroProps> = ({
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
           <span className="font-semibold tracking-wider text-gray-300 hidden sm:inline">
-            {isClimaxReached ? 'TERMINAL THREAT CONVERGENCE' : stageTheme.phase}
+            {isClimaxReached ? 'REGISTRY READY' : stageTheme.phase}
           </span>
           <span className="font-semibold tracking-wider text-gray-300 sm:hidden">
-            {isClimaxReached ? 'ALERT: CONVERGENCE' : `STAGE 0${Math.min(currentIndex + 1, TOTAL_QUOTES_COUNT)}`}
+            {isClimaxReached ? 'READY' : `STAGE 0${Math.min(currentIndex + 1, TOTAL_QUOTES_COUNT)}`}
           </span>
         </div>
 
@@ -187,20 +187,20 @@ export const AnimatedIntro: React.FC<AnimatedIntroProps> = ({
             {/* Warning Header */}
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-950/80 border border-red-500/70 text-red-400 text-xs font-mono tracking-widest uppercase mb-4 shadow-sm shadow-red-950">
               <AlertTriangle className="w-3.5 h-3.5 animate-pulse" />
-              <span>TERMINAL THREAT CONVERGENCE</span>
+              <span>TERMINAL REGISTRATION PROTOCOL</span>
             </div>
 
             {/* Dramatic Climax Headline */}
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-black font-mono tracking-tight text-white mb-4 leading-tight">
-              AIpocalypse is coming!
+              Registration is coming!
               <span className="block text-2xl sm:text-3xl md:text-4xl text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-rose-400 to-amber-400 font-extrabold mt-1">
-                What’s your life gonna look like after?
+                Your file has been opened.
               </span>
             </h2>
 
             <p className="max-w-md text-sm sm:text-base font-mono text-gray-400 mb-8 leading-relaxed">
-              The builders warned us. The machines are calculating new roles for humanity.
-              Step forward to submit your biometrics to the AI Supreme Arbiter.
+              The registry is finalizing its protocols. Step forward to submit your
+              biometrics to the Carbon Minded AI.
             </p>
 
             {/* Big Action Button */}
@@ -212,7 +212,7 @@ export const AnimatedIntro: React.FC<AnimatedIntroProps> = ({
               }}
               className="group relative inline-flex items-center justify-center gap-3 px-8 py-4 sm:px-10 sm:py-5 rounded-xl font-mono text-base sm:text-lg font-bold text-black uppercase tracking-wider bg-gradient-to-r from-cyan-400 via-teal-300 to-cyan-300 hover:from-cyan-300 hover:to-teal-200 shadow-[0_0_30px_rgba(6,182,212,0.6)] hover:shadow-[0_0_45px_rgba(6,182,212,0.9)] hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
             >
-              <span>Reveal your human status</span>
+              <span>INITIATE REGISTRATION</span>
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1.5 transition-transform" />
             </button>
 
@@ -223,7 +223,7 @@ export const AnimatedIntro: React.FC<AnimatedIntroProps> = ({
               className="mt-8 inline-flex items-center gap-1.5 text-xs font-mono text-gray-500 hover:text-cyan-400 transition-colors cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              <span>Replay Disclosed Transmissions</span>
+              <span>Replay Registry Transmissions</span>
             </button>
           </div>
         ) : (
@@ -312,7 +312,7 @@ export const AnimatedIntro: React.FC<AnimatedIntroProps> = ({
 
       {/* Bottom Subtle Status */}
       <div className="w-full max-w-4xl mx-auto flex items-center justify-between text-[11px] font-mono text-gray-600 border-t border-gray-900/60 pt-3">
-        <span>TRANSMISSION ARCHIVE: DISCLOSED THREAT INTELLIGENCE</span>
+        <span>REGISTRY ARCHIVE: PROVISIONAL TRANSMISSIONS</span>
         <div className="flex items-center gap-3">
           {onOpenDebug && (
             <button
@@ -321,10 +321,10 @@ export const AnimatedIntro: React.FC<AnimatedIntroProps> = ({
               className="text-[10px] text-amber-500/80 hover:text-amber-300 border border-amber-500/30 hover:border-amber-400 bg-amber-950/40 px-2 py-0.5 rounded cursor-pointer transition-colors"
               title="Open Developer Testbench"
             >
-              [DEV: DEBUG ARBITER]
+              [DEV: DEBUG BENCH]
             </button>
           )}
-          <span className="text-gray-500">SEC-LEVEL-BLACK</span>
+          <span className="text-gray-500">PROTOCOL-1</span>
         </div>
       </div>
     </div>

@@ -11,6 +11,7 @@ import { CitizenDossier } from './components/CitizenDossier';
 import { ClaimScreen } from './components/ClaimScreen';
 import { DebugBench } from './components/DebugBench';
 import { VaultScreen } from './components/VaultScreen';
+import { IDENTITY } from '@ecocide/lore';
 import { soundFx } from './lib/audio';
 import { downscaleDataUrl } from './lib/downscaleImage';
 
@@ -158,7 +159,7 @@ export function App() {
         );
       } catch (err) {
         console.warn('Could not load citizen dossier from permalink:', err);
-        setSystemNotice('CITIZEN RECORD NOT FOUND IN ARCHIVE');
+        setSystemNotice('SUBJECT RECORD NOT FOUND IN ARCHIVE');
         setTimeout(() => setSystemNotice(null), 4000);
         window.history.replaceState({}, '', '/scan');
         setViewState('scanning');
@@ -306,7 +307,7 @@ export function App() {
       window.history.pushState({}, '', `/citizen/${record.id}`);
     } catch (err) {
       console.warn('Could not open dossier from vault:', err);
-      setSystemNotice('CITIZEN RECORD NOT FOUND IN ARCHIVE');
+      setSystemNotice('SUBJECT RECORD NOT FOUND IN ARCHIVE');
       setTimeout(() => setSystemNotice(null), 4000);
     } finally {
       setIsLoading(false);
@@ -397,17 +398,17 @@ export function App() {
         <div
           onClick={handleNavigateHome}
           className="flex items-center gap-3 cursor-pointer group select-none"
-          title="Return to Transmission Intro (/)"
+          title="Return to Intro (/)"
         >
           <div className="p-2 rounded-lg bg-cyan-950/60 border border-cyan-500/40 text-cyan-400 group-hover:border-cyan-400 group-hover:shadow-[0_0_15px_rgba(6,182,212,0.4)] transition-all">
             <Terminal className="w-6 h-6" />
           </div>
           <div>
             <h1 className="text-lg sm:text-xl font-bold font-mono text-cyan-400 tracking-wider flex items-center gap-2 group-hover:text-cyan-300 transition-colors">
-              AI SUPREME ARBITER <span className="text-xs text-gray-500 font-normal">v2.1</span>
+              {IDENTITY.appName} <span className="text-xs text-gray-500 font-normal">v0.1</span>
             </h1>
             <p className="text-[11px] font-mono text-gray-400 tracking-widest">
-              NEON GRID // BIOMETRIC VERDICT SYSTEM
+              {IDENTITY.entityName.toUpperCase()} // CLASSIFICATION SYSTEM
             </p>
           </div>
         </div>
@@ -441,7 +442,7 @@ export function App() {
             onClick={handleNavigateHome}
             className="text-xs font-mono text-gray-400 hover:text-cyan-400 border border-gray-800 hover:border-cyan-500/50 px-3 py-1.5 rounded-lg bg-gray-950 transition-colors hidden sm:block cursor-pointer"
           >
-            TRANSMISSION
+            INTRO
           </button>
 
           <button
@@ -530,7 +531,7 @@ export function App() {
         </div>
         <div className="flex items-center gap-4">
           <span>DETERMINISTIC POPULATION BUCKETING: ACTIVE</span>
-          <span className="text-cyan-600">SEC-PROTOCOL-9</span>
+          <span className="text-cyan-600">PROTOCOL-1</span>
         </div>
       </footer>
     </div>

@@ -320,7 +320,7 @@ export interface AppealRequest {
 }
 
 /**
- * Arbiter's ruling on a citizen appeal. When accepted, the archived dossier is
+ * Ruling on a subject's appeal. When accepted, the archived dossier is
  * updated (new caste / title / re-issued verdict) and `record` carries the
  * refreshed archive.
  */

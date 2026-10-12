@@ -37,7 +37,7 @@ describe('useIdentityReveal helpers', () => {
     expect(steps[4].value).toBe('Peak Output'); // energy level
   });
 
-  it('keeps the Biocarbon Compliance Ratio count-up as a bounded step count', () => {
+  it('keeps the Compliance Ratio count-up as a bounded step count', () => {
     expect(COMPLIANCE_COUNT_STEPS).toBeGreaterThanOrEqual(10);
     expect(COMPLIANCE_COUNT_STEPS).toBeLessThanOrEqual(100);
   });

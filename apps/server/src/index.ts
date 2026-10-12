@@ -70,8 +70,8 @@ let shuttingDown = false;
 async function shutdown(signal: string): Promise<void> {
   if (shuttingDown) return;
   shuttingDown = true;
-  console.log(`[Mainframe] ${signal} received — shutting down (draining jobs, closing db)...`);
-  await jobSystem.close().catch((err) => console.warn('[Mainframe] Job system close failed:', err));
+  console.log(`[Core] ${signal} received — shutting down (draining jobs, closing db)...`);
+  await jobSystem.close().catch((err) => console.warn('[Core] Job system close failed:', err));
   mailer.close();
   close();
   process.exit(0);
@@ -101,7 +101,7 @@ app.route('/api/vault', createVaultRoutes({ repositories, auth }));
 app.get('/api/health', (c) => {
   return c.json({
     status: 'online',
-    system: 'AI Supreme Arbiter Core',
+    system: 'ECOCIDE Core',
     database: 'SQLite Active',
     avatarEngines: avatarRegistry.list(),
     timestamp: new Date().toISOString(),
@@ -214,7 +214,7 @@ app.get('/api/citizen/:id', async (c) => {
   const id = c.req.param('id');
   const record = await repositories.getDossier(id);
   if (!record) {
-    return c.json({ error: 'Citizen dossier not found in mainframe archives' }, 404);
+    return c.json({ error: 'Subject dossier not found in the registry archives' }, 404);
   }
   return c.json(record);
 });
@@ -395,7 +395,7 @@ if (fs.existsSync(staticDir)) {
 }
 
 const port = Number(process.env.PORT) || 3001;
-console.log(`[AI Supreme Arbiter Engine] Running on http://localhost:${port}`);
+console.log(`[ECOCIDE Engine] Running on http://localhost:${port}`);
 
 serve({
   fetch: app.fetch,

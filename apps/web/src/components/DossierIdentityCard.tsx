@@ -46,7 +46,7 @@ interface DossierIdentityCardProps {
  * whether each stat shows its value, types along, or waits as a placeholder.
  *
  * In `compact` mode the same card morphs into a slim summary bar showing only
- * the mesh thumbnail, honorific title and Biocarbon Compliance Ratio; when
+ * the mesh thumbnail, honorific title and Compliance Ratio; when
  * `interactive` it becomes clickable (one-way) to expand back to full size.
  */
 export const DossierIdentityCard: React.FC<DossierIdentityCardProps> = ({
@@ -217,10 +217,10 @@ export const DossierIdentityCard: React.FC<DossierIdentityCardProps> = ({
               )}
             </div>
 
-            {/* Biocarbon Compliance Ratio card (full mode, below portrait) */}
+            {/* Compliance Ratio card (full mode, below portrait) */}
             {!compact && (
               <div className="w-full mt-3 bg-black/60 p-2.5 rounded-lg border border-gray-800 text-center font-mono">
-                <div className="text-[10px] text-gray-400 uppercase">BIOCARBON COMPLIANCE RATIO</div>
+                <div className="text-[10px] text-gray-400 uppercase">COMPLIANCE RATIO</div>
                 <div className={`text-2xl font-black tracking-widest ${casteTheme.color}`}>
                   {stat(reveal.complianceText, 'w-24 h-5')}
                 </div>
@@ -277,7 +277,7 @@ export const DossierIdentityCard: React.FC<DossierIdentityCardProps> = ({
             {compact && (
               <div className="flex items-baseline justify-between gap-3 min-w-0">
                 <div className="text-[10px] text-gray-400 uppercase whitespace-nowrap">
-                  BIOCARBON COMPLIANCE
+                  COMPLIANCE RATIO
                 </div>
                 <div className={`text-xl sm:text-2xl font-black tracking-widest ${casteTheme.color}`}>
                   {stat(reveal.complianceText, 'w-20 h-5')}

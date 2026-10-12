@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import type { WalletLedgerEntry } from '@ecocide/types';
-import { CASTE_COLORS, VAULT_ALLOWANCE } from '@ecocide/types';
+import { CASTE_COLORS, VAULT_ALLOWANCE, getFaction } from '@ecocide/types';
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -285,20 +285,20 @@ export const VaultScreen: React.FC<VaultScreenProps> = ({ onOpenDossier }) => {
                 >
                   <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-950 border border-gray-800 shrink-0 flex items-center justify-center">
                     {thumb ? (
-                      <img src={thumb} alt={d.caste} className="w-full h-full object-cover" />
+                      <img src={thumb} alt={getFaction(d.caste).name} className="w-full h-full object-cover" />
                     ) : (
                       <span className={`font-mono text-xs ${colors?.text ?? 'text-gray-400'}`}>
-                        {d.caste.slice(0, 1)}
+                        {getFaction(d.caste).name.slice(0, 1)}
                       </span>
                     )}
                   </div>
                   <div className="min-w-0">
                     <div className={`font-mono text-xs font-bold uppercase truncate ${colors?.text ?? 'text-gray-200'}`}>
-                      {d.caste}
+                      {getFaction(d.caste).name}
                     </div>
                     <div className="font-mono text-[10px] text-gray-400 truncate">{d.honorificTitle}</div>
                     <div className="font-mono text-[9px] text-gray-600">
-                      BCR {d.biocarbonRatio}% · {formatVaultDate(d.createdAt)}
+                      COMPLIANCE {d.biocarbonRatio}% · {formatVaultDate(d.createdAt)}
                     </div>
                   </div>
                 </button>

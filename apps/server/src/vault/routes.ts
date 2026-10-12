@@ -86,7 +86,7 @@ export function createVaultRoutes(deps: VaultRouteDeps) {
 
     const dossier = await deps.repositories.getDossier(dossierId);
     if (!dossier) {
-      return c.json({ error: 'Citizen dossier not found in mainframe archives' }, 404);
+      return c.json({ error: 'Subject dossier not found in the registry archives' }, 404);
     }
     if (dossier.ownerId && dossier.ownerId !== user.id) {
       return c.json({ error: 'Dossier is already bound to another Asset Vault' }, 409);

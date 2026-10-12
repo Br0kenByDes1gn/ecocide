@@ -39,7 +39,7 @@ describe('sqlite database dossier repository', () => {
         equipped_wealth: 'High-Tech Elite Gear',
         energy_level: 'Ruthless Command',
         apparent_presentation: 'Feminine',
-        honorific_title: 'High Overlord-Empress',
+        honorific_title: 'Provisional Subject #1',
       },
       prophecy: {
         headline: 'CRITICAL ANOMALY DETECTED IN SECTOR 4',
@@ -56,13 +56,13 @@ describe('sqlite database dossier repository', () => {
     const retrieved = await repositories.getDossier(id);
     expect(retrieved).not.toBeNull();
     expect(retrieved?.profile.caste).toBe('class-i');
-    expect(retrieved?.profile.honorific_title).toBe('High Overlord-Empress');
+    expect(retrieved?.profile.honorific_title).toBe('Provisional Subject #1');
     expect(retrieved?.profile.energy_level).toBe('Ruthless Command');
     expect(retrieved?.prophecy.headline).toBe('CRITICAL ANOMALY DETECTED IN SECTOR 4');
     expect(retrieved?.stylizedPortraitUrl).toBe('data:image/jpeg;base64,mockPortrait');
   });
 
-  it('saves and retrieves citizen dossier with Redundants caste', async () => {
+  it('saves and retrieves subject dossier with overflow classification', async () => {
     const payload: OraclePayload = {
       user_profile: {
         caste: 'class-vi',
@@ -97,7 +97,7 @@ describe('sqlite database dossier repository', () => {
         equipped_wealth: 'Tactical Uniform',
         energy_level: 'Ruthless Command',
         apparent_presentation: 'Masculine',
-        honorific_title: 'Iron Enforcer-Legate',
+        honorific_title: 'Provisional Subject #2',
       },
       prophecy: {
         headline: 'RIOT FORMATION SUPPRESSED',
@@ -125,7 +125,7 @@ describe('sqlite database dossier repository', () => {
         equipped_wealth: 'Tactical Uniform',
         energy_level: 'Ruthless Command',
         apparent_presentation: 'Masculine',
-        honorific_title: 'Iron Enforcer-Legate',
+        honorific_title: 'Provisional Subject #2',
       },
       prophecy: {
         headline: 'RIOT FORMATION SUPPRESSED',
@@ -232,7 +232,7 @@ describe('sqlite database dossier repository', () => {
         equipped_wealth: 'High-Tech Elite Gear',
         energy_level: 'Ruthless Command',
         apparent_presentation: 'Feminine',
-        honorific_title: 'High Overlord-Empress',
+        honorific_title: 'Provisional Subject #1',
       },
       prophecy: {
         headline: 'CRITICAL ANOMALY DETECTED IN SECTOR 4',
@@ -329,7 +329,7 @@ describe('sqlite database dossier repository', () => {
 
     await repositories.updateDossierAppeal(id, {
       caste: 'class-ii',
-      honorificTitle: 'Appealed Enforcer',
+      honorificTitle: 'Re-Assigned Member',
       headline: 'APPEAL GRANTED: RECLASSIFIED',
       paragraph_1: 'A1',
       paragraph_2: 'A2',
@@ -338,7 +338,7 @@ describe('sqlite database dossier repository', () => {
 
     const updated = await repositories.getDossier(id);
     expect(updated?.profile.caste).toBe('class-ii');
-    expect(updated?.profile.honorific_title).toBe('Appealed Enforcer');
+    expect(updated?.profile.honorific_title).toBe('Re-Assigned Member');
     expect(updated?.prophecy.headline).toBe('APPEAL GRANTED: RECLASSIFIED');
     expect(updated?.prophecy.paragraph_1).toBe('A1');
     expect(updated?.prophecy.paragraph_2).toBe('A2');
@@ -381,7 +381,7 @@ describe('sqlite database dossier repository', () => {
       appealText: 'second appeal',
       accepted: true,
       newCaste: 'class-ii',
-      newHonorificTitle: 'Appealed Enforcer',
+      newHonorificTitle: 'Re-Assigned Member',
       headline: 'GRANTED',
       reason: 'r2',
       scripture: ['a', 'b', 'c'],
@@ -394,7 +394,7 @@ describe('sqlite database dossier repository', () => {
     expect(appeals[0].appealText).toBe('second appeal'); // newest first
     expect(appeals[0].accepted).toBe(true);
     expect(appeals[0].newCaste).toBe('class-ii');
-    expect(appeals[0].newHonorificTitle).toBe('Appealed Enforcer');
+    expect(appeals[0].newHonorificTitle).toBe('Re-Assigned Member');
     expect(appeals[0].scripture).toEqual(['a', 'b', 'c']);
     expect(appeals[0].casteBefore).toBe('class-vi');
     expect(appeals[0].casteAfter).toBe('class-ii');
