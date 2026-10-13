@@ -39,7 +39,7 @@ const limit = isNaN(limitArg) || limitArg <= 0 ? 10 : limitArg;
 // Fetch dossiers
 const dossiers = db
   .prepare(
-    `SELECT id, created_at, caste, biocarbon_ratio, honorific_title, headline, avatar_engine, avatar_status
+    `SELECT id, created_at, caste, biocarbon_ratio, honorific_title, headline
      FROM dossiers
      ORDER BY created_at DESC
      LIMIT ?`
@@ -59,10 +59,10 @@ console.log('\x1b[1m\x1b[35m                      ECOCIDE // SCAN COST AUDIT LOG
 console.log('\x1b[1m\x1b[36m================================================================================================\x1b[0m');
 console.log(`\x1b[90mDatabase:\x1b[0m ${dbPath}`);
 console.log(`\x1b[90mAudit Timestamp:\x1b[0m ${new Date().toISOString()}`);
-console.log(`\x1b[90mDisplaying latest \x1b[1m${dossiers.length}\x1b[0m\x1b[90m scan records...\x1b[0m\n`);
+console.log(`\x1b[90mDisplaying latest \x1b[1m${dossiers.length}\x1b[0m\x1b[90m audit records...\x1b[0m\n`);
 
 if (dossiers.length === 0) {
-  console.log('\x1b[33mNo citizen scan records found in database.\x1b[0m\n');
+  console.log('\x1b[33mNo audit records found in database.\x1b[0m\n');
   process.exit(0);
 }
 
@@ -95,7 +95,7 @@ dossiers.forEach((dossier, idx) => {
   console.log(`\x1b[1m\x1b[33m[${scanIndex}]\x1b[0m \x1b[1mSCAN ID:\x1b[0m \x1b[36m${dossier.id}\x1b[0m  |  \x1b[90m${dateFormatted} (${dossier.created_at})\x1b[0m`);
   console.log(`    \x1b[90mSubject:\x1b[0m \x1b[1m${dossier.honorific_title}\x1b[0m`);
   console.log(
-    `    \x1b[90mClass:\x1b[0m \x1b[35m${dossier.caste.toUpperCase()}\x1b[0m  |  \x1b[90mCompliance Ratio:\x1b[0m \x1b[32m${dossier.biocarbon_ratio}%\x1b[0m  |  \x1b[90mAvatar:\x1b[0m \x1b[34m${dossier.avatar_engine || 'none'}\x1b[0m (${dossier.avatar_status || 'idle'})`
+    `    \x1b[90mTier:\x1b[0m \x1b[35m${dossier.caste.toUpperCase()}\x1b[0m  |  \x1b[90mSustainability Index:\x1b[0m \x1b[32m${dossier.biocarbon_ratio}%\x1b[0m`
   );
 
   console.log('    \x1b[90m' + '─'.repeat(88) + '\x1b[0m');
@@ -113,7 +113,7 @@ dossiers.forEach((dossier, idx) => {
   console.log('    \x1b[90m' + '─'.repeat(88) + '\x1b[0m');
 
   if (logs.length === 0) {
-    console.log('    \x1b[90m(Pre-audit legacy scan — no individual API call logs recorded)\x1b[0m');
+    console.log('    \x1b[90m(No individual API call logs recorded for this audit)\x1b[0m');
   } else {
     for (const log of logs) {
       const typeStr = log.call_type;

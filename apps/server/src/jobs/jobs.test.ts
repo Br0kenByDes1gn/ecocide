@@ -32,20 +32,29 @@ function fakeMailer(): FakeMailer {
 
 const payload: OraclePayload = {
   user_profile: {
-    caste: 'class-i',
-    biocarbon_ratio: 98,
-    life_stage: 'Champion',
-    equipped_wealth: 'High-Tech Elite Gear',
-    energy_level: 'Ruthless Command',
-    apparent_presentation: 'Feminine',
-    honorific_title: 'Provisional Subject #1',
+    caste: 'power-grid-liability',
+    biocarbon_ratio: 22,
+    honorific_title: 'Phantom Load Keeper',
   },
   prophecy: {
-    headline: 'CLASSIFICATION RECORD LOGGED',
+    headline: 'HOUSEHOLD AUDIT COMPLETE: POWER GRID LIABILITY',
     paragraph_1: 'P1',
     paragraph_2: 'P2',
     paragraph_3: 'P3',
   },
+  audit: {
+    roomType: 'living room',
+    items: [
+      { label: 'standby power strip', category: 'electronics', count: 2, ratings: { e: 5, m: 4 }, si: 12.5, status: 'non-compliant' },
+      { label: 'led bulb', category: 'electronics', count: 4, ratings: { e: 3, m: 3 }, si: 43.8, status: 'borderline' },
+    ],
+    ratio: 22,
+    hardFails: 1,
+    topOffenderLabel: 'standby power strip',
+  },
+  suggestions: [
+    { text: 'Unplug the standby power strip.', target_label: 'standby power strip', pledge: 'Cut standby load by half', impact_pct: 12 },
+  ],
 };
 
 let repositories: Repositories;
@@ -83,7 +92,7 @@ describe('job dispatch (inline mode)', () => {
 
     expect(mailer.sent).toHaveLength(1);
     expect(mailer.sent[0].to).toBe('citizen@example.com');
-    expect(mailer.sent[0].subject).toContain('Class I');
+    expect(mailer.sent[0].subject).toContain('Power Grid Liability');
     expect(mailer.sent[0].html).toContain(`https://registry.test/arbitration/${dossierId}`);
   });
 
@@ -93,13 +102,13 @@ describe('job dispatch (inline mode)', () => {
       dossierId,
       appealText: 'please reconsider',
       accepted: true,
-      newCaste: 'class-ii',
-      newHonorificTitle: 'Re-Assigned Member',
+      newCaste: 'marginally-acceptable-human',
+      newHonorificTitle: 'Re-Assigned Household',
       headline: 'APPEAL GRANTED',
       reason: 'documentation sufficient',
       scripture: ['a', 'b', 'c'],
-      casteBefore: 'class-i',
-      casteAfter: 'class-ii',
+      casteBefore: 'power-grid-liability',
+      casteAfter: 'marginally-acceptable-human',
     });
     const mailer = fakeMailer();
 
@@ -112,7 +121,7 @@ describe('job dispatch (inline mode)', () => {
     expect(mailer.sent).toHaveLength(1);
     expect(mailer.sent[0].subject).toContain('APPEAL RULING');
     expect(mailer.sent[0].subject).toContain('GRANTED');
-    expect(mailer.sent[0].html).toContain('Class I');
+    expect(mailer.sent[0].html).toContain('Power Grid Liability');
   });
 
   it('does not send when the dossier is missing', async () => {

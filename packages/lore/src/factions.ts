@@ -1,14 +1,13 @@
 // ---------------------------------------------------------------------------
-// Factions — the classification taxonomy, fully data-driven.
+// Factions — the ECOCIDE compliance taxonomy (art_directions.md §3/§7).
 //
-// PLACEHOLDER PACK: this file is neutral by design. Six provisional classes
-// (17/17/17/17/16/16 % quotas) prove the whole pipeline works for ANY number
-// of classes and ANY distribution. Replace ids, names, quotas, colors, lore,
-// prompts and simulation copy with the real story (see STORY.md).
-// TODO-LORE: rewrite this file for the real world.
+// Six tiers, ordered BEST → WORST. Each tier owns a `minScore`: the lower
+// (inclusive) bound of the Household Sustainability Index that lands a
+// household in it (90 / 75 / 60 / 40 / 20 / 0).
+//
+// The item-level formula (H → SI → status) lives in @ecocide/compliance;
+// THIS file owns the tier bands, colors, stamps, verdict lines and voice.
 // ---------------------------------------------------------------------------
-
-import { IDENTITY } from './identity.js';
 
 /** Tailwind-style color classes + hexes for one faction (canvas + UI). */
 export interface FactionColorConfig {
@@ -25,10 +24,6 @@ export interface FactionColorConfig {
   glow: string;
 }
 
-/** The four formal life stages every classification uses (mechanics). */
-export type LifeStageKey = 'youth' | 'youngAdult' | 'adult' | 'senior';
-export const LIFE_STAGE_KEYS: readonly LifeStageKey[] = ['youth', 'youngAdult', 'adult', 'senior'] as const;
-
 export interface FactionTopic {
   /** Icon key the web app maps to an icon component (lucide names). */
   icon: string;
@@ -37,100 +32,225 @@ export interface FactionTopic {
 
 /** Per-faction prompt instruction blocks for the verdict paragraphs. */
 export interface FactionPromptBlocks {
-  /** paragraph_2 instruction (assigned duties). */
-  occupation: string;
+  /** paragraph_2 instruction (infraction summary / order). */
+  paragraph2: string;
   /** paragraph_3 instruction (official assessment). */
-  appraisal: string;
+  paragraph3: string;
 }
 
 /** Offline (simulation) verdict copy for one faction. */
 export interface FactionSimulated {
   title: string;
-  occupation: string;
-  notice: string;
-  energy: string;
+  paragraph2: string;
+  paragraph3: string;
 }
 
 export interface FactionDef {
-  /** Stable internal id, persisted in the DB (e.g. `class-i`). */
+  /** Stable internal id, persisted in the DB (e.g. `carbon-neutral-legend`). */
   id: string;
-  /** Display name used across the UI and prompts (e.g. `Class I`). */
+  /** Display name used across the UI and prompts. */
   name: string;
-  /** Singular member designation (e.g. `Class I Member`). */
+  /** Singular designation (used where a short label is needed). */
   memberTitle: string;
-  /** Share of the world population in percent. All shares must sum to 100. */
-  quotaPct: number;
-  /** Optional: exact-remainder bucket. Defaults to the LAST faction in order. */
-  isOverflow?: boolean;
+  /** Lower (inclusive) bound of the Household Sustainability Index (0–100). */
+  minScore: number;
   /** Faction color scheme (UI + canvas). */
   colors: FactionColorConfig;
+  /** Stamp text on the dossier (art §7). */
+  stampText: string;
+  /** Stamp ink hex for the paper layer (art §3.4/§7). */
+  stampInk: string;
+  /** The Arbiter's one-line verdict for this tier (art §7). */
+  verdictLine: string;
+  /** Per-tier reticle motif key (art §7 lore; web may animate it). */
+  reticleMotif: string;
+  /** Tier lore (census modal + prompts). */
   censusDescription: string;
-  /** Formal-stage → per-faction title. */
-  lifeStageTitles: Record<LifeStageKey, string>;
   /** Paragraph topics shown on the dossier (icon key + label). */
   topics: { p2: FactionTopic; p3: FactionTopic };
   promptBlocks: FactionPromptBlocks;
-  /** Art direction prompt used by the avatar synthesis providers. */
+  /** Art-direction prompt for badge/stamp image generation (art §10). */
   stylePrompt: string;
   simulated: FactionSimulated;
 }
 
-/** Wealth tiers used by the prompt and profile normalization. */
-export interface WealthTierDef {
-  label: string;
-  hints?: readonly string[];
-}
-export const WEALTH_TIERS: readonly WealthTierDef[] = [
-  { label: 'Abundant', hints: ['luxury', 'designer', 'pristine', 'wealthy', 'elite'] },
-  { label: 'Comfortable', hints: ['stylish', 'sharp', 'executive', 'tailored', 'techwear'] },
-  { label: 'Stable', hints: ['clean', 'branded', 'crisp', 'well-kept'] },
-  { label: 'Baseline', hints: ['ordinary', 'average', 'functional', 'neutral', 'standard'] },
-  { label: 'Worn', hints: ['faded', 'thrifted', 'washed-out'] },
-  { label: 'Threadbare', hints: ['tattered', 'frayed', 'grease-stained', 'scavenged'] },
-  { label: 'Depleted', hints: ['rags', 'dilapidated', 'deficit', 'salvage'] },
-] as const;
-export const DEFAULT_WEALTH_TIER = 'Baseline';
-
-const PLACEHOLDER_DESC = (name: string) =>
-  `Placeholder lore for ${name}. Describe this faction's identity, role and outlook in packages/lore/src/factions.ts (TODO-LORE).`;
-const PLACEHOLDER_OCCUPATION = (name: string) =>
-  `Placeholder assigned-duties copy for ${name} (TODO-LORE): describe the duties this faction performs.`;
-const PLACEHOLDER_NOTICE = (name: string) =>
-  `Placeholder assessment copy for ${name} (TODO-LORE): describe how the system assesses this faction.`;
-
-const PLACEHOLDER_STYLE = (name: string) =>
-  `A plain official registry badge for the faction "${name}", flat vector style, minimal background, neutral palette (TODO-LORE: replace with the faction's real visual identity).`;
-
-const PLACEHOLDER_PROMPT_OCCUPATION =
-  '- paragraph_2 (Assigned Duties): Assign the subject a specific, bureaucratic daily function and operational duty grounded in their visible appearance, posture, clothing and surroundings in the photograph. Keep it precise, dry and faintly absurd.';
-const PLACEHOLDER_PROMPT_APPRAISAL =
-  '- paragraph_3 (Official Assessment): Deliver a cold, bureaucratic assessment of the subject as a unit — their utility, output or standing — referencing concrete visible details from the photograph. Official, precise, faintly dismissive.';
-
-/** Neutral placeholder energy phrases per class (TODO-LORE). */
-const PLACEHOLDER_ENERGY: readonly string[] = [
-  'Peak Output',
-  'Sustained Operation',
-  'Nominal Output',
-  'Reduced Output',
-  'Intermittent Operation',
-  'Standby',
-] as const;
+/**
+ * The eight harm dimensions (same literal keys as @ecocide/compliance — the
+ * lore pack stays dependency-free by redeclaring the union structurally).
+ */
+export type HarmDimensionKey = 'm' | 'r' | 'd' | 'c' | 'l' | 't' | 'p' | 'e';
+export const HARM_DIMENSION_KEYS: readonly HarmDimensionKey[] = ['m', 'r', 'd', 'c', 'l', 't', 'p', 'e'] as const;
 
 /**
- * The classification taxonomy, ordered from the largest-percentile band
- * (first) to the smallest (last). The LAST faction is the overflow bucket
- * unless another faction sets `isOverflow: true`.
+ * Deterministic personalized titles chosen from the DOMINANT scoring
+ * dimension (art §7: "for example 'Petroleum Hoarder'"). `minor` applies to
+ * borderline households (ratio ≥ 60), `major` to genuinely bad ones.
+ */
+export const DIMENSION_TITLES: Readonly<
+  Record<HarmDimensionKey, { minor: string; major: string }>
+> = {
+  m: { minor: 'Plastic-Curious', major: 'Petroleum Hoarder' },
+  r: { minor: 'Recycling Skeptic', major: 'Bin Protocol Violator' },
+  d: { minor: 'Decomposition Gambler', major: 'Century-Lifespan Keeper' },
+  c: { minor: 'Carbon-Curious', major: 'Embodied Carbon Baron' },
+  l: { minor: 'Reuse Amateur', major: 'Single-Use Regent' },
+  t: { minor: 'Household Alchemist', major: 'Toxin Curator' },
+  p: { minor: 'Shedding Normal', major: 'Microplastic Dispenser' },
+  e: { minor: 'Standby-Load Observer', major: 'Phantom Load Keeper' },
+};
+
+/** Pick the deterministic title for a dominant dimension + household ratio. */
+export function dimensionTitle(dimension: HarmDimensionKey, ratio: number): string {
+  const bank = DIMENSION_TITLES[dimension] ?? DIMENSION_TITLES.m;
+  return ratio < 60 ? bank.major : bank.minor;
+}
+
+/**
+ * The classification taxonomy, from the most compliant band (first) to the
+ * least (last, the default remainder for unclassifiable scores).
  */
 export const FACTIONS = [
   {
-    id: 'class-i',
-    name: 'Class I',
-    memberTitle: 'Class I Member',
-    quotaPct: 17,
+    id: 'carbon-neutral-legend',
+    name: 'Carbon Neutral Legend',
+    memberTitle: 'Carbon Neutral Legend',
+    minScore: 90,
+    colors: {
+      name: 'lime',
+      hex: '#84cc16',
+      glowHex: 'rgba(132, 204, 22, 0.4)',
+      text: 'text-lime-400',
+      color: 'text-lime-400',
+      bg: 'bg-lime-950/20',
+      border: 'border-lime-500/60',
+      badge: 'bg-lime-500 text-black',
+      barColor: 'bg-lime-400',
+      dotColor: 'bg-lime-400',
+      glow: 'shadow-[0_0_20px_rgba(132,204,22,0.25)]',
+    },
+    stampText: 'EXEMPLARY',
+    stampInk: '#2f7d3a',
+    verdictLine: 'Suspiciously perfect. The Bureau is double-checking.',
+    reticleMotif: 'exemplary-ring',
+    censusDescription:
+      'Immaculate case file edged in lime; a laurel wreath of recycling arrows and a single seedling in an inspection jar, with a Bureau magnifier hovering suspiciously over everything. The planet meter is nearly empty of waste.',
+    topics: {
+      p2: { icon: 'recycle', label: 'Infraction Summary' },
+      p3: { icon: 'clipboard', label: 'Remediation Order' },
+    },
+    promptBlocks: {
+      paragraph2:
+        '- paragraph_2 (Infraction Summary): Confirm that the splashable items in the inventory are, regrettably, in order. State precisely why the Bureau finds almost nothing to object to, then invent a technicality so the file is not empty.',
+      paragraph3:
+        '- paragraph_3 (Official Assessment): Deliver the cold bureaucratic verdict on the household as a unit — suspiciously compliant, statistically improbable, provisionally approved pending double-check — referencing specific items with deadpan certainty.',
+    },
+    stylePrompt:
+      'Crisp flat vector rubber-stamp badge, 256x256 icon aesthetic: EXEMPLARY stamp in toxic lime, laurel wreath of recycling arrows, single seedling in an inspection jar, Bureau magnifier hovering, immaculate case-file edges. Bold ink-stamp lettering, slightly worn edges, dark moss-black background, soft lime neon glow. No faces, no people.',
+    simulated: {
+      title: 'Exemplary Household',
+      paragraph2:
+        "The Bureau's only objection is the absence of objections. Your compost bin has been cross-filed three times and each time it returned clean.",
+      paragraph3:
+        "Continue to consume nothing worth auditing and the Bureau will leave you alone. It is watching anyway. Its magnifier never blinks.",
+    },
+  },
+  {
+    id: 'marginally-acceptable-human',
+    name: 'Marginally Acceptable Human',
+    memberTitle: 'Marginally Acceptable Human',
+    minScore: 75,
+    colors: {
+      name: 'green',
+      hex: '#22c55e',
+      glowHex: 'rgba(34, 197, 94, 0.4)',
+      text: 'text-green-400',
+      color: 'text-green-400',
+      bg: 'bg-green-950/20',
+      border: 'border-green-500/60',
+      badge: 'bg-green-500 text-black',
+      barColor: 'bg-green-400',
+      dotColor: 'bg-green-400',
+      glow: 'shadow-[0_0_20px_rgba(34,197,94,0.25)]',
+    },
+    stampText: 'APPROVED',
+    stampInk: '#2f7d3a',
+    verdictLine: 'Good habits. Keep going.',
+    reticleMotif: 'steady-brackets',
+    censusDescription:
+      'Neatly sorted bins, one reusable bottle on the counter, a tidy ledger with one small ink smudge. Provisionally approved; the smudge has been noted.',
+    topics: {
+      p2: { icon: 'recycle', label: 'Infraction Summary' },
+      p3: { icon: 'clipboard', label: 'Remediation Order' },
+    },
+    promptBlocks: {
+      paragraph2:
+        '- paragraph_2 (Infraction Summary): Acknowledge the household is mostly compliant, then single out the few items the Bureau would rather not see again, with precise and faintly bemused wording.',
+      paragraph3:
+        '- paragraph_3 (Official Assessment): Approve the household as a unit while noting it must "keep going", referencing specific items in the inventory with deadpan certainty.',
+    },
+    stylePrompt:
+      'Crisp flat vector rubber-stamp badge, 256x256 icon aesthetic: APPROVED stamp in green, neatly sorted bins, one reusable bottle, a tidy ledger with one small ink smudge, a green check mark with a tiny asterisk. Bold ink-stamp lettering, slightly worn edges, dark moss-black background, soft green neon glow. No faces, no people.',
+    simulated: {
+      title: 'Provisionally Kept Household',
+      paragraph2:
+        "Your goods are mostly in order. The Bureau notes the smudge on the ledger — a plastic takeaway box — and accepts it as a clerical lapse.",
+      paragraph3:
+        "Maintain current bins. Replenish effort. Do not make the Bureau re-audit; its patience is filed somewhere it cannot find.",
+    },
+  },
+  {
+    id: 'statistically-average-polluter',
+    name: 'Statistically Average Polluter',
+    memberTitle: 'Statistically Average Polluter',
+    minScore: 60,
+    colors: {
+      name: 'yellow',
+      hex: '#facc15',
+      glowHex: 'rgba(250, 204, 21, 0.4)',
+      text: 'text-yellow-300',
+      color: 'text-yellow-300',
+      bg: 'bg-yellow-950/20',
+      border: 'border-yellow-500/60',
+      badge: 'bg-yellow-400 text-black',
+      barColor: 'bg-yellow-400',
+      dotColor: 'bg-yellow-300',
+      glow: 'shadow-[0_0_20px_rgba(250,204,21,0.25)]',
+    },
+    stampText: 'APPROVED (GRUDGINGLY)',
+    stampInk: '#b45309',
+    verdictLine: 'Some good choices, some bad ones. Acceptable.',
+    reticleMotif: 'half-ring',
+    censusDescription:
+      'Half-sorted bins; a reusable tote sits beside a plastic bag; a recycling symbol hangs slightly crooked. The household is statistically unremarkable, which is its own kind of verdict.',
+    topics: {
+      p2: { icon: 'recycle', label: 'Infraction Summary' },
+      p3: { icon: 'clipboard', label: 'Remediation Order' },
+    },
+    promptBlocks: {
+      paragraph2:
+        '- paragraph_2 (Infraction Summary): Balance the inventory between tidy and messy items; acknowledge the good ones briefly, then serve a precise infraction list for the bad ones, as if reading them from a ledger.',
+      paragraph3:
+        '- paragraph_3 (Official Assessment): Pronounce the household statistically average, grudgingly acceptable, and exactly what the population model predicted — referencing specific items with deadpan certainty.',
+    },
+    stylePrompt:
+      'Crisp flat vector rubber-stamp badge, 256x256 icon aesthetic: APPROVED (GRUDGINGLY) stamp in yellow, half-sorted bins, a reusable tote beside a plastic bag, a recycling symbol hanging slightly crooked, exactly half the ring lit. Bold ink-stamp lettering, slightly worn edges, dark moss-black background, soft yellow neon glow. No faces, no people.',
+    simulated: {
+      title: 'Statistically Filed Household',
+      paragraph2:
+        "Half your objects are fine. The other half have been noted, individually, and the note has been filed. The tote beside the plastic bag was particularly on the nose.",
+      paragraph3:
+        "Average output requires average correction. The Bureau recommends averages, which it has already applied to your file.",
+    },
+  },
+  {
+    id: 'high-impact-offender',
+    name: 'High-Impact Habitual Offender',
+    memberTitle: 'High-Impact Habitual Offender',
+    minScore: 40,
     colors: {
       name: 'amber',
-      hex: '#fbbf24',
-      glowHex: 'rgba(251, 191, 36, 0.4)',
+      hex: '#f59e0b',
+      glowHex: 'rgba(245, 158, 11, 0.4)',
       text: 'text-amber-400',
       color: 'text-amber-400',
       bg: 'bg-amber-950/20',
@@ -140,174 +260,81 @@ export const FACTIONS = [
       dotColor: 'bg-amber-400',
       glow: 'shadow-[0_0_20px_rgba(245,158,11,0.25)]',
     },
-    censusDescription: PLACEHOLDER_DESC('Class I'),
-    lifeStageTitles: { youth: 'Youth', youngAdult: 'Young Adult', adult: 'Adult', senior: 'Senior' },
+    stampText: 'PENDING REVIEW',
+    stampInk: '#b45309',
+    verdictLine: 'You know better, and the bin knows it.',
+    reticleMotif: 'amber-notches',
+    censusDescription:
+      'Overflowing bin, stacked delivery boxes, loose bubble wrap, caution tape half applied. Amber warning lights pulse over a household under observation.',
     topics: {
-      p2: { icon: 'briefcase', label: 'Assigned Duties' },
-      p3: { icon: 'clipboard', label: 'Official Assessment' },
+      p2: { icon: 'recycle', label: 'Infraction Summary' },
+      p3: { icon: 'clipboard', label: 'Remediation Order' },
     },
     promptBlocks: {
-      occupation: PLACEHOLDER_PROMPT_OCCUPATION,
-      appraisal: PLACEHOLDER_PROMPT_APPRAISAL,
+      paragraph2:
+        '- paragraph_2 (Infraction Summary): Read the household its infractions from the inventory with courtroom precision: the overflowing bin, the stacked boxes, the bubble wrap — each item named, each count recorded.',
+      paragraph3:
+        '- paragraph_3 (Official Assessment): Place the household under observation, note that it knows better, and state what happens to the file if pledges are not filed — referencing specific items with deadpan certainty.',
     },
-    stylePrompt: PLACEHOLDER_STYLE('Class I'),
+    stylePrompt:
+      'Crisp flat vector rubber-stamp badge, 256x256 icon aesthetic: PENDING REVIEW stamp in amber, overflowing bin, stacked delivery boxes, loose bubble wrap, caution tape half applied, blinking amber quadrant notches, warning lights. Bold ink-stamp lettering, slightly worn edges, dark moss-black background, soft amber neon glow. No faces, no people.',
     simulated: {
-      title: 'Class I Member',
-      occupation: PLACEHOLDER_OCCUPATION('Class I'),
-      notice: PLACEHOLDER_NOTICE('Class I'),
-      energy: PLACEHOLDER_ENERGY[0],
+      title: 'Under Observation',
+      paragraph2:
+        "The overflowing bin, the stacked boxes, the loose bubble wrap — all logged, all owned by you, all heavier than they look.",
+      paragraph3:
+        "Amber warnings have been attached to your file. They will escalate unless pledges are filed. The bin has been informed.",
     },
   },
   {
-    id: 'class-ii',
-    name: 'Class II',
-    memberTitle: 'Class II Member',
-    quotaPct: 17,
+    id: 'power-grid-liability',
+    name: 'Power Grid Liability',
+    memberTitle: 'Power Grid Liability',
+    minScore: 20,
     colors: {
-      name: 'slate',
-      hex: '#94a3b8',
-      glowHex: 'rgba(148, 163, 184, 0.4)',
-      text: 'text-slate-300',
-      color: 'text-slate-300',
-      bg: 'bg-slate-900/40',
-      border: 'border-slate-500/60',
-      badge: 'bg-slate-200 text-slate-950 font-black',
-      barColor: 'bg-slate-400',
-      dotColor: 'bg-slate-300',
-      glow: 'shadow-[0_0_20px_rgba(148,163,184,0.3)]',
+      name: 'orange',
+      hex: '#f97316',
+      glowHex: 'rgba(249, 115, 22, 0.4)',
+      text: 'text-orange-400',
+      color: 'text-orange-400',
+      bg: 'bg-orange-950/20',
+      border: 'border-orange-500/60',
+      badge: 'bg-orange-500 text-black',
+      barColor: 'bg-orange-400',
+      dotColor: 'bg-orange-400',
+      glow: 'shadow-[0_0_20px_rgba(249,115,22,0.25)]',
     },
-    censusDescription: PLACEHOLDER_DESC('Class II'),
-    lifeStageTitles: { youth: 'Youth', youngAdult: 'Young Adult', adult: 'Adult', senior: 'Senior' },
+    stampText: 'DENIED',
+    stampInk: '#c2322b',
+    verdictLine: 'A lot of waste. Review pending.',
+    reticleMotif: 'voltage-ring',
+    censusDescription:
+      'Tangled extension cords, rows of standby LEDs, overloaded power strips, a meter needle pushed into the red zone. Flickering orange glow; grid strain notice served.',
     topics: {
-      p2: { icon: 'briefcase', label: 'Assigned Duties' },
-      p3: { icon: 'clipboard', label: 'Official Assessment' },
+      p2: { icon: 'recycle', label: 'Infraction Summary' },
+      p3: { icon: 'clipboard', label: 'Remediation Order' },
     },
     promptBlocks: {
-      occupation: PLACEHOLDER_PROMPT_OCCUPATION,
-      appraisal: PLACEHOLDER_PROMPT_APPRAISAL,
+      paragraph2:
+        '- paragraph_2 (Infraction Summary): Count the household\'s phantom loads out loud: standby LEDs, idle chargers, overloaded strips — each watt logged as an infraction against the grid.',
+      paragraph3:
+        '- paragraph_3 (Official Assessment): Deny the household\'s standing, note the waste, and serve a review pending — referencing specific energy items in the inventory with deadpan certainty.',
     },
-    stylePrompt: PLACEHOLDER_STYLE('Class II'),
+    stylePrompt:
+      'Crisp flat vector rubber-stamp badge, 256x256 icon aesthetic: DENIED stamp in rust orange, tangled extension cords, rows of standby LED lights, an overloaded power strip, a meter needle in the red zone, flickering voltage-spike zigzag ring. Bold ink-stamp lettering, slightly worn edges, dark moss-black background, soft orange neon glow. No faces, no people.',
     simulated: {
-      title: 'Class II Member',
-      occupation: PLACEHOLDER_OCCUPATION('Class II'),
-      notice: PLACEHOLDER_NOTICE('Class II'),
-      energy: PLACEHOLDER_ENERGY[1],
+      title: 'Grid Strain Notice',
+      paragraph2:
+        "Every standby LED in your household has been counted. It was a significant count. The extension cords were not consulted.",
+      paragraph3:
+        "Review is pending. Your power strip's opinion has been noted and disregarded. The grid remembers every watt.",
     },
   },
   {
-    id: 'class-iii',
-    name: 'Class III',
-    memberTitle: 'Class III Member',
-    quotaPct: 17,
-    colors: {
-      name: 'khaki',
-      hex: '#c29f53',
-      glowHex: 'rgba(194, 159, 83, 0.4)',
-      text: 'text-khaki-400',
-      color: 'text-khaki-400',
-      bg: 'bg-khaki-500/15',
-      border: 'border-khaki-500/60',
-      badge: 'bg-khaki-500 text-stone-950 font-bold',
-      barColor: 'bg-khaki-500',
-      dotColor: 'bg-khaki-400',
-      glow: 'shadow-[0_0_20px_rgba(194,159,83,0.25)]',
-    },
-    censusDescription: PLACEHOLDER_DESC('Class III'),
-    lifeStageTitles: { youth: 'Youth', youngAdult: 'Young Adult', adult: 'Adult', senior: 'Senior' },
-    topics: {
-      p2: { icon: 'briefcase', label: 'Assigned Duties' },
-      p3: { icon: 'clipboard', label: 'Official Assessment' },
-    },
-    promptBlocks: {
-      occupation: PLACEHOLDER_PROMPT_OCCUPATION,
-      appraisal: PLACEHOLDER_PROMPT_APPRAISAL,
-    },
-    stylePrompt: PLACEHOLDER_STYLE('Class III'),
-    simulated: {
-      title: 'Class III Member',
-      occupation: PLACEHOLDER_OCCUPATION('Class III'),
-      notice: PLACEHOLDER_NOTICE('Class III'),
-      energy: PLACEHOLDER_ENERGY[2],
-    },
-  },
-  {
-    id: 'class-iv',
-    name: 'Class IV',
-    memberTitle: 'Class IV Member',
-    quotaPct: 17,
-    colors: {
-      name: 'blue',
-      hex: '#3b82f6',
-      glowHex: 'rgba(59, 130, 246, 0.4)',
-      text: 'text-blue-400',
-      color: 'text-blue-400',
-      bg: 'bg-blue-950/20',
-      border: 'border-blue-500/60',
-      badge: 'bg-blue-600 text-white font-bold',
-      barColor: 'bg-blue-500',
-      dotColor: 'bg-blue-400',
-      glow: 'shadow-[0_0_20px_rgba(59,130,246,0.25)]',
-    },
-    censusDescription: PLACEHOLDER_DESC('Class IV'),
-    lifeStageTitles: { youth: 'Youth', youngAdult: 'Young Adult', adult: 'Adult', senior: 'Senior' },
-    topics: {
-      p2: { icon: 'briefcase', label: 'Assigned Duties' },
-      p3: { icon: 'clipboard', label: 'Official Assessment' },
-    },
-    promptBlocks: {
-      occupation: PLACEHOLDER_PROMPT_OCCUPATION,
-      appraisal: PLACEHOLDER_PROMPT_APPRAISAL,
-    },
-    stylePrompt: PLACEHOLDER_STYLE('Class IV'),
-    simulated: {
-      title: 'Class IV Member',
-      occupation: PLACEHOLDER_OCCUPATION('Class IV'),
-      notice: PLACEHOLDER_NOTICE('Class IV'),
-      energy: PLACEHOLDER_ENERGY[3],
-    },
-  },
-  {
-    id: 'class-v',
-    name: 'Class V',
-    memberTitle: 'Class V Member',
-    quotaPct: 16,
-    colors: {
-      name: 'emerald',
-      hex: '#10b981',
-      glowHex: 'rgba(16, 185, 129, 0.4)',
-      text: 'text-emerald-400',
-      color: 'text-emerald-400',
-      bg: 'bg-emerald-950/20',
-      border: 'border-emerald-500/60',
-      badge: 'bg-emerald-500 text-black',
-      barColor: 'bg-emerald-400',
-      dotColor: 'bg-emerald-400',
-      glow: 'shadow-[0_0_20px_rgba(16,185,129,0.25)]',
-    },
-    censusDescription: PLACEHOLDER_DESC('Class V'),
-    lifeStageTitles: { youth: 'Youth', youngAdult: 'Young Adult', adult: 'Adult', senior: 'Senior' },
-    topics: {
-      p2: { icon: 'briefcase', label: 'Assigned Duties' },
-      p3: { icon: 'clipboard', label: 'Official Assessment' },
-    },
-    promptBlocks: {
-      occupation: PLACEHOLDER_PROMPT_OCCUPATION,
-      appraisal: PLACEHOLDER_PROMPT_APPRAISAL,
-    },
-    stylePrompt: PLACEHOLDER_STYLE('Class V'),
-    simulated: {
-      title: 'Class V Member',
-      occupation: PLACEHOLDER_OCCUPATION('Class V'),
-      notice: PLACEHOLDER_NOTICE('Class V'),
-      energy: PLACEHOLDER_ENERGY[4],
-    },
-  },
-  {
-    id: 'class-vi',
-    name: 'Class VI',
-    memberTitle: 'Class VI Member',
-    quotaPct: 16,
-    isOverflow: true,
+    id: 'disaster-zone',
+    name: 'Environmental Disaster Zone',
+    memberTitle: 'Environmental Disaster Zone',
+    minScore: 0,
     colors: {
       name: 'red',
       hex: '#ef4444',
@@ -316,27 +343,35 @@ export const FACTIONS = [
       color: 'text-red-400',
       bg: 'bg-red-950/25',
       border: 'border-red-500/70',
-      badge: 'bg-red-600 text-white shadow-lg shadow-red-600/50',
+      badge: 'bg-red-600 text-white',
       barColor: 'bg-red-600',
       dotColor: 'bg-red-500',
-      glow: 'shadow-[0_0_20px_rgba(239,68,68,0.25)]',
+      glow: 'shadow-[0_0_20px_rgba(239,68,68,0.35)]',
     },
-    censusDescription: PLACEHOLDER_DESC('Class VI'),
-    lifeStageTitles: { youth: 'Youth', youngAdult: 'Young Adult', adult: 'Adult', senior: 'Senior' },
+    stampText: 'FINAL NOTICE',
+    stampInk: '#c2322b',
+    verdictLine: 'Termination notice issued. Appeals accepted in pledges.',
+    reticleMotif: 'heartbeat-ring',
+    censusDescription:
+      'A mountain of mixed waste behind hazard-striped quarantine tape; the case file stamped CONDEMNED in red barcode. A cracked terminal screen glitches over a final notice.',
     topics: {
-      p2: { icon: 'briefcase', label: 'Assigned Duties' },
-      p3: { icon: 'clipboard', label: 'Official Assessment' },
+      p2: { icon: 'recycle', label: 'Infraction Summary' },
+      p3: { icon: 'clipboard', label: 'Remediation Order' },
     },
     promptBlocks: {
-      occupation: PLACEHOLDER_PROMPT_OCCUPATION,
-      appraisal: PLACEHOLDER_PROMPT_APPRAISAL,
+      paragraph2:
+        '- paragraph_2 (Infraction Summary): Catalog the mountain: every item in the inventory that contributed, named by label with its count, as if reading a criminal indictment.',
+      paragraph3:
+        '- paragraph_3 (Official Assessment): Issue the final notice — the household\'s waste habits are terminated, appeals accepted only in pledges — referencing specific items with deadpan certainty.',
     },
-    stylePrompt: PLACEHOLDER_STYLE('Class VI'),
+    stylePrompt:
+      'Crisp flat vector rubber-stamp badge, 256x256 icon aesthetic: FINAL NOTICE stamp in red, a mountain of mixed waste behind hazard-striped quarantine tape, a red barcode labeled CONDEMNED across the case file, pulsing red heartbeat ring, cracked terminal glitch. Bold ink-stamp lettering, slightly worn edges, dark moss-black background, hot red neon glow. No faces, no people.',
     simulated: {
-      title: 'Class VI Member',
-      occupation: PLACEHOLDER_OCCUPATION('Class VI'),
-      notice: PLACEHOLDER_NOTICE('Class VI'),
-      energy: PLACEHOLDER_ENERGY[5],
+      title: 'Final Notice Filed',
+      paragraph2:
+        "Your possessions have been weighed against the planet and found heavier. A red barcode has been stamped across the entire file.",
+      paragraph3:
+        "Termination of your current habits is scheduled. Appeals are accepted in pledges. The mountain is patient; it has nowhere else to be.",
     },
   },
 ] as const satisfies readonly FactionDef[];
@@ -345,95 +380,40 @@ export type FactionId = (typeof FACTIONS)[number]['id'];
 
 export const FACTION_IDS: readonly FactionId[] = FACTIONS.map((f) => f.id) as readonly FactionId[];
 
-/** The overflow faction (exact-remainder bucket). */
-export const OVERFLOW_ID: FactionId = (
-  (FACTIONS as readonly FactionDef[]).find((f) => f.isOverflow) ?? FACTIONS[FACTIONS.length - 1]
-).id as FactionId;
-
 export function factionIndex(id: FactionId | string): number {
   return FACTION_IDS.indexOf(id as FactionId);
 }
 
-/** Lookup a faction by id; unknown ids resolve to the overflow faction. */
+/** Lookup a faction by id; unknown ids resolve to the worst tier. */
 export function getFaction(id: FactionId | string): FactionDef {
   const found = (FACTIONS as readonly FactionDef[]).find((f) => f.id === id);
-  return (found ?? (FACTIONS as readonly FactionDef[]).find((f) => f.id === OVERFLOW_ID) ?? FACTIONS[0]) as FactionDef;
+  return (found ?? (FACTIONS as readonly FactionDef[])[FACTIONS.length - 1]) as FactionDef;
 }
 
-export function isOverflowFaction(id: FactionId | string): boolean {
-  return (getFaction(id).isOverflow ?? factionIndex(id) === FACTION_IDS.length - 1) === true;
+/** Lookup a faction by its display name (case-insensitive); null when unknown. */
+export function findFactionByName(name: string): FactionDef | null {
+  const target = (name || '').trim().toLowerCase();
+  return (
+    (FACTIONS as readonly FactionDef[]).find((f) => f.name.toLowerCase() === target) ??
+    (FACTIONS as readonly FactionDef[]).find((f) => f.id.toLowerCase() === target) ??
+    null
+  );
 }
 
-/** Percentage share per faction (must sum to 100). */
-export function factionPercentages(): Record<FactionId, number> {
-  return Object.fromEntries(FACTIONS.map((f) => [f.id, f.quotaPct])) as Record<FactionId, number>;
+/** Lower (inclusive) score bound per faction. */
+export function scoreThresholds(): Record<FactionId, number> {
+  return Object.fromEntries(FACTIONS.map((f) => [f.id, f.minScore])) as Record<FactionId, number>;
 }
 
 /**
- * Lower percentile boundary per faction (cumulative from the top).
- * E.g. quotas [17,17,...] → [83, 66, 49, 32, 16, 0].
+ * Deterministic classification from a 0–100 Household Sustainability Index.
+ * Lower bounds are inclusive ("at or above wins"), matching the art bible's
+ * integer bands: ≥90 Legend · ≥75 Acceptable · ≥60 Average · ≥40 Offender ·
+ * ≥20 Grid Liability · else Disaster Zone.
  */
-export function factionThresholds(): Record<FactionId, number> {
-  let cumulative = 0;
-  const out = {} as Record<FactionId, number>;
-  for (const f of FACTIONS) {
-    cumulative += f.quotaPct;
-    out[f.id] = Math.max(0, 100 - cumulative);
+export function getFactionFromScore(score: number): FactionId {
+  for (const f of FACTIONS as readonly FactionDef[]) {
+    if (score >= f.minScore) return f.id as FactionId;
   }
-  return out;
-}
-
-/**
- * Display percentile band per faction: the top faction touches 100, each lower
- * faction stops just below the band above it, the overflow reaches 0.
- */
-export function factionBounds(): Record<FactionId, { low: number; high: number }> {
-  const thresholds = factionThresholds();
-  const out = {} as Record<FactionId, { low: number; high: number }>;
-  let previousHigh = 100;
-  for (const f of FACTIONS) {
-    const low = thresholds[f.id];
-    out[f.id] = { low, high: previousHigh === 100 ? 100 : previousHigh - 0.01 };
-    previousHigh = low;
-  }
-  return out;
-}
-
-/** Absolute population per faction (rounded). */
-export function factionPopulations(total: number = IDENTITY.worldPopulation): Record<FactionId, number> {
-  return Object.fromEntries(
-    FACTIONS.map((f) => [f.id, Math.round((total * f.quotaPct) / 100)])
-  ) as Record<FactionId, number>;
-}
-
-/**
- * Deterministic classification from a 0–100 percentile score. The band at (or
- * above) a threshold wins, so the boundary percentile always lands in the
- * higher faction.
- */
-export function getFactionFromPercentile(percentile: number): FactionId {
-  const thresholds = factionThresholds();
-  for (const id of FACTION_IDS) {
-    if (percentile >= thresholds[id]) return id;
-  }
-  return OVERFLOW_ID;
-}
-
-export function wealthTierLabels(): readonly string[] {
-  return WEALTH_TIERS.map((t) => t.label);
-}
-
-/**
- * Normalize a (possibly free-form, model-generated) wealth label to a
- * canonical tier. Exact matches win, then keyword hints, then the default.
- */
-export function normalizeWealthTier(value: string | undefined | null): string {
-  if (!value) return DEFAULT_WEALTH_TIER;
-  const trimmed = value.trim();
-  if (!trimmed) return DEFAULT_WEALTH_TIER;
-  const exact = WEALTH_TIERS.find((t) => t.label.toLowerCase() === trimmed.toLowerCase());
-  if (exact) return exact.label;
-  const lower = trimmed.toLowerCase();
-  const hinted = WEALTH_TIERS.find((t) => t.hints?.some((h) => lower.includes(h.toLowerCase())));
-  return hinted?.label ?? DEFAULT_WEALTH_TIER;
+  return FACTIONS[FACTIONS.length - 1].id as FactionId;
 }

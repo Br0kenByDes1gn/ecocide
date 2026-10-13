@@ -1,150 +1,181 @@
 # STORY.md — The Lore Pack Authoring Handbook
 
-This fork ships with a **neutral placeholder pack**: the flow works end to end,
-but the world is empty. This document is the map of every story/art surface and
-the rules for replacing it. When the pack is rewritten, "ECOCIDE / Carbon
-Minded AI / Class I–VI" become your world.
+ECOCIDE ships with the full ECOCIDE world: the **AI Supreme Arbiter of
+Consumption** audits household objects, not people. The world is yours to
+rewrite — this document is the map of every story/art surface and the rules
+for replacing it. Style bible: **`art_directions.md`** (numbered §). Item
+formula: **`compliance_formula.md`**.
 
 ---
 
-## 1. The one rule
+## 1. The rules
 
-**All story, copy and art live in `packages/lore`.** Components, prompts and
-the server must keep reading from the pack. If a piece of world copy isn't in
-`packages/lore`, it's either a deliberate placeholder in a screen (see §7) or a
-bug.
-
-Search (and replace) markers: `TODO-LORE` comments point at every provisional
-string.
+1. **All story, copy and art live in `packages/lore`.** Components, prompts
+   and the server must keep reading from the pack.
+2. **All formula math lives in `packages/compliance`.** Never re-implement the
+   formula in story code.
+3. Search marker for provisional strings: `TODO-LORE`.
 
 ## 2. Identity — `packages/lore/src/identity.ts`
 
-| Slot | Placeholder | Meaning |
+| Slot | Value | Meaning |
 | --- | --- | --- |
 | `projectName` | `ecocide` | internal id / package scope |
 | `appName` | `ECOCIDE` | header + PWA brand |
-| `appVersion` | `0.1.0` | header version |
-| `entityName` | `Carbon Minded AI` | **the in-world decider** (the old "AI Supreme Arbiter"). Used in prompts, scanner copy, emails, footer. |
-| `tagline` | provisional sentence | intro/subtext |
-| `worldPopulation` | 8 300 000 000 | census base number |
+| `appVersion` | `0.2.0` | header version |
+| `entityName` | `AI Supreme Arbiter of Consumption` | the in-world decider (prompts, scanner copy, emails, footer) |
+| `entityShortName` | `the Arbiter` | mid-sentence reference |
+| `tagline` | `Carbon Excess Eliminator` | logo lockup / landing (art §1.2) |
+| `secondaryLine` | `Guilty until pledged.` | near the appeal button (art §1.2) |
+| `backronym` | `Excess Carbon Offence Case Investigation & Disposal Engine` | footer / deck (art §1.1) |
+| `auditProtocol` | `PROTOCOL-9` | stamped on case files |
 
 ## 3. The taxonomy — `packages/lore/src/factions.ts` (the heart)
 
-`FACTIONS` is an **ordered array** — this order is the percentile order (first =
-top band, last = bottom/overflow). Each faction:
+`FACTIONS` is an **ordered array, best → worst**, one entry per tier (art §7):
 
 | Field | Meaning |
 | --- | --- |
-| `id` | stable internal id, **persisted in the DB** (e.g. `class-i`). Changing ids later requires DB care; keep them stable. |
-| `name` | display name (`Class I`) — shown everywhere |
-| `memberTitle` | singular member designation (badges, simulated titles) |
-| `quotaPct` | share of the population in %. **All shares must sum to exactly 100.** |
-| `isOverflow` | optional; the exact-remainder bucket (defaults to the last faction) |
-| `colors` | 11 Tailwind/hex tokens for the faction (text/border/bg/badge/bar/dot/glow) — **complete literal class strings, never concatenated** (Tailwind v4 scans source for class names; `index.css` already includes `@source` for `packages/lore`) |
-| `censusDescription` | shown in the census modal + fed into the Gemini prompts |
-| `lifeStageTitles` | per formal stage (`youth`/`youngAdult`/`adult`/`senior`) titles |
-| `topics.p2 / topics.p3` | paragraph topic chips: `icon` key (web maps keys → lucide icons in `apps/web/src/lib/prophecyTopics.ts`) + `label` |
-| `promptBlocks.occupation / appraisal` | the per-faction instruction blocks injected as paragraph_2 / paragraph_3 into **every** prompt (initial + re-arbitration) |
-| `simulated.title/occupation/notice/energy` | offline (no-API-key) verdict copy |
-| `stylePrompt` | art-direction prompt used by the avatar/badge synthesis providers |
+| `id` | stable internal id, **persisted in the DB** (`carbon-neutral-legend`, `marginally-acceptable-human`, `statistically-average-polluter`, `high-impact-offender`, `power-grid-liability`, `disaster-zone`) |
+| `name` / `memberTitle` | display names |
+| `minScore` | lower (inclusive) bound of the Household Sustainability Index (90/75/60/40/20/0) |
+| `colors` | 11 Tailwind/hex tokens (text/border/bg/badge/bar/dot/glow) — **complete literal class strings** (Tailwind v4 scans sources; `index.css` includes `@source` for lore) |
+| `stampText` / `stampInk` | EXEMPLARY…FINAL NOTICE + paper-layer ink hex (art §3.4/§7) |
+| `verdictLine` | the Arbiter's one-liner (art §7 verdict table) |
+| `reticleMotif` | per-tier reticle flavor key (art §7 lore) |
+| `censusDescription` | tier lore — the case-file scene (art §3 "Per-Tier Visual Lore") |
+| `topics.p2/p3` | paragraph topic chips: `icon` key (web maps keys → lucide icons in `apps/web/src/lib/prophecyTopics.ts`) + `label` |
+| `promptBlocks.paragraph2/paragraph3` | per-tier instruction blocks injected into every verdict prompt |
+| `stylePrompt` | §10 badge art prompt (image-model use) |
+| `simulated` | offline verdict copy (title, paragraph2, paragraph3) |
+
+Also here: `DIMENSION_TITLES` — the deterministic **personalized titles by
+dominant harm dimension** (`dominant` from `@ecocide/compliance`), two per
+dimension (`minor` for Index ≥ 60, `major` below). Example: dominant material
+dimension + low Index → **"Petroleum Hoarder"** (art §7).
 
 ### Mechanic consequences (read before changing)
 
-- **Quotas** drive percentile thresholds, census populations and the
-  **distance-shell bands** in `apps/web/src/lib/face-geometry.ts` — all
-  derived, no hardcoded duplication remains.
-- **Any class count (2..N), any distribution** works. The invariant tests
-  (`apps/web/src/components/DebugBench.test.ts`, `apps/web/src/lib/face-geometry.test.ts`)
-  verify: quotas sum to 100, monotonic thresholds, boundary percentiles land in
-  the owning band, shell ranks partition contiguously, every class reachable,
-  target demographic mix ≈ quotas.
-- **Stability / flip-rate**: re-scan jitter can flip the class across a band
-  boundary. Near-equal bands are boundary-dense (~4% measured); one large
-  overflow band drops this below 1%. The test bar (6%) is documented — tighten
-  or loosen it together with your quota shape.
-- `WEALTH_TIERS` (7 tiers, ordered) feeds the prompts and
-  `toAssetValueTier()` normalization (`hints` map model output → tier).
+- **Score bands** drive everything: `getFactionFromScore(score)` maps a
+  0–100 Index to a tier with inclusive lower bounds. Invariant tests
+  (`packages/lore/src/factions.test.ts`) verify monotonicity and boundary
+  mapping.
+- **Any tier count works**, as long as bands stay descending and the
+  overflow/default is the last entry (unknown ids resolve to the worst tier).
+- **Exhibit rooms** (`SIMULATED_ROOMS` + `buildSimulatedRoom`) are hand-composed
+  rooms per tier used by the dev bench and tests; tests assert each lands
+  *exactly* in its own band. If you change bands, archetype ratings or
+  `householdRatio`, re-check the six rooms (`pnpm vitest run
+  apps/web/src/components/DebugBench.test.ts`).
+- The old percentile/quotas/life-stage/wealth machinery is **gone** — do not
+  reintroduce "population %" or face-derived attributes. The census is live
+  audited counts (`GET /api/census`, gated at 50+ audits).
 
 ## 4. Prompts — `packages/lore/src/prompts.ts`
 
-Placeholder builders for the three Gemini calls. Rewrite the voice here — the
-JSON contract is what the server parses:
+Two prompt builders + their **plain JSON Schema** objects (wired into
+`responseJsonSchema` server-side):
 
-- **initial verdict** (`buildOraclePrompt`) returns
-  `{ user_profile: { caste, biocarbon_ratio, life_stage, equipped_wealth, energy_level, apparent_presentation, honorific_title }, prophecy: { headline, paragraph_1..3 } }` — **the `caste` and `biocarbon_ratio` keys are the internal storage fields; keep them** (the values are the faction `id` and the 0-100 ratio).
-- **appeal ruling** (`buildAppealPrompt`) returns
-  `{ accepted, reason, new_caste, new_honorific_title, headline, scripture }`.
-- **re-arbitration** (`buildReArbitrationPrompt`) returns
-  `{ headline, new_honorific_title, scripture }` — the accepted appeal may only
-  be acknowledged inside `paragraph_1` (test-enforced in the simulated copy).
-
-Per-faction voice lives in `factions.ts[].promptBlocks`; the registry block and
-wealth tiers are injected automatically.
+- **PASS 1 — `buildInventoryPrompt` + `INVENTORY_JSON_SCHEMA`**: audit
+  objects only (never people), group+count identical items, ≤25 entries,
+  normalized bounding boxes (optional), one 1–5 rating per applicable
+  dimension (`null` when it doesn't apply, e.g. operating energy for a banana
+  peel). Ratings rubric is here (dimensionRubricBlock).
+- **PASS 2 — `buildVerdictPrompt` + `VERDICT_JSON_SCHEMA`**: text-only; the
+  tier and ratio are deterministic INPUTS, the model writes
+  `headline`, `paragraph_1..3`, `suggestions[{text, target_label, pledge,
+  impact_pct}]`. The JSON contract keeps the internal keys **`caste`** and
+  **`biocarbon_ratio`** (echoed).
+- **Appeal** (`buildAppealPrompt`): grounded in the stored item list; the
+  model may propose `new_caste` only from the registered tier ids.
+- **Re-arbitration** (`buildReArbitrationPrompt`): same, no vision; the
+  granted appeal may only be acknowledged inside paragraph_1.
 
 Server (`apps/server/src/gemini.ts`) is a thin wrapper: model calls, JSON
-parsing, cost accounting, deterministic fallbacks (`packages/lore/src/simulate.ts`).
+parsing, output sanitizing (clamp ratings, dedupe labels, sanitize counts),
+cost accounting, deterministic fallbacks (`simulate.ts`).
 
-## 5. Art — palettes, portraits, badges, audio
+## 5. Simulation — `packages/lore/src/simulate.ts`
+
+- `ITEM_ARCHETYPES` — the catalog the simulated world draws from: label,
+  category, `countMax`, fixed 1–5 ratings, one dry bureaucratic
+  justification. The extreme archetypes (rags/seedlings high, waste sacks
+  low) are what make every tier band reachable deterministically.
+- `generateSimulatedInventory(seed)` — a deterministic random-ish room.
+- `SIMULATED_ROOMS` / `buildSimulatedRoom(id)` — the six curated **exhibit
+  rooms** (dev bench, tests).
+- `generateSimulatedVerdictContent(...)` / `generateSimulatedSuggestions(...)` —
+  offline verdict copy + pledge suggestions.
+- `generateSimulatedAppealRuling(...)` / `generateSimulatedReArbitrationCopy(...)` —
+  hashed accept/reject rulings.
+
+The full offline pipeline (`simulateScanFromItems`, `simulateTierRoom`,
+`simulateHouseholdScan`) lives in `packages/types` and is shared by the
+server's offline mode and the web dev bench.
+
+## 6. Art — palettes, stamps, lenses, audio
 
 | Surface | Where | Notes |
 | --- | --- | --- |
-| Shared palette (accent/secondary/tertiary/warning/dark/panel) | `packages/lore/src/art.ts` | consumed by JS (e.g. confetti in `App.tsx`); `apps/web/src/index.css` `:root` mirrors the tokens for CSS — keep both in sync |
-| Per-faction colors | `factions.ts[].colors` | Tailwind literals + hex |
-| Portrait render styles | `apps/web/src/lib/polygon-portrait.ts` | 4 canvas engines (neon-hologram, faceted-poly, surveillance-wireframe, thermal-scan) with their own placeholder palettes; the registry/switch is the extension point for new styles |
-| Badge/avatar art prompts | `factions.ts[].stylePrompt` | fed to the Gemini avatar providers |
-| Intro quote deck | `apps/web/src/data/quotes.ts` | `REGISTRY_QUOTES` — replace with your narrative beats (structure is load-bearing: id/author/title/quote/date) |
-| App icon / favicon | `apps/web/public/favicon.svg` | neutral placeholder glyph |
-| PWA manifest + `index.html` | `apps/web/vite.config.ts` + `index.html` | name/description/theme color literals (point to `lore/identity.ts` values) |
-| Sound design | `apps/web/src/lib/audio.ts` | fully procedural synth; event names map to flow moments — timbres/moods are yours to retune |
+| Shared palette | `packages/lore/src/art.ts` (`PALETTE`) + `apps/web/src/index.css` `:root` | art §3 hexes; keep the two in sync |
+| Per-tier colors | `factions.ts[].colors` | Tailwind literals + hex |
+| Audit lenses (4 canvas styles) | `apps/web/src/lib/audit-lenses.ts` | art §9: neon-outline (default), evidence-photo, inspection-hud, carbon-heat |
+| Tier stamp (SVG) | `apps/web/src/components/TierStamp.tsx` | art §10 flat-vector style; per-tier prompt in `stylePrompt` |
+| Intro quote deck | `apps/web/src/data/quotes.ts` | `REGISTRY_QUOTES` — structure is load-bearing: id/author/title/quote/date |
+| App icon / favicon | `apps/web/public/favicon.svg` | art §11 mark (eye + recycling pupil) |
+| PWA manifest + `index.html` | `apps/web/vite.config.ts` + `index.html` | name/theme color point at the art tokens |
+| Sound design | `apps/web/src/lib/audio.ts` | fully procedural synth; event names map to flow moments |
 
-## 6. Emails — `apps/server/src/email/templates/`
+## 7. Emails — `apps/server/src/email/templates/`
 
 `verdict.ts`, `appeal.ts`, `otp.ts` + `layout.ts`. Copy is inline in the
-templates (neutral placeholders); faction names resolve via
-`getFaction(caste).name` — never raw ids. Recipients are never persisted.
+templates; tier names resolve via `getFaction(caste)` — never raw ids.
+Recipients are never persisted. Evidence photos are linked via the dossier
+permalink, never embedded.
 
-## 7. Screen copy (web)
+## 8. Screen copy (web)
 
-Currently neutral placeholders **inline in components** (an optional future
-refactor hoists everything into `lore/ui.ts`). Screens and files:
+World copy comes from the lore pack (tier names, stamps, verdict lines,
+titles, quotes, prompt text). Generic chrome (buttons, labels) lives inline
+in components — an optional future refactor hoists it into `lore/ui.ts`.
 
-intro (`components/AnimatedIntro.tsx` + `data/quotes.ts`) · app chrome and
-notices (`App.tsx`) · scan HUD (`components/CameraScanner.tsx`) · verdict
-(`components/ArbitrationDossier.tsx`, `DossierIdentityCard.tsx`,
-`DossierProphecy.tsx`, `lib/useIdentityReveal.ts`, `lib/prophecyTopics.ts`) ·
-claim/appeal (`ClaimScreen.tsx`, `AppealScreen.tsx`,
-`AppealRecordsScreen.tsx`, `AssetVaultPayment.tsx`) · dossier + download badge
-(`CitizenDossier.tsx`, `lib/dossierCardPng.ts`) · vault (`VaultScreen.tsx`) ·
-census (`CensusModal.tsx`) · dev bench (`DebugBench.tsx`).
+Screens and files: intro (`AnimatedIntro.tsx` + `data/quotes.ts`) · app chrome
+(`App.tsx`) · scan (`components/ObjectScanner.tsx`) · dossier card
+(`HouseholdAuditCard.tsx` + `lib/audit-lenses.ts` + `components/TierStamp.tsx`) ·
+verdict (`ArbitrationDossier.tsx`, `DossierProphecy.tsx`,
+`lib/useArbitrationFlow.ts`, `lib/useAuditReveal.ts`) · claim/appeal
+(`ClaimScreen.tsx`, `AppealScreen.tsx`, `AppealRecordsScreen.tsx`,
+`AssetVaultPayment.tsx`) · dossier + download card (`CitizenDossier.tsx`,
+`lib/dossierCardPng.ts`) · vault (`VaultScreen.tsx`) · census
+(`CensusModal.tsx`) · dev bench (`DebugBench.tsx`).
 
-## 8. Zero-token workflow (no AI spend, no webcam)
+## 9. Zero-token workflow (no AI spend)
 
-1. `pnpm dev:all` → <http://localhost:5173/debug> — presets for every class,
-   verdict preview, portrait labs.
-2. Use the bundled `sample_face.png` or the camera; scan → arbitration runs the
-   **simulated verdict** (no `GEMINI_API_KEY`).
+1. `pnpm dev:all` → <http://localhost:5173/debug> — six exhibit rooms (one
+   per tier), verdict previews, lens switcher.
+2. Upload a room photo; scan → the server runs the **simulated audit**
+   (no `GEMINI_API_KEY`).
 3. Claim/appeal: the vault OTP prints to the **server console**; verdict/appeal
    emails are **logged** (jsonTransport, no SMTP).
 4. With a key + SMTP set, the same flow uses Gemini + real mails.
 
-## 9. Launch checklist (writing your world)
+## 10. Launch checklist (rewriting the world)
 
-- [ ] Rewrite `identity.ts` (app name, entity, tagline).
-- [ ] Rewrite `factions.ts`: names, quotas, colors, census, life-stage titles,
-      topics, promptBlocks, simulated copy, stylePrompt. Keep ids stable.
-- [ ] Rewrite `prompts.ts` voice + tone (keep the JSON contract).
-- [ ] Replace `REGISTRY_QUOTES` with your intro beats; rework `AnimatedIntro`.
-- [ ] Redesign palette (`art.ts` + `index.css`), portraits, favicon, PWA meta.
-- [ ] Update the debug bench presets if the taxonomy changed shape.
+- [ ] Rewrite `identity.ts` (names, taglines, protocol).
+- [ ] Rewrite `factions.ts`: tier names, bands, colors, lore, stamps,
+      verdict lines, prompt blocks, simulated copy, stylePrompts, titles.
+      Keep ids stable.
+- [ ] Rewrite `prompts.ts` voice + tone (keep the JSON schemas' contracts).
+- [ ] Replace `REGISTRY_QUOTES`; rework `AnimatedIntro`.
+- [ ] Redesign palette (`art.ts` + `index.css`), favicon, PWA meta, lenses.
+- [ ] Re-tune the exhibit rooms to the new bands (DebugBench tests).
 - [ ] Run `pnpm build && pnpm test` + the grep gate (AGENTS.md §5).
-- [ ] Optional deep renames (API paths, DB column names) — do them as one
-      mechanical sweep; the display/storage doctrine means they're not
-      required.
 
-## 10. The grep gate (old canon must never leak)
+## 11. The grep gate (placeholder canon must never leak)
 
 ```bash
-rg -i -n "aipocalypse|supreme arbiter|neon grid|mainframe|biocarbon(?!_ratio)|redundan|overlord|enforcer|bootlick|untouchable|free spirit" apps packages --pcre2 | grep -vE "CASTE|caste"
+rg -i -n "carbon minded|aipocalypse|neon grid|mainframe|biocarbon(?!_ratio)|redundan|overlord|enforcer|bootlick|untouchable|free spirit|\bclass (i|ii|iii|iv|v|vi)\b|class-[ivx]+" apps packages scripts --pcre2 | grep -vE "caste|biocarbonRatio|classify|classification"
 ```
 
-Internal `caste` / `biocarbon_ratio` identifiers are exempt by design (AGENTS.md §2).
+Internal `caste` / `biocarbon_ratio` identifiers are exempt by design
+(AGENTS.md §2).

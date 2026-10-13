@@ -1,69 +1,67 @@
 // ---------------------------------------------------------------------------
 // @ecocide/types — pure technical contracts.
-// Story content lives in @ecocide/lore; this package derives the classification
-// taxonomy (Caste = FactionId) from the lore pack so the web app, the server
-// and the DB agree by construction.
+// The taxonomy (Caste = tier id) derives from the lore pack; the item formula
+// comes from @ecocide/compliance. Web, server and DB agree by construction.
 // NOTE: internal storage names (caste, biocarbon_ratio) are deliberately kept
 // even though the user-facing vocabulary changed — see AGENTS.md.
 // ---------------------------------------------------------------------------
 
 import {
   FACTIONS,
-  OVERFLOW_ID,
-  WEALTH_TIERS,
-  LIFE_STAGE_KEYS,
-  IDENTITY,
-  factionIndex,
-  factionPercentages,
-  factionPopulations,
-  factionThresholds,
-  factionBounds,
-  getFactionFromPercentile,
-  normalizeWealthTier,
-  generateSimulatedVerdictContent,
+  FACTION_IDS,
   getFaction,
+  getFactionFromScore,
+  factionIndex,
+  generateSimulatedInventory,
+  generateSimulatedVerdictContent,
+  generateSimulatedSuggestions,
+  buildSimulatedRoom,
   type FactionId,
   type FactionColorConfig,
-  type LifeStageKey,
 } from '@ecocide/lore';
+import type { SimItem } from '@ecocide/lore';
+import {
+  clampRating,
+  itemSi,
+  itemStamp,
+  dedupeItems,
+  householdRatio,
+  hardFailCount,
+  topOffender,
+  dominantDimension,
+  type DimensionKey,
+  type ItemRatings,
+  type ItemStatus,
+  type RatedItem,
+} from '@ecocide/compliance';
+
+export { DimensionKey, ItemRatings, ItemStatus, clampRating, itemSi, itemStamp, householdRatio } from '@ecocide/compliance';
+export { FACTIONS, getFaction, factionIndex } from '@ecocide/lore';
+export type { FactionDef, FactionColorConfig } from '@ecocide/lore';
 
 /** Internal class id (persisted). Display names come from the lore pack. */
 export type Caste = FactionId;
 
-/** world population the caste census is computed against. */
-export const TOTAL_WORLD_POPULATION = IDENTITY.worldPopulation;
+/** Classification order: most compliant tier first, worst last. */
+export const CASTE_ORDER: readonly Caste[] = FACTION_IDS as readonly Caste[];
 
-/** Classification order: largest percentile band first, overflow last. */
-export const CASTE_ORDER: readonly Caste[] = FACTIONS.map((f) => f.id) as readonly Caste[];
+/** Lower (inclusive) Household Sustainability Index bound per caste. */
+export const CASTE_SCORE_THRESHOLDS: Record<Caste, number> = Object.fromEntries(
+  FACTIONS.map((f) => [f.id, f.minScore])
+) as Record<Caste, number>;
 
-/** The overflow (exact-remainder) caste. */
-export const CASTE_OVERFLOW: Caste = OVERFLOW_ID;
-
-/** Canonical caste demographic allocation percentages (must sum exactly 100). */
-export const CASTE_PERCENTAGES: Record<Caste, number> = factionPercentages();
-
-/** Exact caste populations based on TOTAL_WORLD_POPULATION and CASTE_PERCENTAGES. */
-export const CASTE_POPULATIONS: Record<Caste, number> = factionPopulations(TOTAL_WORLD_POPULATION);
-
-/** Percentile cutoffs (0-100) mapping percentile scores into castes. */
-export const CASTE_PERCENTILE_THRESHOLDS: Record<Caste, number> = factionThresholds();
-
-/** Display percentile band per caste (inside which its ranks are spread). */
-export const CASTE_PERCENTILE_BANDS: Record<Caste, { low: number; high: number }> = factionBounds();
-
-/** Deterministically resolve a caste from a 0.0-100.0 percentile score. */
-export function getCasteFromPercentile(percentile: number): Caste {
-  return getFactionFromPercentile(percentile);
+/** Deterministically resolve a caste from a 0–100 household score. */
+export function getCasteFromScore(score: number): Caste {
+  return getFactionFromScore(score) as Caste;
 }
 
-/** Whether a caste is the exact-remainder (overflow) bucket. */
-export function isOverflowCaste(caste: Caste | string): boolean {
-  return getFaction(caste).isOverflow ?? factionIndex(caste) === CASTE_ORDER.length - 1;
+export function getCasteMemberTitle(caste: Caste | string): string {
+  return getFaction(caste).memberTitle;
 }
 
-// ---------------------------------------------------------------------------
-// Canonical theme configuration and designated styling for each caste.
-// ---------------------------------------------------------------------------
+export function isOverflowCaste(_caste: Caste | string): boolean {
+  return false; // tier bands have no overflow bucket — kept for API familiarity
+}
 
 export type CasteColorConfig = FactionColorConfig;
 
@@ -76,145 +74,51 @@ export const CASTE_COLORS: Record<Caste, CasteColorConfig> = Object.fromEntries(
 export const CASTE_THEMES = CASTE_COLORS;
 export const CASTE_COLOR_CONFIG = CASTE_COLORS;
 
-export interface CasteCensusInfo {
-  memberTitle: string;
-  percentage: number;
-  population: number;
-  description: string;
-  color: CasteColorConfig;
-}
-
-export const CASTE_CENSUS_DATA: Record<Caste, CasteCensusInfo> = Object.fromEntries(
-  FACTIONS.map((f) => [
-    f.id,
-    {
-      memberTitle: f.memberTitle,
-      percentage: f.quotaPct,
-      population: Math.round((TOTAL_WORLD_POPULATION * f.quotaPct) / 100),
-      description: f.censusDescription,
-      color: f.colors,
-    },
-  ])
-) as Record<Caste, CasteCensusInfo>;
-
-export function getCasteMemberTitle(caste: Caste | string): string {
-  return getFaction(caste).memberTitle;
-}
-
-export type FormalLifeStage = "Youth" | "Young Adult" | "Adult" | "Senior";
-export type LegacyLifeStage = "Initiate" | "Aspirant" | "Champion" | "Venerable";
-export type LifeStage = FormalLifeStage | LegacyLifeStage;
-
-export const FORMAL_LIFE_STAGES: readonly FormalLifeStage[] = [
-  "Youth",
-  "Young Adult",
-  "Adult",
-  "Senior",
-] as const;
-
-const FORMAL_TO_LIFE_KEY: Record<FormalLifeStage, LifeStageKey> = {
-  Youth: 'youth',
-  'Young Adult': 'youngAdult',
-  Adult: 'adult',
-  Senior: 'senior',
-} as const;
-
-const LIFE_KEY_TO_FORMAL: Record<LifeStageKey, FormalLifeStage> = {
-  youth: 'Youth',
-  youngAdult: 'Young Adult',
-  adult: 'Adult',
-  senior: 'Senior',
-} as const;
-
-/** Per-caste title for each formal life stage (data from the lore pack). */
-export const CASTE_LIFE_STAGES: Record<Caste, Record<FormalLifeStage, string>> = Object.fromEntries(
-  FACTIONS.map((f) => [
-    f.id,
-    Object.fromEntries(
-      LIFE_STAGE_KEYS.map((k) => [LIFE_KEY_TO_FORMAL[k], f.lifeStageTitles[k]])
-    ),
-  ])
-) as Record<Caste, Record<FormalLifeStage, string>>;
-
-export function toFormalLifeStage(stage: LifeStage | string): FormalLifeStage {
-  switch (stage) {
-    case "Youth":
-    case "Initiate":
-      return "Youth";
-    case "Young Adult":
-    case "Aspirant":
-      return "Young Adult";
-    case "Adult":
-    case "Champion":
-      return "Adult";
-    case "Senior":
-    case "Venerable":
-      return "Senior";
-    default:
-      return "Adult";
-  }
-}
-
-export function getCasteLifeStageTitle(caste: Caste | string, stage: LifeStage | string): string {
-  const key = FORMAL_TO_LIFE_KEY[toFormalLifeStage(stage)];
-  return getFaction(caste).lifeStageTitles[key];
-}
-
-/** Deterministic per-caste unit number inside a faction's census population. */
-export function calculateCasteUnitId(
-  profile: Partial<UserProfile> & { caste: Caste },
-  population?: number,
-  additionalSeed?: string
-): number {
-  const pop = population || CASTE_CENSUS_DATA[profile.caste]?.population || 100_000_000;
-  const seed = [
-    profile.caste,
-    profile.biocarbon_ratio ?? 50,
-    profile.honorific_title ?? '',
-    profile.equipped_wealth ?? '',
-    profile.energy_level ?? '',
-    profile.apparent_presentation ?? '',
-    profile.life_stage ?? '',
-    additionalSeed ?? '',
-  ].join('::');
-
-  let h1 = 0x811c9dc5;
-  let h2 = 0x9e3779b9;
-  for (let i = 0; i < seed.length; i++) {
-    const ch = seed.charCodeAt(i);
-    h1 = Math.imul(h1 ^ ch, 0x01000193);
-    h2 = Math.imul(h2 ^ (ch << 1), 0x85ebca6b);
-  }
-
-  const u1 = h1 >>> 0;
-  const u2 = h2 >>> 0;
-  const combined = BigInt(u1) * 0x100000000n + BigInt(u2);
-  const unit = Number(combined % BigInt(pop)) + 1;
-  return unit;
-}
-
 // ---------------------------------------------------------------------------
-// Wealth tiers (canonical list comes from the lore pack).
+// The audit domain (compliance_formula.md)
 // ---------------------------------------------------------------------------
 
-export const ASSET_VALUE_TIERS: readonly string[] = WEALTH_TIERS.map((t) => t.label);
-
-export type AssetValueTier = typeof ASSET_VALUE_TIERS[number];
-
-/** Normalize a (possibly model-generated) wealth label to a canonical tier. */
-export function toAssetValueTier(value: string | undefined | null): AssetValueTier {
-  return normalizeWealthTier(value) as AssetValueTier;
+/** One detected object entry (+ its per-dimension ratings). */
+export interface AuditItem {
+  label: string;
+  category: string | null;
+  count: number;
+  ratings: ItemRatings;
+  /** One dry bureaucratic sentence from the model. */
+  justification?: string | null;
+  /** Normalized bounding box (0–1 relative to the photo), when localized. */
+  bounds?: { x1: number; y1: number; x2: number; y2: number } | null;
+  /** Sustainability Index (0–100), computed server-side. */
+  si?: number;
+  /** Compliance status derived from `si`. */
+  status?: ItemStatus;
 }
 
-export type ApparentPresentation = "Masculine" | "Feminine" | "Androgynous";
+/** An improvement action bound to a detected item (feeds appeal pledges). */
+export interface Suggestion {
+  text: string;
+  target_label: string;
+  pledge: string;
+  impact_pct: number;
+}
+
+/** The full household audit result. */
+export interface HouseholdAudit {
+  roomType: string | null;
+  items: AuditItem[];
+  /** Household Sustainability Index: 0–100 integer percent. */
+  ratio: number;
+  /** Number of hard-fail items (SI < 40). */
+  hardFails: number;
+  /** Label of the single worst item. */
+  topOffenderLabel: string | null;
+}
 
 export interface UserProfile {
   caste: Caste;
-  biocarbon_ratio: number; // 0 - 100 (percent)
-  life_stage: LifeStage;
-  equipped_wealth: string;
-  energy_level: string;
-  apparent_presentation: ApparentPresentation;
+  /** 0–100 int percent: the Household Sustainability Index (storage name kept). */
+  biocarbon_ratio: number;
+  /** Deterministic personalized title (dominant-dimension bank). */
   honorific_title: string;
 }
 
@@ -225,69 +129,14 @@ export interface Prophecy {
   paragraph_3: string;
 }
 
-export type AvatarStatus = 'idle' | 'synthesizing' | 'completed' | 'failed';
-
-export type AvatarEngineId =
-  | 'gemini-image-vector'
-  | 'gemini-image-pixel'
-  | 'gemini-text-svg'
-  | (string & {});
-
-/** A single 3D facial landmark (normalized [0..1] coordinates, MediaPipe space). */
-export interface BiometricLandmark {
-  x: number;
-  y: number;
-  z: number;
-}
-
-/** Canonical stylized portrait rendering protocols. */
-export type PortraitStyle =
-  | 'faceted-poly'
-  | 'surveillance-wireframe'
-  | 'neon-hologram'
-  | 'thermal-scan';
-
 export interface OraclePayload {
   user_profile: UserProfile;
   prophecy: Prophecy;
+  audit: HouseholdAudit;
+  suggestions: Suggestion[];
   id?: string;
-  avatarUrl?: string;
-  avatarStatus?: AvatarStatus;
-  avatarEngine?: string;
-  /** Archived 478-face landmark geometry used for animated mesh re-rendering. */
-  landmarks?: BiometricLandmark[];
-  /** Raw biometric features extracted from the source photo at scan time. */
-  telemetry?: BiometricTelemetry;
-  /** Portrait protocol the stored stylized portrait was rendered with. */
-  portraitStyle?: PortraitStyle;
-  /** Caste signature color the stored stylized portrait was rendered with. */
-  portraitColor?: string;
-}
-
-export interface BiometricTelemetry {
-  caste: Caste;
-  castePercentile: number; // 0.0 - 100.0
-  biocarbonRatio: number; // 0 - 100 (percent)
-  facialAspectRatio: number;
-  jawTaperRatio: number;
-  eyeToNoseRatio: number;
-  symmetryVariance: number;
-  preferredPresentation?: ApparentPresentation;
-}
-
-export interface ScanRequest {
-  image: string; // Base64 JPEG data URL or base64 string (downscaled ~360px snapshot used by the vision model)
-  telemetry: BiometricTelemetry;
-  stylizedPortrait?: string; // Optional client-filtered canvas portrait
-  avatarEngine?: string; // Optional engine override ('gemini-image-vector', 'gemini-image-pixel', 'gemini-text-svg')
-  /** 478-landmark face geometry extracted client-side, archived with the dossier. */
-  landmarks?: BiometricLandmark[];
-  portraitStyle?: PortraitStyle;
-  portraitColor?: string;
-  /** Same 360px snapshot as `image`, persisted for re-arbitration (vision truth). */
-  sourceSnapshot?: string;
-  /** Optional address to deliver the verdict to by email. Not persisted. */
-  email?: string;
+  /** Served URL of the archived evidence photo (file on disk, not the DB). */
+  evidenceUrl?: string;
 }
 
 export interface CitizenRecord {
@@ -296,34 +145,28 @@ export interface CitizenRecord {
   profile: UserProfile;
   user_profile?: UserProfile;
   prophecy: Prophecy;
-  stylizedPortraitUrl?: string;
-  avatarUrl?: string;
-  avatarStatus?: AvatarStatus;
-  avatarEngine?: string;
-  /** Downscaled ~360px source photo snapshot (data URL), used for vision-grounded re-arbitration. */
-  sourceSnapshot?: string;
-  landmarks?: BiometricLandmark[];
-  telemetry?: BiometricTelemetry;
-  portraitStyle?: PortraitStyle;
-  portraitColor?: string;
+  audit: HouseholdAudit;
+  suggestions: Suggestion[];
+  /** Served URL of the archived evidence photo (`/api/evidence/<id>.jpg`). */
+  evidenceUrl?: string;
   /** Owning Asset Vault account id (null/undefined while anonymous). */
   ownerId?: string;
 }
 
-export type ApiCallType = 'oracle_verdict' | 'avatar_synthesis';
+export interface ScanRequest {
+  image: string; // Base64 JPEG data URL or base64 string (1024px household photo)
+  /** Optional address to deliver the verdict to by email. Not persisted. */
+  email?: string;
+}
 
-/** Appeal filing payload. */
+export type ApiCallType = 'oracle_inventory' | 'oracle_classify';
+
 export interface AppealRequest {
   appeal: string;
   /** Optional address to deliver the appeal ruling to by email. Not persisted. */
   email?: string;
 }
 
-/**
- * Ruling on a subject's appeal. When accepted, the archived dossier is
- * updated (new caste / title / re-issued verdict) and `record` carries the
- * refreshed archive.
- */
 export interface AppealVerdict {
   accepted: boolean;
   reason: string;
@@ -335,11 +178,6 @@ export interface AppealVerdict {
   record?: CitizenRecord;
 }
 
-/**
- * A permanently stored appeal filing + its ruling, linked to the original
- * dossier. Accepted rulings propose a re-classification (`casteAfter`) that is
- * applied to the archive only when the citizen re-arbitrates.
- */
 export interface CitizenAppeal {
   id: string;
   dossierId: string;
@@ -379,34 +217,133 @@ export interface ScanCostSummary {
   biocarbonRatio: number;
   honorificTitle: string;
   headline: string;
-  avatarEngine: string | null;
-  avatarStatus: AvatarStatus | string;
   totalCostUsd: number;
   totalTokens: number;
   totalDurationMs: number;
   apiCalls: ApiCallLog[];
 }
 
-/**
- * Fully deterministic offline verdict (used when no GEMINI_API_KEY is set).
- * Content comes from the lore pack's simulated copy.
- */
-export function generateSimulatedVerdict(telemetry: BiometricTelemetry): OraclePayload {
-  const content = generateSimulatedVerdictContent({
-    factionId: telemetry.caste,
-    percentile: telemetry.castePercentile,
-    complianceRatio: telemetry.biocarbonRatio,
-    preferredPresentation: telemetry.preferredPresentation,
-  });
+/** One tier's audited-household count (live census, art §7). */
+export interface CensusEntry {
+  caste: Caste;
+  count: number;
+  /** Share of audited households in this tier (percent of `total`). */
+  sharePct: number;
+}
 
+export interface CensusReport {
+  total: number;
+  /** True only once enough audits exist to be meaningful (art §7: 50+). */
+  sufficient: boolean;
+  entries: CensusEntry[];
+}
+
+// ---------------------------------------------------------------------------
+// Fully deterministic offline scan (no API key, no server needed).
+// Pipeline: lore simulated inventory → compliance math → tier → verdict copy.
+// ---------------------------------------------------------------------------
+
+export interface SimulatedScan {
+  items: AuditItem[];
+  ratio: number;
+  caste: Caste;
+  audit: HouseholdAudit;
+  payload: OraclePayload;
+}
+
+function toAuditItem(item: SimItem): AuditItem {
+  const ratings: ItemRatings = {};
+  for (const key of Object.keys(item.ratings) as DimensionKey[]) {
+    const value = item.ratings[key as keyof typeof item.ratings];
+    const clamped = clampRating(value);
+    if (clamped !== null) ratings[key] = clamped;
+  }
   return {
+    label: item.label,
+    category: item.category,
+    count: item.count,
+    ratings,
+    justification: item.justification,
+    bounds: item.bounds
+      ? {
+          x1: Math.min(Math.max(item.bounds.x1, 0), 1),
+          y1: Math.min(Math.max(item.bounds.y1, 0), 1),
+          x2: Math.min(Math.max(item.bounds.x2, 0), 1),
+          y2: Math.min(Math.max(item.bounds.y2, 0), 1),
+        }
+      : null,
+  };
+}
+
+/** Score + enrich an audit item with its SI and compliance status. */
+function scoreItem(item: RatedItem): AuditItem {
+  const si = Math.round(itemSi(item) * 10) / 10;
+  return {
+    label: item.label,
+    category: item.category ?? null,
+    count: item.count,
+    ratings: item.ratings,
+    justification: item.justification ?? null,
+    bounds: item.bounds ?? null,
+    si,
+    status: si >= 60 ? 'compliant' : si >= 40 ? 'borderline' : 'non-compliant',
+  };
+}
+
+/** Score + status-enrich a raw item list (shared by server and web). */
+export function enrichAuditItems(items: readonly RatedItem[]): AuditItem[] {
+  return items.map(scoreItem);
+}
+
+/**
+ * The complete offline scan pipeline: deterministic inventory, compliance
+ * math, deterministic tier, simulated verdict copy and suggestions. Used by
+ * the server's offline mode (Gemini unconfigured) and the dev bench.
+ */
+export function simulateHouseholdScan(seed: string): SimulatedScan {
+  const simulated = generateSimulatedInventory(seed);
+  return simulateScanFromItems(simulated, null, seed);
+}
+
+/** Same pipeline over an explicit item list + room type (exhibit rooms). */
+export function simulateScanFromItems(
+  items: SimItem[],
+  roomType: string | null,
+  seedKey: string
+): SimulatedScan {
+  const deduped = dedupeItems(items.map(toAuditItem));
+  const scored = deduped.map(scoreItem);
+  const ratio = householdRatio(scored);
+  const caste = getCasteFromScore(ratio);
+  const dominant = dominantDimension(scored);
+  const content = generateSimulatedVerdictContent({
+    factionId: caste,
+    ratio,
+    items: items.map((i) => ({
+      ...i,
+      ratings: i.ratings,
+    })),
+    dominant,
+    seedKey,
+  });
+  const rawSuggestions = generateSimulatedSuggestions(items, 3).map((s) => ({
+    text: s.text,
+    target_label: s.target_label,
+    pledge: s.pledge,
+    impact_pct: s.impact_pct,
+  }));
+  const top = topOffender(scored);
+  const audit: HouseholdAudit = {
+    roomType,
+    items: scored,
+    ratio,
+    hardFails: hardFailCount(scored),
+    topOffenderLabel: top?.label ?? null,
+  };
+  const payload: OraclePayload = {
     user_profile: {
-      caste: telemetry.caste,
-      biocarbon_ratio: telemetry.biocarbonRatio,
-      life_stage: content.life_stage,
-      equipped_wealth: content.equipped_wealth,
-      energy_level: content.energy_level,
-      apparent_presentation: content.apparent_presentation,
+      caste,
+      biocarbon_ratio: ratio,
       honorific_title: content.honorific_title,
     },
     prophecy: {
@@ -415,7 +352,16 @@ export function generateSimulatedVerdict(telemetry: BiometricTelemetry): OracleP
       paragraph_2: content.paragraph_2,
       paragraph_3: content.paragraph_3,
     },
+    audit,
+    suggestions: rawSuggestions,
   };
+  return { items: scored, ratio, caste, audit, payload };
+}
+
+/** One deterministic "exhibit" room per tier (dev bench / tests). */
+export function simulateTierRoom(caste: Caste): SimulatedScan {
+  const room = buildSimulatedRoom(caste);
+  return simulateScanFromItems(room.items, room.roomType, `${caste}::exhibit`);
 }
 
 // ---------------------------------------------------------------------------
@@ -432,7 +378,7 @@ export const VAULT_CLAIM_FEE = 250;
 export const VAULT_APPEAL_FEE = 500;
 
 /** Auditable reasons a wallet balance can move. */
-export type WalletLedgerReason = 'seed' | 'claim_fee' | 'adjustment' | string;
+export type WalletLedgerReason = 'seed' | 'claim_fee' | 'appeal_fee' | 'adjustment' | string;
 
 export interface VaultUser {
   id: string;
@@ -476,8 +422,7 @@ export interface VaultDossierSummary {
   honorificTitle: string;
   biocarbonRatio: number;
   createdAt: string;
-  portraitUrl?: string;
-  avatarUrl?: string;
+  evidenceUrl?: string;
 }
 
 /** A page of wallet ledger entries plus the total count. */
@@ -511,10 +456,3 @@ export interface VaultChargeResult {
   wallet: Wallet;
   entry: WalletLedgerEntry;
 }
-
-// ---------------------------------------------------------------------------
-// Re-exports from the lore pack (convenience for consumers)
-// ---------------------------------------------------------------------------
-
-export { FACTIONS, WEALTH_TIERS, getFaction, factionIndex, isOverflowFaction } from '@ecocide/lore';
-export type { FactionDef } from '@ecocide/lore';

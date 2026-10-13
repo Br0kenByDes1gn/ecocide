@@ -4,20 +4,16 @@ import { index, integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core
 /**
  * Single source of truth for the database schema.
  *
- * Column names intentionally mirror the on-disk layout (snake_case) so the
- * existing `dossiers.db` remains compatible and the drizzle-kit baseline
- * migration matches what is already deployed. JSON blobs (`landmarks_json`,
- * `telemetry_json`, `scripture`) are stored as TEXT and serialized/parsed in
- * the repository layer — simple and dialect-portable.
+ * Column names intentionally mirror the on-disk layout (snake_case). JSON
+ * blobs (`items_json`, `suggestions_json`, `scripture`) are stored as TEXT and
+ * serialized/parsed in the repository layer — simple and dialect-portable.
+ *
+ * The archived evidence photo is a FILE on disk (apps/server/data/evidence);
+ * the DB stores only `evidence_filename`.
  */
 
 // ---------------------------------------------------------------------------
 // Better Auth core tables
-//
-// These mirror the SQLite schema Better Auth's own CLI generates: camelCase
-// Drizzle column *keys* (the logical field names the adapter looks up) backed
-// by snake_case database columns, and `timestamp_ms` date columns. Keep this in
-// lockstep with `getAuthTables()` in @better-auth/core.
 // ---------------------------------------------------------------------------
 
 export const user = sqliteTable('user', {
@@ -95,7 +91,6 @@ export const verification = sqliteTable(
       .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
       .notNull(),
     updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
-      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
       .$onUpdate(() => new Date())
       .notNull(),
   },
@@ -148,24 +143,19 @@ export const dossiers = sqliteTable(
     created_at: text('created_at').notNull(),
     caste: text('caste').notNull(),
     biocarbon_ratio: integer('biocarbon_ratio').notNull(),
-    life_stage: text('life_stage').notNull(),
-    equipped_wealth: text('equipped_wealth').notNull(),
-    energy_level: text('energy_level').notNull(),
-    apparent_presentation: text('apparent_presentation').notNull(),
     honorific_title: text('honorific_title').notNull(),
     headline: text('headline').notNull(),
     paragraph_1: text('paragraph_1').notNull(),
     paragraph_2: text('paragraph_2').notNull(),
     paragraph_3: text('paragraph_3').notNull(),
-    stylized_portrait: text('stylized_portrait'),
-    source_snapshot: text('source_snapshot'),
-    avatar_url: text('avatar_url'),
-    avatar_status: text('avatar_status').default('pending'),
-    avatar_engine: text('avatar_engine'),
-    landmarks_json: text('landmarks_json'),
-    telemetry_json: text('telemetry_json'),
-    portrait_style: text('portrait_style').default('neon-hologram'),
-    portrait_color: text('portrait_color'),
+    /** Audited room type, e.g. "kitchen" (null when unknown). */
+    room_type: text('room_type'),
+    /** Detected objects + ratings (JSON). */
+    items_json: text('items_json').notNull().default('[]'),
+    /** Improvement suggestions offered as appeal pledges (JSON). */
+    suggestions_json: text('suggestions_json').notNull().default('[]'),
+    /** Evidence photo file name on disk (apps/server/data/evidence). */
+    evidence_filename: text('evidence_filename'),
     /** Owning Asset Vault account (Better Auth user id); null while anonymous. */
     user_id: text('user_id').references(() => user.id, { onDelete: 'set null' }),
   },

@@ -87,7 +87,7 @@ let cachedClient: GoogleGenAI | null = null;
 
 /**
  * Shared, memoized client for every Gemini call in the server (oracle verdict,
- * appeal ruling, re-arbitration, avatar synthesis). Pass env explicitly in
+ * appeal ruling, re-arbitration). Pass env explicitly in
  * tests; production always uses process.env.
  */
 export function createGeminiClient(env: NodeJS.ProcessEnv = process.env): GoogleGenAI {

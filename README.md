@@ -1,45 +1,50 @@
-# ECOSIDE — placeholder working title
+# ECOCIDE — Carbon Excess Eliminator
 
-> **Status: provisional.** This is a fork of the Aipocalypse biometric-classification
-> flow, rebuilt so the **entire story and artwork live in one package**
-> (`packages/lore`), shipped with a **neutral placeholder pack** (ECOCIDE /
-> Carbon Minded AI / Class I–VI). The mechanics (face scan → deterministic
-> classification → verdict → claim/appeal/vault) are fully functional today;
-> the world is yours to write. Start with [`STORY.md`](STORY.md).
+> A satirical dystopian environmental-bureaucracy app: point a camera at your
+> **household**, and the **AI Supreme Arbiter of Consumption** detects the
+> objects, weighs them against the planet, and files an official verdict.
+> Your only defence is a credible pledge.
 
-The app: you point a webcam (or upload a photo) at yourself; MediaPipe extracts
-478 facial landmarks locally in WASM; a deterministic "distance shell" maps the
-face into the classification taxonomy (any number of classes, any quotas — the
-placeholder pack ships six); the server then renders a verdict — via Gemini when
-`GEMINI_API_KEY` is set, or a deterministic offline simulation when it isn't.
-You can CLAIM your designation (mock payment) or APPEAL it (another mock
-payment, accepted appeals get re-arbitrated against your archived photo).
+The app: you photograph a room (webcam or upload). The server runs a
+**two-pass pipeline** — a vision model inventories the objects (counts,
+bounding boxes, per-dimension 1–5 ratings), deterministic math
+(`packages/compliance`) rolls those up into a **Household Sustainability
+Index** and a tier (Carbon Neutral Legend → Environmental Disaster Zone), and
+a second model prompt writes the deadpan bureaucratic verdict plus concrete
+improvement **suggestions**. You can CLAIM your designation (mock paywall) or
+APPEAL it (mock filing fee; accepted appeals re-arbitrate against the stored
+item list). The archived photo lives on disk; the database stores only its
+file name.
+
+Without AI tokens everything still runs: the server degrades to a seeded
+offline simulation, so tests, the dev bench and local development cost
+nothing.
 
 ## Stack
 
-- pnpm workspace monorepo: `packages/lore` (story+art), `packages/types`
-  (contracts + derived taxonomy), `apps/server` (Hono + SQLite/Drizzle +
-  Gemini + BullMQ + Better Auth), `apps/web` (React 19 + Vite + Tailwind v4 +
-  PWA).
-- Deterministic classification is client-side and free: no AI tokens needed
-  for the core loop.
+- pnpm workspace monorepo: `packages/compliance` (formula math),
+  `packages/lore` (story+art), `packages/types` (contracts + derived
+  taxonomy), `apps/server` (Hono + SQLite/Drizzle + Gemini + BullMQ + Better
+  Auth), `apps/web` (React 19 + Vite + Tailwind v4 + PWA).
+- Deterministic compliance math — the tier, the stamps, the titles: no AI
+  tokens needed for the core loop.
 
 ## Quick start
 
 ```bash
 pnpm install
-pnpm build          # builds lore → types → server → web
+pnpm build          # builds compliance → lore → types → server → web
 pnpm dev:all        # API on :3001, web on :5173
 pnpm test           # vitest (hermetic — no Redis/SMTP/API key needed)
 ```
 
 Environment: copy `.env.example` to `.env`. Everything is optional — without
-Gemini credentials the server uses the offline simulation verdict, without
+Gemini credentials the server uses the offline simulated audit, without
 `SMTP_HOST` emails are logged, without `REDIS_URL` jobs run inline.
 
 ### Gemini billing: Vertex AI vs API key
 
-The verdict/avatar engine runs through `@google/genai` on either:
+The audit engine runs through `@google/genai` on either:
 
 - **Gemini Developer API** — set `GEMINI_API_KEY`. Usage is billed by AI Studio.
 - **Vertex AI (recommended for production)** — bills to your GCP project's
@@ -47,41 +52,48 @@ The verdict/avatar engine runs through `@google/genai` on either:
   unset), `GEMINI_PROJECT=<project id>`, and provide credentials via
   `GCP_SA_KEY` (inline service-account JSON) or
   `GOOGLE_APPLICATION_CREDENTIALS` (ADC file path). The endpoint defaults to
-  `global` — the only endpoint currently serving `gemini-3.8-flash` and the
-  image models on every project (regional endpoints like `asia-southeast1`,
-  Singapore, return NOT_FOUND for them as of Oct 2026). Override with
-  `GEMINI_LOCATION` once the models are available in your region. The model
-  defaults to `gemini-3.8-flash`; override with `GEMINI_MODEL`.
+  `global`. Override with `GEMINI_LOCATION` if your region serves the model.
+  The model defaults to `gemini-3.8-flash`; override with `GEMINI_MODEL`.
 
-Prereqs on GCP: billing account attached to the project, the **Vertex AI API**
-enabled, and a service account with `Vertex AI User` (`roles/aiplatform.user`).
+Each scan = two model calls (inventory + classification), both logged to the
+cost audit (`pnpm scan-costs`).
 
 ## Zero-token workflow
 
-1. `pnpm dev:all` and open <http://localhost:5173/debug> — the debug bench
-   generates presets for every classification and needs no webcam.
-2. `pnpm dev:web` + upload a photo, or use the bundled `sample_face.png`.
-3. Scan → arbitration uses the deterministic simulated verdict.
-4. Claim/appeal: the email-OTP code prints to the server console; appeal
+1. `pnpm dev:all` and open <http://localhost:5173/debug> — the bench ships
+   six **exhibit rooms**, one per tier, generated entirely offline.
+2. Upload a room photo (or use the camera) and scan — the server runs the
+   simulated audit when no AI credentials are configured.
+3. Claim/appeal: the email-OTP code prints to the server console; appeal
    rulings and emails are simulated/logged locally.
+4. Archived evidence photos land in `apps/server/data/evidence/`
+   (override with `EVIDENCE_DIR`).
 
 ## Repository layout
 
 ```
 packages/
-  lore/        # ← THE STORY + ARTWORK SURFACE (rewrite this, see STORY.md)
-  types/       # contracts; derives the taxonomy (Caste/FactionId) from lore
+  compliance/  # the compliance formula: weights, Harm Score, SI, statuses,
+               # household roll-up, item dedupe/sanitize
+  lore/        # THE STORY + ARTWORK SURFACE (world copy, tiers, prompts,
+               # offline simulation — see STORY.md)
+  types/       # contracts; derives the taxonomy (tiers) from lore
 apps/
-  server/      # Hono API, DB (Drizzle/SQLite), Gemini verdict engine,
-               # BullMQ jobs, nodemailer, Better Auth vault
-  web/         # React PWA: intro → scan → verdict → claim/appeal → vault
-charts/        # Helm chart (placeholder branding)
+  server/      # Hono API, DB (Drizzle/SQLite), Gemini two-pass engine,
+               # evidence file store, BullMQ jobs, nodemailer, Better Auth vault
+  web/         # React PWA: intro → audit → verdict → claim/appeal → vault
+charts/        # Helm chart (placeholder branding — mount a volume at
+               # EVIDENCE_DIR in production)
 ```
 
 ## Deploy
 
 Dockerfile + `charts/ecocide` are carried over from the fork; image and Helm
-values are already re-named to `ecocide` but branding is placeholder.
+values are re-named to `ecocide`. Mount a persistent volume at the evidence
+directory (`EVIDENCE_DIR`) and run migrations via the chart's migrate init
+container (`AUTO_MIGRATE=false` for app pods).
 
-See [`AGENTS.md`](AGENTS.md) for the developer/agent brief and
-[`STORY.md`](STORY.md) for the lore-pack authoring guide.
+See [`AGENTS.md`](AGENTS.md) for the developer/agent brief,
+[`STORY.md`](STORY.md) for the lore-pack authoring guide,
+[`art_directions.md`](art_directions.md) for the visual bible, and
+[`compliance_formula.md`](compliance_formula.md) for the score formula.

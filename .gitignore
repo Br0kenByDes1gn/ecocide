@@ -4,6 +4,7 @@ dist
 *.local
 data/*.db*
 apps/server/data/*.db*
+apps/server/data/evidence/
 .DS_Store
 .vscode/
 

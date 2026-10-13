@@ -14,7 +14,7 @@ interface DossierProphecyProps {
   /**
    * Optional custom status line. When omitted, the standard telemetry stream
    * line is shown while typing. The arbitration page uses this to display its
-   * biometric identification status while the stat reveal is still running.
+   * audit status while the stat reveal is still running.
    */
   statusLine?: string | null;
   /** Larger text for the arbitration reveal ("lg" = text-lg). */
@@ -58,7 +58,7 @@ export const DossierProphecy: React.FC<DossierProphecyProps> = ({
 }) => {
   const texts = [text1, text2, text3];
   const effectiveStatusLine =
-    statusLine !== undefined ? statusLine : isTyping ? 'RECEIVING QUANTUM TELEMETRY STREAM...' : null;
+    statusLine !== undefined ? statusLine : isTyping ? 'RECEIVING AUDIT TELEMETRY STREAM...' : null;
 
   const paragraphClass = (index: number) => {
     const collapsed = Boolean(paragraphCollapsed?.[index]);

@@ -192,15 +192,15 @@ export const AnimatedIntro: React.FC<AnimatedIntroProps> = ({
 
             {/* Dramatic Climax Headline */}
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-black font-mono tracking-tight text-white mb-4 leading-tight">
-              Registration is coming!
+              The audit is coming.
               <span className="block text-2xl sm:text-3xl md:text-4xl text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-rose-400 to-amber-400 font-extrabold mt-1">
-                Your file has been opened.
+                Your household has been charged with ECOCIDE.
               </span>
             </h2>
 
             <p className="max-w-md text-sm sm:text-base font-mono text-gray-400 mb-8 leading-relaxed">
-              The registry is finalizing its protocols. Step forward to submit your
-              biometrics to the Carbon Minded AI.
+              Objects will be counted. Habits will be weighed. The only defence
+              is a credible pledge.
             </p>
 
             {/* Big Action Button */}
@@ -212,7 +212,7 @@ export const AnimatedIntro: React.FC<AnimatedIntroProps> = ({
               }}
               className="group relative inline-flex items-center justify-center gap-3 px-8 py-4 sm:px-10 sm:py-5 rounded-xl font-mono text-base sm:text-lg font-bold text-black uppercase tracking-wider bg-gradient-to-r from-cyan-400 via-teal-300 to-cyan-300 hover:from-cyan-300 hover:to-teal-200 shadow-[0_0_30px_rgba(6,182,212,0.6)] hover:shadow-[0_0_45px_rgba(6,182,212,0.9)] hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
             >
-              <span>INITIATE REGISTRATION</span>
+              <span>INITIATE AUDIT</span>
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1.5 transition-transform" />
             </button>
 
@@ -220,10 +220,10 @@ export const AnimatedIntro: React.FC<AnimatedIntroProps> = ({
             <button
               type="button"
               onClick={handleReplay}
-              className="mt-8 inline-flex items-center gap-1.5 text-xs font-mono text-gray-500 hover:text-cyan-400 transition-colors cursor-pointer"
+              className="mt-8 inline-flex items-center gap-1.5 text-xs font-mono text-gray-500 hover:text-lime-400 transition-colors cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              <span>Replay Registry Transmissions</span>
+              <span>Replay Audit Transmissions</span>
             </button>
           </div>
         ) : (

@@ -9,6 +9,7 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
+    "@ecocide/compliance": "workspace:*",
     "@ecocide/lore": "workspace:*",
     "@ecocide/types": "workspace:*",
     "@bull-board/api": "^9.10.2",

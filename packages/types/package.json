@@ -15,6 +15,7 @@
     "build": "tsc"
   },
   "dependencies": {
+    "@ecocide/compliance": "workspace:*",
     "@ecocide/lore": "workspace:*"
   },
   "devDependencies": {

@@ -1,448 +1,274 @@
-import { createElement } from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
-import type { Prophecy, UserProfile } from '@ecocide/types';
-import {
-  getCasteLifeStageTitle,
-  getCasteMemberTitle,
-  getFaction,
-  isOverflowCaste,
-} from '@ecocide/types';
-import { IDENTITY } from '@ecocide/lore';
-import { paragraphTopic, type ParagraphTopic } from '../lib/prophecyTopics';
+import type { OraclePayload } from '@ecocide/types';
+import { getFaction } from '@ecocide/types';
+import { IDENTITY, PALETTE } from '@ecocide/lore';
 
-export interface DossierPngSource {
-  userProfile: UserProfile;
-  prophecy: Prophecy;
+export interface HouseholdDossierPngSource {
+  payload: OraclePayload;
   permalinkId?: string;
-  portraitUrl: string;
-  avatarUrl: string | null;
-  activeView: 'snapshot' | 'avatar';
-  /** Caste census unit number (same value shown on the live card). */
-  unitId: number;
-  /** Caste census population (same value shown on the live card). */
-  population: number;
-}
-
-// Paragraph accent colors (cyan-400 / amber-400 / emerald-400) used for the
-// topic icons in the downloaded badge, matching the live dossier paragraphs.
-const PARA_ACCENT_HEX: readonly [string, string, string] = ['#22d3ee', '#fbbf24', '#34d399'];
-
-/** Serializes a topic icon into an SVG <img>-loadable data URL. */
-function topicIconSvg(icon: ParagraphTopic['Icon'], color: string, size = 20): string {
-  const svg = renderToStaticMarkup(createElement(icon, { size, color }));
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-}
-
-function loadSvgIcon(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error('Failed to load paragraph topic icon'));
-    img.src = src;
-  });
 }
 
 // Helper to wrap text into array of lines for canvas
-function getWrappedLines(
-  context: CanvasRenderingContext2D,
-  text: string,
-  maxWidth: number
-): string[] {
+function getWrappedLines(context: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
   if (!text) return [];
   const words = text.split(/\s+/);
   const lines: string[] = [];
   let currentLine = '';
-
   for (let n = 0; n < words.length; n++) {
     const word = words[n];
     if (!word) continue;
     const testLine = currentLine ? `${currentLine} ${word}` : word;
-    const metrics = context.measureText(testLine);
-    if (metrics.width > maxWidth && currentLine) {
+    if (context.measureText(testLine).width > maxWidth && currentLine) {
       lines.push(currentLine);
       currentLine = word;
     } else {
       currentLine = testLine;
     }
   }
-  if (currentLine) {
-    lines.push(currentLine);
-  }
+  if (currentLine) lines.push(currentLine);
   return lines;
 }
 
+function loadImage(src: string): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
+}
+
+/** Wrap an arbitrary string into a fixed-width uppercase tag. */
+function tag(ctx: CanvasRenderingContext2D, x: number, y: number, text: string, color: string, bg: string) {
+  ctx.save();
+  ctx.font = 'bold 9px monospace';
+  const w = ctx.measureText(text).width + 12;
+  ctx.fillStyle = bg;
+  ctx.fillRect(x, y, w, 16);
+  ctx.strokeStyle = color;
+  ctx.strokeRect(x, y, w, 16);
+  ctx.fillStyle = color;
+  ctx.textAlign = 'center';
+  ctx.fillText(text, x + w / 2, y + 11);
+  ctx.restore();
+  return w;
+}
+
 /**
- * Download the full Citizen Dossier card as a PNG image via Canvas.
- * Shared by the static /citizen page and the animated /arbitration page.
+ * Download the Household Audit case card as a PNG image via Canvas.
+ * Paper layer: dark moss board, tier-colored border, evidence photo, stamp,
+ * index + waste gauge, item summary, verdict paragraphs, barcode.
  */
-export async function downloadCitizenDossierPng(source: DossierPngSource): Promise<void> {
-  const {
-    userProfile,
-    prophecy,
-    permalinkId,
-    portraitUrl,
-    avatarUrl,
-    activeView,
-    unitId,
-    population,
-  } = source;
-
-  // Preload the per-caste paragraph topic icons (same mapping as the live UI)
-  const topics = [0, 1, 2].map((index) => paragraphTopic(index, userProfile.caste));
-  const iconImages = await Promise.all(
-    topics.map((topic, index) =>
-      loadSvgIcon(topicIconSvg(topic.Icon, PARA_ACCENT_HEX[index]))
-    )
-  );
+export async function downloadHouseholdDossierPng(source: HouseholdDossierPngSource): Promise<void> {
+  const { payload, permalinkId } = source;
   if (typeof document === 'undefined') return;
-
-  const casteMemberName = getCasteMemberTitle(userProfile.caste);
-  const castePrimaryColor = getFaction(userProfile.caste).colors.hex;
-
-  // Step 1: Pre-calculate wrapped text and canvas height with offscreen context
-  const measureCanvas = document.createElement('canvas');
-  const measureCtx = measureCanvas.getContext('2d');
-  if (!measureCtx) return;
+  const { user_profile, prophecy, audit, evidenceUrl } = payload;
+  const faction = getFaction(user_profile.caste);
+  const tierColor = faction.colors.hex;
 
   const canvasWidth = 920;
-  const contentWidth = 830; // ~45px padding on each side
-  const statsWidth = 530; // Stats column next to 250px avatar
+  const contentWidth = 830;
+  const measureCtx = document.createElement('canvas').getContext('2d');
+  if (!measureCtx) return;
 
-  // Pre-measure title
-  measureCtx.font = 'bold 17px monospace';
-  const titleLines = getWrappedLines(measureCtx, userProfile.honorific_title, statsWidth - 30);
-
-  // Pre-measure equipped wealth
-  measureCtx.font = 'bold 12px monospace';
-  const wealthLines = getWrappedLines(measureCtx, userProfile.equipped_wealth, 230);
-
-  // Pre-measure prophecy headline
   measureCtx.font = 'bold 15px monospace';
-  const headlineLines = getWrappedLines(
-    measureCtx,
-    `VERDICT // ${prophecy.headline}`,
-    contentWidth - 40
+  const headlineLines = getWrappedLines(measureCtx, `VERDICT // ${prophecy.headline}`, contentWidth - 40);
+  measureCtx.font = '14px monospace';
+  const p1Lines = getWrappedLines(measureCtx, prophecy.paragraph_1, contentWidth - 60);
+  const p2Lines = getWrappedLines(measureCtx, prophecy.paragraph_2, contentWidth - 60);
+  const p3Lines = getWrappedLines(measureCtx, prophecy.paragraph_3, contentWidth - 60);
+  measureCtx.font = 'bold 12px monospace';
+  const itemLines = audit.items.map((i) =>
+    `${i.label.toUpperCase()}${i.count > 1 ? ` x${i.count}` : ''} // SI ${Math.round(i.si ?? 0)} // ${(i.status ?? '').toUpperCase()}`
   );
 
-  // Pre-measure prophecy paragraphs
-  measureCtx.font = '14px monospace';
-  const p1Lines = getWrappedLines(measureCtx, prophecy.paragraph_1, contentWidth - 69);
-  const p2Lines = getWrappedLines(measureCtx, prophecy.paragraph_2, contentWidth - 69);
-  const p3Lines = getWrappedLines(measureCtx, prophecy.paragraph_3, contentWidth - 69);
-
   const lineHeight = 22;
-  const p1BoxHeight = p1Lines.length * lineHeight + 28;
-  const p2BoxHeight = p2Lines.length * lineHeight + 28;
-  const p3BoxHeight = p3Lines.length * lineHeight + 28;
-
-  const titleBoxHeight = 36 + titleLines.length * 24;
-  const cardH = 58;
-  const h1 = cardH;
-  const h2 = cardH;
-  const h3 = Math.max(cardH, 28 + wealthLines.length * 16);
-  const h4 = cardH;
-  const statsGridHeight = Math.max(h1, h2) + 10 + Math.max(h3, h4) + 14 + 20;
-  const statsHeight = 36 + titleBoxHeight + 12 + statsGridHeight;
-  const topBlockHeight = Math.max(340, statsHeight);
-  const headlineBoxHeight = Math.max(45, headlineLines.length * 22 + 20);
-
+  const headlineBoxHeight = Math.max(45, headlineLines.length * 24 + 20);
+  const pBox = (lines: string[]) => lines.length * lineHeight + 28;
+  const statsColH = 86 + 92 + audit.items.length * 22 + 40;
   const totalHeight = Math.ceil(
-    115 + // Header
-    topBlockHeight +
-    35 + // Barcode/divider
+    130 + // header
+    Math.max(340, statsColH) +
+    35 + // divider
     headlineBoxHeight +
-    16 + // Gap
-    p1BoxHeight +
-    14 + // Gap
-    p2BoxHeight +
-    14 + // Gap
-    p3BoxHeight +
-    70 // Footer & bottom margin
+    16 +
+    pBox(p1Lines) + 14 + pBox(p2Lines) + 14 + pBox(p3Lines) +
+    70
   );
 
   const canvas = document.createElement('canvas');
   canvas.width = canvasWidth;
-  canvas.height = Math.max(1200, totalHeight);
+  canvas.height = Math.max(1100, totalHeight);
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
 
-  // Background
-  ctx.fillStyle = '#0a0c14';
+  // Board
+  ctx.fillStyle = PALETTE.dark;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  for (let y = 0; y < canvas.height; y += 4) ctx.fillRect(0, y, canvas.width, 2);
 
-  // Subtle scanlines
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
-  for (let y = 0; y < canvas.height; y += 4) {
-    ctx.fillRect(0, y, canvas.width, 2);
-  }
-
-  // Outer neon border
-  ctx.strokeStyle = castePrimaryColor;
+  // Tier border
+  ctx.strokeStyle = tierColor;
   ctx.lineWidth = 3;
   ctx.strokeRect(18, 18, canvas.width - 36, canvas.height - 36);
-
-  // Inner subtle border
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.1)';
   ctx.lineWidth = 1;
   ctx.strokeRect(24, 24, canvas.width - 48, canvas.height - 48);
 
-  // Header Bar
-  ctx.fillStyle = '#00f3ff';
+  // Header
+  ctx.fillStyle = PALETTE.accent;
   ctx.font = 'bold 18px monospace';
-  ctx.fillText(`${IDENTITY.appName} // SUBJECT DOSSIER`, 45, 65);
-
-  ctx.fillStyle = '#64748b';
+  ctx.fillText(`${IDENTITY.appName} // HOUSEHOLD AUDIT DOSSIER`, 45, 65);
+  ctx.fillStyle = PALETTE.textMuted;
   ctx.font = '12px monospace';
-  ctx.fillText(`${IDENTITY.entityName.toUpperCase()} // REGISTRY IDENTIFICATION`, 45, 88);
-
-  // Right side of Header Bar: Status / ID
-  const headerStatusText = permalinkId ? `SUBJECT ID: #${permalinkId}` : 'CLASSIFIED RECORD';
-  ctx.fillStyle = '#64748b';
-  ctx.font = 'bold 12px monospace';
+  ctx.fillText(`${IDENTITY.entityName.toUpperCase()} // CASE FILE`, 45, 88);
   ctx.textAlign = 'right';
-  ctx.fillText(headerStatusText, canvas.width - 45, 75);
+  ctx.fillText(permalinkId ? `RECORD #${permalinkId}` : 'CLASSIFIED RECORD', canvas.width - 45, 75);
   ctx.textAlign = 'left';
-
-  // Header divider line
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
   ctx.beginPath();
   ctx.moveTo(45, 104);
   ctx.lineTo(canvas.width - 45, 104);
   ctx.stroke();
 
-  // Draw Portrait & Stats
-  const img = new Image();
-  img.crossOrigin = 'anonymous';
-  img.onload = () => {
-    const avatarX = 45;
-    const avatarY = 120;
-    const avatarSize = 250;
-
-    // Draw avatar image
-    ctx.drawImage(img, avatarX, avatarY, avatarSize, avatarSize);
-
-    // Border around avatar
-    ctx.strokeStyle = activeView === 'avatar' ? '#c084fc' : castePrimaryColor;
-    ctx.lineWidth = 2;
-    ctx.strokeRect(avatarX, avatarY, avatarSize, avatarSize);
-
-    // "BIOMETRICS SECURED" or "HOLOGRAPHIC AVATAR" tag
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-    ctx.fillRect(avatarX + 10, avatarY + avatarSize - 26, avatarSize - 20, 20);
-    ctx.fillStyle = activeView === 'avatar' ? '#d8b4fe' : '#00f3ff';
-    ctx.font = 'bold 9px monospace';
+  // Evidence photo
+  const evidence = evidenceUrl || '';
+  const img = evidence ? await loadImage(evidence) : null;
+  const photoX = 45;
+  const photoY = 120;
+  const photoSize = 250;
+  if (img) {
+    ctx.save();
+    ctx.filter = 'brightness(0.85)';
+    ctx.drawImage(img, photoX, photoY, photoSize, photoSize);
+    ctx.restore();
+  } else {
+    ctx.fillStyle = PALETTE.canvas;
+    ctx.fillRect(photoX, photoY, photoSize, photoSize);
+    ctx.fillStyle = PALETTE.textMuted;
+    ctx.font = 'bold 11px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText(
-      activeView === 'avatar' ? '⚡ HOLOGRAPHIC AI AVATAR' : '📐 BIOMETRIC MESH VERIFIED',
-      avatarX + avatarSize / 2,
-      avatarY + avatarSize - 12
-    );
+    ctx.fillText('NO EVIDENCE ON FILE', photoX + photoSize / 2, photoY + photoSize / 2);
     ctx.textAlign = 'left';
+  }
+  ctx.strokeStyle = tierColor;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(photoX, photoY, photoSize, photoSize);
+  tag(ctx, photoX + 8, photoY + photoSize - 24, `EVIDENCE // GRID-VERIFIED`, tierColor, 'rgba(0,0,0,0.75)');
 
-    // Compliance Ratio card below avatar
-    const scoreCardY = avatarY + avatarSize + 12;
-    ctx.fillStyle = '#0f1322';
-    ctx.fillRect(avatarX, scoreCardY, avatarSize, 68);
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
-    ctx.strokeRect(avatarX, scoreCardY, avatarSize, 68);
+  // Tier stamp blurb under photo
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.fillRect(photoX, photoY + photoSize + 10, photoSize, 66);
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  ctx.strokeRect(photoX, photoY + photoSize + 10, photoSize, 66);
+  ctx.fillStyle = PALETTE.textMuted;
+  ctx.font = '10px monospace';
+  ctx.fillText('CLASSIFICATION', photoX + 12, photoY + photoSize + 30);
+  ctx.fillStyle = tierColor;
+  ctx.font = 'bold 13px monospace';
+  ctx.fillText(faction.name.toUpperCase(), photoX + 12, photoY + photoSize + 50);
+  ctx.fillStyle = faction.stampInk;
+  ctx.font = 'bold 10px monospace';
+  ctx.fillText(faction.stampText, photoX + 12, photoY + photoSize + 64);
 
-    ctx.fillStyle = '#94a3b8';
-    ctx.font = '10px monospace';
-    ctx.fillText('COMPLIANCE RATIO', avatarX + 12, scoreCardY + 22);
+  // Stats column
+  const statsX = photoX + photoSize + 25;
+  const statsWidth = canvas.width - statsX - 45;
+  let y = photoY;
 
-    ctx.fillStyle = castePrimaryColor;
-    ctx.font = 'bold 28px monospace';
-    ctx.fillText(`${userProfile.biocarbon_ratio}%`, avatarX + 12, scoreCardY + 54);
+  ctx.fillStyle = PALETTE.textMuted;
+  ctx.font = '10px monospace';
+  ctx.fillText('CASE TITLE (DOMINANT HABIT)', statsX, y + 14);
+  const titleLines = getWrappedLines(measureCtx, user_profile.honorific_title, statsWidth - 20);
+  ctx.fillStyle = PALETTE.text;
+  ctx.font = 'bold 16px monospace';
+  titleLines.forEach((line, i) => ctx.fillText(line, statsX, y + 36 + i * 22));
+  y += 48 + titleLines.length * 22;
 
-    // Stats Column (Right of avatar)
-    const statsX = avatarX + avatarSize + 25;
-    let curStatsY = avatarY;
+  // Index + gauge
+  ctx.fillStyle = 'rgba(0,0,0,0.45)';
+  ctx.fillRect(statsX, y, statsWidth, 40);
+  ctx.fillStyle = PALETTE.textMuted;
+  ctx.font = '10px monospace';
+  ctx.fillText('HOUSEHOLD SUSTAINABILITY INDEX', statsX + 12, y + 18);
+  ctx.fillStyle = tierColor;
+  ctx.font = 'bold 20px monospace';
+  ctx.textAlign = 'right';
+  ctx.fillText(`${user_profile.biocarbon_ratio}%`, statsX + statsWidth - 12, y + 28);
+  ctx.textAlign = 'left';
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  ctx.fillRect(statsX + 12, y + 28, statsWidth - 24, 6);
+  ctx.fillStyle = tierColor;
+  ctx.fillRect(statsX + 12, y + 28, ((statsWidth - 24) * user_profile.biocarbon_ratio) / 100, 6);
+  y += 52;
 
-    // Stats Frame Title: Prominent Caste Member Badge & Caste Census Size on same line
-    const casteMemberText = casteMemberName.toUpperCase();
-    ctx.font = 'bold 13px monospace';
-    const casteMemberWidth = ctx.measureText(casteMemberText).width + 20;
+  // Items
+  ctx.fillStyle = PALETTE.textMuted;
+  ctx.font = '10px monospace';
+  ctx.fillText(`AUDIT INVENTORY // ${audit.items.length} ITEMS // ${audit.hardFails} HARD FAILS`, statsX, y + 14);
+  y += 24;
+  itemLines.slice(0, 8).forEach((line) => {
+    ctx.fillStyle = line.includes('NON-COMPLIANT') ? '#ef4444' : line.includes('BORDERLINE') ? '#facc15' : '#a9b8aa';
+    ctx.font = 'bold 11px monospace';
+    ctx.fillText(line, statsX, y);
+    y += 20;
+  });
 
-    // Caste badge background & text
-    ctx.fillStyle = castePrimaryColor;
-    ctx.fillRect(statsX, curStatsY, casteMemberWidth, 24);
-    ctx.fillStyle = '#000000';
-    ctx.fillText(casteMemberText, statsX + 10, curStatsY + 17);
+  // Divider
+  const dividerY = Math.max(photoY + photoSize + 90, y + 20);
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  ctx.beginPath();
+  ctx.moveTo(45, dividerY);
+  ctx.lineTo(canvas.width - 45, dividerY);
+  ctx.stroke();
 
-    // Overflow registry tag if applicable
-    let offsetBadgeX = statsX + casteMemberWidth + 8;
-    if (isOverflowCaste(userProfile.caste)) {
-      const termText = '⚠ OVERFLOW REGISTRY';
-      ctx.font = 'bold 10px monospace';
-      const termWidth = ctx.measureText(termText).width + 12;
-      ctx.fillStyle = 'rgba(153, 27, 27, 0.85)';
-      ctx.fillRect(offsetBadgeX, curStatsY, termWidth, 24);
-      ctx.strokeStyle = '#ef4444';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(offsetBadgeX, curStatsY, termWidth, 24);
-      ctx.fillStyle = '#fca5a5';
-      ctx.fillText(termText, offsetBadgeX + 6, curStatsY + 16);
-    }
+  // Prophecy
+  let propY = dividerY + 20;
+  ctx.fillStyle = '#141726';
+  ctx.fillRect(45, propY, contentWidth, headlineBoxHeight);
+  ctx.strokeStyle = 'rgba(245,158,11,0.4)';
+  ctx.strokeRect(45, propY, contentWidth, headlineBoxHeight);
+  ctx.fillStyle = PALETTE.warning;
+  ctx.font = 'bold 15px monospace';
+  headlineLines.forEach((line, i) => ctx.fillText(line, 60, propY + 26 + i * 24));
+  propY += headlineBoxHeight + 14;
 
-    // On the same line: Caste Census size text
-    const censusText = `Unit ${unitId.toLocaleString()} of ${population.toLocaleString()}`;
-    ctx.font = '12px monospace';
-    ctx.fillStyle = '#94a3b8';
-    ctx.textAlign = 'right';
-    ctx.fillText(censusText, statsX + statsWidth, curStatsY + 17);
-    ctx.textAlign = 'left';
+  const paragraphs: Array<[number, string, string]> = [
+    [0, prophecy.paragraph_1, '#b4ff39'],
+    [1, prophecy.paragraph_2, '#f59e0b'],
+    [2, prophecy.paragraph_3, '#22c55e'],
+  ];
+  for (const [index, , accent] of paragraphs) {
+    const lines = [p1Lines, p2Lines, p3Lines][index];
+    const boxH = pBox(lines);
+    ctx.fillStyle = '#0b0e18';
+    ctx.fillRect(45, propY, contentWidth, boxH);
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.strokeRect(45, propY, contentWidth, boxH);
+    ctx.fillStyle = accent;
+    ctx.fillRect(45, propY, 4, boxH);
+    ctx.fillStyle = PALETTE.textSecondary;
+    ctx.font = '14px monospace';
+    lines.forEach((line, i) => ctx.fillText(line, 70, propY + 22 + i * lineHeight));
+    propY += boxH + 14;
+  }
 
-    curStatsY += 34;
+  // Footer
+  ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+  ctx.beginPath();
+  ctx.moveTo(45, propY);
+  ctx.lineTo(canvas.width - 45, propY);
+  ctx.stroke();
+  ctx.fillStyle = PALETTE.textMuted;
+  ctx.font = '11px monospace';
+  ctx.fillText(`AUTHENTICATED BY ${IDENTITY.entityName.toUpperCase()} // ${IDENTITY.auditProtocol}`, 45, propY + 20);
+  ctx.textAlign = 'right';
+  ctx.fillText('ALL VALUES ARE ESTIMATES // SOURCE ON FILE', canvas.width - 45, propY + 20);
+  ctx.textAlign = 'left';
 
-    // Official Honorific Title Card
-    ctx.fillStyle = '#0f1322';
-    ctx.fillRect(statsX, curStatsY, statsWidth, titleBoxHeight);
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
-    ctx.strokeRect(statsX, curStatsY, statsWidth, titleBoxHeight);
-
-    ctx.fillStyle = '#94a3b8';
-    ctx.font = '10px monospace';
-    ctx.fillText('OFFICIAL HONORIFIC TITLE', statsX + 14, curStatsY + 20);
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 16px monospace';
-    for (let i = 0; i < titleLines.length; i++) {
-      ctx.fillText(titleLines[i], statsX + 14, curStatsY + 42 + i * 24);
-    }
-
-    curStatsY += titleBoxHeight + 12;
-
-    // 4 Attribute Grid Cards
-    const cardW = Math.floor((statsWidth - 12) / 2);
-
-    // Helper to draw an attribute card
-    const drawAttrCard = (x: number, y: number, label: string, valLines: string[]) => {
-      const h = Math.max(cardH, 28 + valLines.length * 16);
-      ctx.fillStyle = 'rgba(15, 19, 34, 0.7)';
-      ctx.fillRect(x, y, cardW, h);
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-      ctx.strokeRect(x, y, cardW, h);
-
-      ctx.fillStyle = '#64748b';
-      ctx.font = '10px monospace';
-      ctx.fillText(label, x + 10, y + 18);
-
-      ctx.fillStyle = '#e2e8f0';
-      ctx.font = 'bold 12px monospace';
-      for (let j = 0; j < valLines.length; j++) {
-        ctx.fillText(valLines[j], x + 10, y + 36 + j * 16);
-      }
-      return h;
-    };
-
-    const hRow1 = Math.max(
-      drawAttrCard(statsX, curStatsY, 'PRESENTATION', [userProfile.apparent_presentation || 'AUTO-DETECT']),
-      drawAttrCard(statsX + cardW + 12, curStatsY, 'UTILITY GRADE', [
-        getCasteLifeStageTitle(userProfile.caste, userProfile.life_stage),
-      ])
-    );
-
-    const row2Y = curStatsY + hRow1 + 10;
-    const hRow2 = Math.max(
-      drawAttrCard(statsX, row2Y, 'ASSET VALUE', wealthLines),
-      drawAttrCard(statsX + cardW + 12, row2Y, 'ENERGY LEVEL', [userProfile.energy_level])
-    );
-
-    // Barcode & Integrity Strip
-    const barcodeY = row2Y + hRow2 + 12;
-    ctx.fillStyle = '#64748b';
-    ctx.font = '10px monospace';
-    ctx.fillText(`HEX: 0x${userProfile.biocarbon_ratio.toString(16).toUpperCase()}FF`, statsX + 4, barcodeY + 12);
-    ctx.font = 'bold 13px monospace';
-    ctx.fillText('|||||| | ||||| |||| || |||||| |', statsX + 140, barcodeY + 12);
-    ctx.font = '10px monospace';
-    ctx.fillText('REGISTRY-VERIFIED', statsX + statsWidth - 90, barcodeY + 12);
-
-    // Section divider line
-    const sectionDividerY = Math.max(scoreCardY + 80, barcodeY + 26);
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
-    ctx.beginPath();
-    ctx.moveTo(45, sectionDividerY);
-    ctx.lineTo(canvas.width - 45, sectionDividerY);
-    ctx.stroke();
-
-    // Prophecy Section
-    let propY = sectionDividerY + 20;
-
-    // Headline Bar
-    ctx.fillStyle = '#141726';
-    ctx.fillRect(45, propY, contentWidth, headlineBoxHeight);
-    ctx.strokeStyle = 'rgba(245, 158, 11, 0.4)';
-    ctx.strokeRect(45, propY, contentWidth, headlineBoxHeight);
-
-    ctx.fillStyle = '#fbbf24';
-    ctx.font = 'bold 15px monospace';
-    for (let i = 0; i < headlineLines.length; i++) {
-      ctx.fillText(headlineLines[i], 60, propY + 26 + i * 22);
-    }
-
-    propY += headlineBoxHeight + 14;
-
-    // Helper for dynamic paragraph card rendering
-    const drawParagraphBox = (
-      lines: string[],
-      accentColor: string,
-      yPos: number,
-      boxH: number,
-      iconImg: HTMLImageElement
-    ) => {
-      ctx.fillStyle = '#0b0e18';
-      ctx.fillRect(45, yPos, contentWidth, boxH);
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-      ctx.strokeRect(45, yPos, contentWidth, boxH);
-
-      // Left accent stripe
-      ctx.fillStyle = accentColor;
-      ctx.fillRect(45, yPos, 4, boxH);
-
-      // Topic icon (vertically centered in the box)
-      ctx.drawImage(iconImg, 59, yPos + (boxH - 20) / 2, 20, 20);
-
-      // Paragraph text
-      ctx.fillStyle = '#cbd5e1';
-      ctx.font = '14px monospace';
-      for (let i = 0; i < lines.length; i++) {
-        ctx.fillText(lines[i], 89, yPos + 22 + i * lineHeight);
-      }
-    };
-
-    // Paragraph 1
-    drawParagraphBox(p1Lines, '#00f3ff', propY, p1BoxHeight, iconImages[0]);
-    propY += p1BoxHeight + 14;
-
-    // Paragraph 2
-    drawParagraphBox(p2Lines, '#f59e0b', propY, p2BoxHeight, iconImages[1]);
-    propY += p2BoxHeight + 14;
-
-    // Paragraph 3
-    drawParagraphBox(p3Lines, '#10b981', propY, p3BoxHeight, iconImages[2]);
-    propY += p3BoxHeight + 20;
-
-    // Footer
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-    ctx.beginPath();
-    ctx.moveTo(45, propY);
-    ctx.lineTo(canvas.width - 45, propY);
-    ctx.stroke();
-
-    ctx.fillStyle = '#475569';
-    ctx.font = '11px monospace';
-    ctx.fillText(`AUTHENTICATED BY ${IDENTITY.entityName.toUpperCase()} // PROTOCOL-1`, 45, propY + 20);
-    ctx.textAlign = 'right';
-    ctx.fillText('CLASSIFIED SUBJECT ARCHIVE', canvas.width - 45, propY + 20);
-    ctx.textAlign = 'left';
-
-    // Download trigger
-    const link = document.createElement('a');
-    link.download = `subject_${casteMemberName.toLowerCase().replace(/\s+/g, '_')}_dossier.png`;
-    link.href = canvas.toDataURL('image/png');
-    link.click();
-  };
-  img.src = activeView === 'avatar' && avatarUrl ? avatarUrl : portraitUrl;
+  const link = document.createElement('a');
+  link.download = `ecocide_case_file_${(permalinkId || 'x').toLowerCase()}.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
 }
