@@ -254,15 +254,6 @@ export const ObjectScanner: React.FC<ObjectScannerProps> = ({
             </p>
           </div>
 
-          <UploadPanel
-            selectedCategory={category}
-            onCategoryChange={(c) => {
-              soundFx.playClick();
-              setCategory(c);
-            }}
-            isAnalyzing={isAnalyzing}
-          />
-
           {uploadError && (
             <div className="p-3 bg-red-950/70 border border-red-500/60 rounded-lg flex items-center justify-between gap-3 text-red-200 font-mono text-xs">
               <div className="flex items-center gap-2">
@@ -432,6 +423,15 @@ export const ObjectScanner: React.FC<ObjectScannerProps> = ({
           />
         ) : (
           <section className="rounded-xl border border-gray-800 bg-[#121a14] p-4 flex flex-col gap-3">
+            <UploadPanel
+              selectedCategory={category}
+              onCategoryChange={(c) => {
+                soundFx.playClick();
+                setCategory(c);
+              }}
+              isAnalyzing={isAnalyzing}
+            />
+
             {/* Analysis pipeline */}
             <div className="flex flex-col gap-3">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5">
