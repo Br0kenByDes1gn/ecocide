@@ -25,8 +25,17 @@ export const LENSES: ReadonlyArray<{ id: LensId; label: string }> = [
 
 export const ITEM_STATUS_COLORS = {
   compliant: '#22c55e',
-  borderline: '#facc15',
+  borderline: '#fbbf24',
   'non-compliant': '#ef4444',
+  'special-handling': '#facc15',
+} as const;
+
+/** Status labels for chips/cards (special-handling comes from Step-5 rules). */
+export const ITEM_STATUS_LABELS = {
+  compliant: 'APPROVED',
+  borderline: 'PENDING REVIEW',
+  'non-compliant': 'DENIED',
+  'special-handling': 'SPECIAL HANDLING',
 } as const;
 
 // ---------------------------------------------------------------------------

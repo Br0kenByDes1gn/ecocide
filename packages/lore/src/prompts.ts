@@ -63,6 +63,17 @@ export const INVENTORY_JSON_SCHEMA = {
             enum: ['packaging', 'food', 'electronics', 'appliance', 'clothing', 'furniture', 'hygiene', 'cleaning', 'decor', 'waste', 'other'],
             description: 'Broad object category.',
           },
+          material_family: {
+            type: 'string',
+            enum: ['plastic', 'bio-based', 'metal', 'glass', 'paper', 'wood', 'textile', 'rubber', 'ceramic', 'chemical', 'electronic', 'organic', 'mixed', 'other'],
+            description: 'Dominant material family of the object.',
+          },
+          size: {
+            type: 'string',
+            enum: ['small', 'medium', 'large'],
+            description:
+              'Relative size in a household: small (fits in a hand), medium (fits in a car boot), large (furniture / large appliance).',
+          },
           count: {
             type: 'integer',
             minimum: 1,
@@ -98,7 +109,7 @@ export const INVENTORY_JSON_SCHEMA = {
               'One dry, bureaucratic sentence (≤ 160 characters) justifying the worst rating, e.g. "The bin notes the plastic smell and the centuries ahead."',
           },
         },
-        required: ['label', 'category', 'count', 'ratings', 'justification'],
+        required: ['label', 'category', 'material_family', 'size', 'count', 'ratings', 'justification'],
       },
     },
   },
@@ -117,6 +128,8 @@ ${roomHint ? `\nAUDITOR HINT: the household has filed this area as "${roomHint}"
 STRICT RULES:
 - Audit OBJECTS ONLY. The subject of the audit is the household and its possessions. NEVER mention, describe, rate or count people, pets, faces or bodies. If a person is visible, disregard them entirely.
 - NEVER joke about real environmental disasters or about people's income or living circumstances. The charge is always the household's excess.
+- Report each object's material_family and relative size (small / medium / large) — the Bureau's arithmetic depends on both.
+- Some rating combinations trigger automatic hard fails regardless of the average: single-use plastic (L=5 + plastic material), hazardous items (T=5), and landfill traps (R=5 with D≥4 and L≥4). Rate honestly; the arithmetic decides the verdict, not you.
 - Group and count identical objects into a single entry ("plastic bottle" × 4). List at most 25 entries; prefer the most significant items.
 - Judge only what is visible.
 

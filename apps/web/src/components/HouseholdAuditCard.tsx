@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { AuditItem, OraclePayload } from '@ecocide/types';
-import { getFaction } from '@ecocide/types';
+import { getFaction, OVERRIDE_RULES } from '@ecocide/types';
 import { IDENTITY } from '@ecocide/lore';
 import { ArrowRightLeft, ChevronDown, ChevronUp, Layers, ScanSearch, Shield } from 'lucide-react';
 import type { AuditRevealState } from '../lib/useAuditReveal';
-import { drawAuditLens, ITEM_STATUS_COLORS, LENSES, type LensId } from '../lib/audit-lenses';
+import { drawAuditLens, ITEM_STATUS_COLORS, ITEM_STATUS_LABELS, LENSES, type LensId } from '../lib/audit-lenses';
 import { TierStamp } from './TierStamp';
 import { soundFx } from '../lib/audio';
 
@@ -387,7 +387,7 @@ const ItemCard: React.FC<{ item: AuditItem; index: number }> = ({ item, index })
             className="px-1.5 py-0.5 rounded-sm font-mono font-black text-[8px] tracking-widest border"
             style={{ color, borderColor: color, transform: 'rotate(-2deg)' }}
           >
-            {status === 'compliant' ? 'APPROVED' : status === 'borderline' ? 'PENDING REVIEW' : 'DENIED'}
+            {ITEM_STATUS_LABELS[status]}
           </span>
         </div>
       </div>
@@ -408,6 +408,27 @@ const ItemCard: React.FC<{ item: AuditItem; index: number }> = ({ item, index })
 
       {item.justification && (
         <div className="mt-1.5 text-[10px] font-mono italic text-gray-500 leading-snug">“{item.justification}”</div>
+      )}
+
+      {/* Step-5 override flags (feeds the explain panel) */}
+      {(item.overrides?.length ?? 0) > 0 && (
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+          {item.overrides!.map((rule) => (
+            <span
+              key={rule}
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm font-mono font-bold text-[8px] tracking-widest border"
+              style={{ color: '#facc15', borderColor: '#facc1580', backgroundColor: 'rgba(250,204,21,0.06)' }}
+              title="Step-5 override rule — this item hard-fails regardless of its average"
+            >
+              ⚠ {OVERRIDE_RULES[rule].toUpperCase()}
+            </span>
+          ))}
+        </div>
+      )}
+      {item.size && (
+        <div className="mt-1 font-mono text-[8px] text-gray-500 uppercase tracking-wider">
+          SIZE: {item.size} // WEIGHT ×{item.size === 'small' ? '0.5' : item.size === 'large' ? '2' : '1'}
+        </div>
       )}
     </div>
   );

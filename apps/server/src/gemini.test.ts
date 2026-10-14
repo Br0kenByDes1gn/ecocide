@@ -25,8 +25,27 @@ function makeRecord(caste = 'high-impact-offender', ratio = 42): CitizenRecord {
     audit: {
       roomType: 'kitchen',
       items: [
-        { label: 'coffee pod', category: 'packaging', count: 3, ratings: { m: 5, r: 1 }, si: 21.3, status: 'non-compliant' },
-        { label: 'compost bin', category: 'waste', count: 1, ratings: { m: 1 }, si: 100, status: 'compliant' },
+        {
+          label: 'coffee pod',
+          category: 'packaging',
+          count: 3,
+          ratings: { m: 5, r: 1, l: 5 },
+          materialFamily: 'plastic',
+          size: 'small',
+          overrides: ['single-use-plastic'],
+          si: 21.3,
+          status: 'non-compliant',
+        },
+        {
+          label: 'compost bin',
+          category: 'waste',
+          count: 1,
+          ratings: { m: 1 },
+          materialFamily: 'organic',
+          size: 'medium',
+          si: 100,
+          status: 'compliant',
+        },
       ],
       ratio,
       hardFails: 1,
@@ -125,6 +144,8 @@ describe('verdict prompt (PASS 2)', () => {
     expect(prompt).toContain('paragraph_3 (Official Assessment)');
     expect(prompt).toContain('- x3 coffee pod // SI 21.3 // NON-COMPLIANT');
     expect(prompt).toContain('- x1 compost bin // SI 100.0 // COMPLIANT');
+    // Step-5 override flags ride along in the summary
+    expect(prompt).toContain('SINGLE-USE-PLASTIC');
   });
 });
 

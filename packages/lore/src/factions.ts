@@ -81,28 +81,81 @@ export interface FactionDef {
 export type HarmDimensionKey = 'm' | 'r' | 'd' | 'c' | 'l' | 't' | 'p' | 'e';
 export const HARM_DIMENSION_KEYS: readonly HarmDimensionKey[] = ['m', 'r', 'd', 'c', 'l', 't', 'p', 'e'] as const;
 
-/**
- * Deterministic personalized titles chosen from the DOMINANT scoring
- * dimension (art §7: "for example 'Petroleum Hoarder'"). `minor` applies to
- * borderline households (ratio ≥ 60), `major` to genuinely bad ones.
- */
-export const DIMENSION_TITLES: Readonly<
-  Record<HarmDimensionKey, { minor: string; major: string }>
-> = {
-  m: { minor: 'Plastic-Curious', major: 'Petroleum Hoarder' },
-  r: { minor: 'Recycling Skeptic', major: 'Bin Protocol Violator' },
-  d: { minor: 'Decomposition Gambler', major: 'Century-Lifespan Keeper' },
-  c: { minor: 'Carbon-Curious', major: 'Embodied Carbon Baron' },
-  l: { minor: 'Reuse Amateur', major: 'Single-Use Regent' },
-  t: { minor: 'Household Alchemist', major: 'Toxin Curator' },
-  p: { minor: 'Shedding Normal', major: 'Microplastic Dispenser' },
-  e: { minor: 'Standby-Load Observer', major: 'Phantom Load Keeper' },
-};
+/** Material families (structural mirror of @ecocide/compliance). */
+export type MaterialFamilyKey =
+  | 'plastic'
+  | 'bio-based'
+  | 'metal'
+  | 'glass'
+  | 'paper'
+  | 'wood'
+  | 'textile'
+  | 'rubber'
+  | 'ceramic'
+  | 'chemical'
+  | 'electronic'
+  | 'organic'
+  | 'mixed'
+  | 'other';
 
-/** Pick the deterministic title for a dominant dimension + household ratio. */
-export function dimensionTitle(dimension: HarmDimensionKey, ratio: number): string {
-  const bank = DIMENSION_TITLES[dimension] ?? DIMENSION_TITLES.m;
-  return ratio < 60 ? bank.major : bank.minor;
+/**
+ * Classification titles driven by the dominant scoring dimension / material
+ * (sustainability_scoring_framework.md §6). The title is deterministic: the
+ * math picks the driver, the pack supplies the vocabulary.
+ */
+export const HOUSEHOLD_TITLES = {
+  /** Plastic material or pollution shedding dominates. */
+  plastic: 'Petroleum Hoarder',
+  /** Textiles dominate. */
+  textile: 'Fast-Fashion Collector',
+  /** Electronics / batteries dominate. */
+  electronic: 'Gadget Graveyard Keeper',
+  /** Single-use lifespan dominates. */
+  lifespan: 'Disposable Enthusiast',
+  /** Operating energy dominates. */
+  energy: 'Watt Wizard',
+  /** Compliant households with no worse driver (Index ≥ 60). */
+  compliant: 'Model Citizen (grudgingly)',
+  /** Dimension fallbacks. */
+  recyclability: 'Bin Protocol Violator',
+  decomposition: 'Century-Lifespan Keeper',
+  embodiedCarbon: 'Embodied Carbon Baron',
+  toxicity: 'Toxin Curator',
+  material: 'Material Curator',
+} as const;
+
+export interface HouseholdTitleInput {
+  /** Household Sustainability Index (0–100). */
+  ratio: number;
+  /** Dominant harm dimension (from @ecocide/compliance). */
+  dominant: HarmDimensionKey | null;
+  /** Dominant material family (from @ecocide/compliance). */
+  dominantMaterial: MaterialFamilyKey | null;
+}
+
+/** Pick the deterministic personalized title for the household. */
+export function householdTitle(input: HouseholdTitleInput): string {
+  const { ratio, dominant, dominantMaterial } = input;
+  if (dominantMaterial === 'plastic' || dominant === 'p') return HOUSEHOLD_TITLES.plastic;
+  if (dominantMaterial === 'textile') return HOUSEHOLD_TITLES.textile;
+  if (dominantMaterial === 'electronic') return HOUSEHOLD_TITLES.electronic;
+  if (dominant === 'l') return HOUSEHOLD_TITLES.lifespan;
+  if (dominant === 'e') return HOUSEHOLD_TITLES.energy;
+  if (ratio >= 60) return HOUSEHOLD_TITLES.compliant;
+  switch (dominant) {
+    case 'r':
+      return HOUSEHOLD_TITLES.recyclability;
+    case 'd':
+      return HOUSEHOLD_TITLES.decomposition;
+    case 'c':
+      return HOUSEHOLD_TITLES.embodiedCarbon;
+    case 't':
+      return HOUSEHOLD_TITLES.toxicity;
+    case 'm':
+      return HOUSEHOLD_TITLES.material;
+    default:
+      return HOUSEHOLD_TITLES.compliant;
+  }
 }
 
 /**
