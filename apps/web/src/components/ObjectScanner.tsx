@@ -65,11 +65,13 @@ export const ObjectScanner: React.FC<ObjectScannerProps> = ({
   const [preview, setPreview] = useState<string | null>(null);
   const [previewName, setPreviewName] = useState<string | null>(null);
   const [captured, setCaptured] = useState<string | null>(null);
-  const [category, setCategory] = useState<ItemCategory>('other');
+  const [category, setCategory] = useState<ItemCategory>('others');
   const [dragActive, setDragActive] = useState(false);
   const [scanStatus, setScanStatus] = useState('AUDIT GRID STANDBY: AWAITING EVIDENCE');
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manualItems, setManualItems] = useState('');
 
   // Start the camera pointed at the room
   useEffect(() => {
@@ -180,7 +182,7 @@ export const ObjectScanner: React.FC<ObjectScannerProps> = ({
   const submitEvidence = (rawImage: string) => {
     setCaptured(rawImage);
     soundFx.playLockIn();
-    onLockIn({ rawImage, category: category === 'other' ? null : category });
+    onLockIn({ rawImage, category: category === 'others' ? null : category });
   };
 
   const handleLockIn = () => {
@@ -250,7 +252,6 @@ export const ObjectScanner: React.FC<ObjectScannerProps> = ({
         currentStep={isLoading ? 2 : 1}
         totalSteps={2}
         stepLabel={isLoading ? 'ARBITER DELIBERATION' : 'CAPTURE EVIDENCE'}
-        onSkip={isLoading ? undefined : openFilePicker}
       />
 
       <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
@@ -349,15 +350,25 @@ export const ObjectScanner: React.FC<ObjectScannerProps> = ({
               </button>
             </div>
 
-            {/* Manual item listing — not implemented yet */}
             <button
               type="button"
-              disabled
-              className="py-2.5 px-4 bg-gray-900 text-gray-500 border border-gray-800 font-mono text-xs rounded-lg flex items-center justify-center gap-2 cursor-not-allowed"
+              disabled={isAnalyzing || isLoading}
+              onClick={() => setManualOpen((v) => !v)}
+              className="py-2.5 px-4 bg-gray-900 hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed text-gray-200 border border-gray-700 font-mono text-xs rounded-lg flex items-center justify-center gap-2 transition-colors cursor-pointer"
             >
               <span>LIST YOUR ITEMS MANUALLY</span>
-              <span className="px-1.5 py-0.5 text-[8px] font-mono border border-gray-700 rounded text-gray-500">SOON</span>
             </button>
+
+            {manualOpen && (
+              <textarea
+                value={manualItems}
+                onChange={(e) => setManualItems(e.target.value)}
+                rows={3}
+                placeholder="Add items separated by commas, e.g. plastic bottle, coffee pod, sweater"
+                className="w-full px-3 py-2 rounded-lg bg-[#0c110d] border border-gray-700 text-gray-200 font-mono text-xs resize-y focus:outline-none focus:border-lime-500/60"
+                disabled={isAnalyzing || isLoading}
+              />
+            )}
 
             {/* Analyze items (submits the audit) */}
             <button
@@ -383,7 +394,7 @@ export const ObjectScanner: React.FC<ObjectScannerProps> = ({
           <AnalysisPanel
             photo={captured ?? preview}
             active
-            category={category === 'other' ? null : category}
+            category={category === 'others' ? null : category}
           />
         ) : (
           <section className="rounded-xl border border-gray-800 bg-[#121a14] p-4 flex flex-col gap-3">

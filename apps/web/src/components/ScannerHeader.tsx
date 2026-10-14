@@ -100,7 +100,7 @@ export const ScannerHeader: React.FC<ScannerHeaderProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div className="flex items-center gap-3 flex-wrap">
             <span className="px-2.5 py-1 text-[10px] font-mono text-lime-400 border border-lime-500/40 rounded bg-lime-500/10">
-              DOMESTIC AUDIT // STEP {String(currentStep).padStart(2, '0')} — {stepLabel}
+              STEP {String(currentStep).padStart(2, '0')} — {stepLabel}
             </span>
             <div className="flex items-center gap-1">
               {Array.from({ length: totalSteps }, (_, i) => {

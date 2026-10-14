@@ -46,7 +46,7 @@ const payload: OraclePayload = {
     roomType: 'living room',
     items: [
       { label: 'standby power strip', category: 'electronics', count: 2, ratings: { e: 5, m: 4 }, si: 12.5, status: 'non-compliant' },
-      { label: 'led bulb', category: 'electronics', count: 4, ratings: { e: 3, m: 3 }, si: 43.8, status: 'borderline' },
+      { label: 'led bulb', category: 'electronics', count: 4, ratings: { e: 3, m: 3 }, si: 43.8, status: 'needs-improvement' },
     ],
     ratio: 22,
     hardFails: 1,

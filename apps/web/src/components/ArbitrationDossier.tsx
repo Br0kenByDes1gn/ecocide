@@ -52,10 +52,10 @@ const RATING_INK: Record<number, string> = {
  * statuses read as stamp ink, same three families as `.stamp-*` in index.css.
  */
 const PAPER_STATUS_INK: Record<string, string> = {
-  compliant: '#2f7d3a',
-  borderline: '#b45309',
-  'non-compliant': '#c2322b',
-  'special-handling': '#b45309',
+  compliant: '#285A37',
+  acceptable: '#315A96',
+  'needs-improvement': '#865D13',
+  'non-compliant': '#983D3D',
 };
 
 /** Human-readable label for a material family key (`bio-based` → Bio-based). */
@@ -151,8 +151,8 @@ const ItemRow: React.FC<{ item: AuditItem; index: number; evidenceUrl?: string }
   index,
   evidenceUrl,
 }) => {
-  const status = item.status ?? 'borderline';
-  const ink = PAPER_STATUS_INK[status] ?? PAPER_STATUS_INK.borderline;
+  const status = item.status ?? 'needs-improvement';
+  const ink = PAPER_STATUS_INK[status] ?? PAPER_STATUS_INK['needs-improvement'];
   return (
     <div
       className={`${ITEM_GRID} py-1.5 border-b border-[#e0d6bb] last:border-b-0 items-center text-[10px] font-mono text-[#1f2a1f]`}

@@ -89,20 +89,23 @@ describe('harm score & SI (Steps 2–3)', () => {
 });
 
 describe('item status (Step 4)', () => {
-  it('maps the formula thresholds exactly (≥60, ≥40, <40)', () => {
+  it('maps the formula thresholds exactly (≥75, ≥60, ≥40, <40)', () => {
     expect(baseItemStatus(100)).toBe('compliant');
-    expect(baseItemStatus(60)).toBe('compliant');
-    expect(baseItemStatus(59.9)).toBe('borderline');
-    expect(baseItemStatus(40)).toBe('borderline');
+    expect(baseItemStatus(75)).toBe('compliant');
+    expect(baseItemStatus(74.9)).toBe('acceptable');
+    expect(baseItemStatus(60)).toBe('acceptable');
+    expect(baseItemStatus(59.9)).toBe('needs-improvement');
+    expect(baseItemStatus(40)).toBe('needs-improvement');
     expect(baseItemStatus(39.9)).toBe('non-compliant');
     expect(baseItemStatus(0)).toBe('non-compliant');
   });
 
   it('stamps match the formula table', () => {
     expect(itemStamp(75)).toBe('APPROVED');
-    expect(itemStamp(55)).toBe('PENDING REVIEW');
+    expect(itemStamp(60)).toBe('ACCEPTED');
+    expect(itemStamp(55)).toBe('IMPROVE');
     expect(itemStamp(10)).toBe('DENIED');
-    expect(itemStamp(75, ['hazardous'])).toBe('SPECIAL HANDLING');
+    expect(itemStamp(75, ['hazardous'])).toBe('DENIED');
   });
 });
 
@@ -131,9 +134,9 @@ describe('override rules (Step 5)', () => {
     // A high-SI plastic bottle is still DENIED
     expect(itemStatus(85, ['single-use-plastic'])).toBe('non-compliant');
     expect(itemStatus(85, ['landfill-trap'])).toBe('non-compliant');
-    // A high-SI hazardous item becomes SPECIAL HANDLING, not APPROVED
-    expect(itemStatus(85, ['hazardous'])).toBe('special-handling');
-    expect(itemStatus(55, ['hazardous'])).toBe('special-handling');
+    // A high-SI hazardous item becomes non-compliant (DENIED), not APPROVED
+    expect(itemStatus(85, ['hazardous'])).toBe('non-compliant');
+    expect(itemStatus(55, ['hazardous'])).toBe('non-compliant');
     // Already-failing hazardous items stay non-compliant
     expect(itemStatus(20, ['hazardous'])).toBe('non-compliant');
     // No overrides → base status

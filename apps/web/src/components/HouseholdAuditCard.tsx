@@ -150,7 +150,7 @@ export const HouseholdAuditCard: React.FC<HouseholdAuditCardProps> = ({
               {!compact &&
                 bounded.map((item, i) => {
                   const b = item.bounds!;
-                  const status = item.status ?? 'borderline';
+                  const status = item.status ?? 'needs-improvement';
                   const color = ITEM_STATUS_COLORS[status];
                   const style: React.CSSProperties = {
                     left: `${b.x1 * 100}%`,
@@ -357,7 +357,7 @@ export const HouseholdAuditCard: React.FC<HouseholdAuditCardProps> = ({
 
 /** One audited item card: label ×count, SI, stamp, four properties. */
 const ItemCard: React.FC<{ item: AuditItem; index: number }> = ({ item, index }) => {
-  const status = item.status ?? 'borderline';
+  const status = item.status ?? 'needs-improvement';
   const color = ITEM_STATUS_COLORS[status];
   const bars: Array<{ key: 'r' | 'd' | 'm' | 't'; label: string }> = [
     { key: 'm', label: 'MATERIAL' },
