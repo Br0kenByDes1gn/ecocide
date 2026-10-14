@@ -255,14 +255,14 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ photo, active, cat
           </div>
 
           {/* Top HUD */}
-          <div className="absolute top-0 left-0 right-0 p-2 flex justify-end items-start pointer-events-none">
+          <div className="absolute top-0 left-0 right-0 p-2 pt-[26px] pr-[26px] flex justify-end items-start pointer-events-none">
             <div className="bg-black/60 px-2 py-0.5 rounded border border-lime-500/40 text-[10px] font-mono text-lime-400 tracking-widest uppercase">
               {(category || 'ROOM').toUpperCase()} EVIDENCE QUEUED
             </div>
           </div>
 
           {/* Bottom HUD */}
-          <div className="absolute bottom-0 left-0 right-0 p-2 flex justify-between items-end pointer-events-none">
+          <div className="absolute bottom-0 left-0 right-0 p-2 pb-[26px] pl-[26px] pr-[26px] flex justify-between items-end pointer-events-none">
             <div className="bg-black/60 px-2 py-0.5 rounded border border-lime-500/40 text-[8px] font-mono text-gray-400">
               SCAN GRID: ACTIVE
             </div>

@@ -4,6 +4,7 @@ import { IDENTITY, PALETTE } from '@ecocide/lore';
 import { soundFx } from '../lib/audio';
 import { ScannerHeader } from './ScannerHeader';
 import { UploadPanel, type ItemCategory } from './UploadPanel';
+import { EvidenceDropZone } from './EvidenceDropZone';
 import { AnalysisPanel, ANALYSIS_STAGES } from './AnalysisPanel';
 
 interface ObjectScannerProps {
@@ -70,8 +71,6 @@ export const ObjectScanner: React.FC<ObjectScannerProps> = ({
   const [scanStatus, setScanStatus] = useState('AUDIT GRID STANDBY: AWAITING EVIDENCE');
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [manualOpen, setManualOpen] = useState(false);
-  const [manualItems, setManualItems] = useState('');
 
   // Start the camera pointed at the room
   useEffect(() => {
@@ -213,20 +212,6 @@ export const ObjectScanner: React.FC<ObjectScannerProps> = ({
     if (!isAnalyzing && !isLoading) fileInputRef.current?.click();
   };
 
-  /** Stage the current camera frame as the still to be audited. */
-  const stageFrame = () => {
-    const raw = captureFrame();
-    if (!raw) {
-      setUploadError('NO CAMERA FRAME AVAILABLE. UPLOAD A PHOTO OF THE ROOM INSTEAD.');
-      return;
-    }
-    setPreview(raw);
-    setPreviewName(null);
-    setCaptured(null);
-    setScanStatus('FRAME CAPTURED: READY TO AUDIT');
-    soundFx.playLockIn();
-  };
-
   const evidenceStaged = Boolean(preview);
 
   /**
@@ -275,13 +260,6 @@ export const ObjectScanner: React.FC<ObjectScannerProps> = ({
               soundFx.playClick();
               setCategory(c);
             }}
-            onFileSelected={ingestFile}
-            onUploadClick={openFilePicker}
-            selectedFileName={previewName}
-            onClearFile={retakeEvidence}
-            dragActive={dragActive}
-            onDragActivate={() => setDragActive(true)}
-            onDragDeactivate={() => setDragActive(false)}
             isAnalyzing={isAnalyzing}
           />
 
@@ -301,103 +279,8 @@ export const ObjectScanner: React.FC<ObjectScannerProps> = ({
             </div>
           )}
 
-          {/* Upload + camera controls */}
+          {/* Evidence capture + submit */}
           <div className="flex flex-col gap-2 pt-1">
-            <button
-              type="button"
-              disabled={isAnalyzing || isLoading}
-              onClick={openFilePicker}
-              className="py-2.5 px-4 bg-gray-900 hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed text-gray-200 border border-gray-700 font-mono text-xs rounded-lg flex items-center justify-center gap-2 transition-colors cursor-pointer"
-            >
-              <Camera className={`w-4 h-4 text-lime-400 ${isAnalyzing ? 'animate-pulse' : ''}`} />
-              {isAnalyzing ? 'ANALYZING...' : 'UPLOAD PHOTO'}
-            </button>
-
-            <div className="grid grid-cols-2 gap-2">
-              {preview ? (
-                <button
-                  type="button"
-                  onClick={retakeEvidence}
-                  disabled={isAnalyzing || isLoading}
-                  className="py-2.5 px-4 bg-gray-900 hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed text-gray-200 border border-gray-700 font-mono text-xs rounded-lg flex items-center justify-center gap-2 transition-colors cursor-pointer"
-                  title="Discard this photo and return to the live camera"
-                >
-                  <RefreshCw className="w-4 h-4 text-lime-400" />
-                  <span>RETAKE PHOTO</span>
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={stageFrame}
-                  disabled={!cameraActive || isAnalyzing || isLoading}
-                  className="py-2.5 px-4 bg-lime-500/90 hover:bg-lime-400 disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold font-mono text-xs tracking-wider rounded-lg flex items-center justify-center gap-2 transition-all cursor-pointer"
-                  title="Capture the current frame as a still photo"
-                >
-                  <Camera className="w-4 h-4" />
-                  <span>USE CAMERA</span>
-                </button>
-              )}
-
-              <button
-                type="button"
-                onClick={() => setFacingMode((prev) => (prev === 'user' ? 'environment' : 'user'))}
-                disabled={isAnalyzing || isLoading}
-                className="py-2.5 px-4 bg-gray-900 hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed text-gray-200 border border-gray-700 font-mono text-xs rounded-lg flex items-center justify-center gap-2 transition-colors cursor-pointer"
-                title="Switch Camera (Front / Back)"
-              >
-                <RefreshCw className="w-4 h-4 text-lime-400" />
-                <span>FLIP CAM</span>
-              </button>
-            </div>
-
-            <button
-              type="button"
-              disabled={isAnalyzing || isLoading}
-              onClick={() => setManualOpen((v) => !v)}
-              className="py-2.5 px-4 bg-gray-900 hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed text-gray-200 border border-gray-700 font-mono text-xs rounded-lg flex items-center justify-center gap-2 transition-colors cursor-pointer"
-            >
-              <span>LIST YOUR ITEMS MANUALLY</span>
-            </button>
-
-            {manualOpen && (
-              <textarea
-                value={manualItems}
-                onChange={(e) => setManualItems(e.target.value)}
-                rows={3}
-                placeholder="Add items separated by commas, e.g. plastic bottle, coffee pod, sweater"
-                className="w-full px-3 py-2 rounded-lg bg-[#0c110d] border border-gray-700 text-gray-200 font-mono text-xs resize-y focus:outline-none focus:border-lime-500/60"
-                disabled={isAnalyzing || isLoading}
-              />
-            )}
-
-            {/* Analyze items (submits the audit) */}
-            <button
-              type="button"
-              disabled={isAnalyzing || isLoading}
-              onClick={handleLockIn}
-              className="w-full py-3 px-4 bg-[#b4ff39] hover:bg-[#c6ff66] text-black font-bold font-mono tracking-wider rounded-lg flex items-center justify-center gap-2 shadow-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer btn-glow-lime"
-            >
-              <Zap className="w-4 h-4 fill-current" />
-              ANALYZE ITEMS
-            </button>
-
-            <p className="text-center text-[9px] font-mono text-gray-600 leading-relaxed pt-1">
-              PRIVACY: Photos are processed on-device; we don't save your images.
-            </p>
-          </div>
-
-          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
-        </section>
-
-        {/* Right panel: preview & pipeline. In flight, the audit cinematic takes over. */}
-        {isLoading ? (
-          <AnalysisPanel
-            photo={captured ?? preview}
-            active
-            category={category === 'others' ? null : category}
-          />
-        ) : (
-          <section className="rounded-xl border border-gray-800 bg-[#121a14] p-4 flex flex-col gap-3">
             {/* Evidence viewport */}
             <div
               className="relative w-full aspect-square rounded-lg border overflow-hidden"
@@ -467,7 +350,7 @@ export const ObjectScanner: React.FC<ObjectScannerProps> = ({
               </div>
 
               {/* HUD top row */}
-              <div className="absolute top-3 inset-x-3 z-20 flex justify-between items-start gap-2 text-[10px] font-mono tracking-widest">
+              <div className="absolute top-[18px] inset-x-[18px] z-20 flex justify-between items-start gap-2 text-[10px] font-mono tracking-widest">
                 <div
                   className="bg-black/70 px-2 py-1 rounded border"
                   style={{ borderColor: `${PALETTE.accent}66`, color: PALETTE.accent }}
@@ -480,7 +363,7 @@ export const ObjectScanner: React.FC<ObjectScannerProps> = ({
               </div>
 
               {/* "scan objects, not people" note */}
-              <div className="absolute bottom-3 right-3 z-20">
+              <div className="absolute bottom-[18px] right-[18px] z-20">
                 <span
                   className="text-[8px] font-mono font-bold px-1.5 py-0.5 rounded border"
                   style={{ color: PALETTE.warning, borderColor: `${PALETTE.warning}80`, backgroundColor: 'rgba(0,0,0,0.7)' }}
@@ -488,6 +371,18 @@ export const ObjectScanner: React.FC<ObjectScannerProps> = ({
                   SCAN OBJECTS, NOT PEOPLE
                 </span>
               </div>
+
+              {/* Camera flip control (lower-left overlay) */}
+              <button
+                type="button"
+                onClick={() => setFacingMode((prev) => (prev === 'user' ? 'environment' : 'user'))}
+                disabled={isAnalyzing || isLoading}
+                className="absolute bottom-[18px] left-[18px] z-20 flex items-center gap-1.5 px-2 py-1 rounded border border-gray-600 bg-black/70 font-mono text-[9px] font-bold tracking-widest text-gray-200 hover:text-lime-300 hover:border-lime-500/50 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                title="Switch Camera (Front / Back)"
+              >
+                <RefreshCw className="w-3 h-3 text-lime-400" />
+                FLIP CAM
+              </button>
 
               {isAnalyzing && (
                 <div className="absolute inset-0 z-30 bg-black/80 flex flex-col items-center justify-center p-6 text-center">
@@ -498,8 +393,47 @@ export const ObjectScanner: React.FC<ObjectScannerProps> = ({
               )}
             </div>
 
+            <EvidenceDropZone
+              onFileSelected={ingestFile}
+              onUploadClick={openFilePicker}
+              selectedFileName={previewName}
+              onClearFile={retakeEvidence}
+              dragActive={dragActive}
+              onDragActivate={() => setDragActive(true)}
+              onDragDeactivate={() => setDragActive(false)}
+              isAnalyzing={isAnalyzing}
+            />
+
+            {/* Analyze items (submits the audit) */}
+            <button
+              type="button"
+              disabled={isAnalyzing || isLoading}
+              onClick={handleLockIn}
+              className="w-full py-3 px-4 bg-[#b4ff39] hover:bg-[#c6ff66] text-black font-bold font-mono tracking-wider rounded-lg flex items-center justify-center gap-2 shadow-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer btn-glow-lime"
+            >
+              <Zap className="w-4 h-4 fill-current" />
+              ANALYZE ITEMS
+            </button>
+
+            <p className="text-center text-[9px] font-mono text-gray-600 leading-relaxed pt-1">
+              PRIVACY: Photos are processed on-device; we don't save your images.
+            </p>
+          </div>
+
+          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
+        </section>
+
+        {/* Right panel: analysis pipeline. In flight, the audit cinematic takes over. */}
+        {isLoading ? (
+          <AnalysisPanel
+            photo={captured ?? preview}
+            active
+            category={category === 'others' ? null : category}
+          />
+        ) : (
+          <section className="rounded-xl border border-gray-800 bg-[#121a14] p-4 flex flex-col gap-3">
             {/* Analysis pipeline */}
-            <div className="flex flex-col gap-3 pt-3 border-t border-gray-800">
+            <div className="flex flex-col gap-3">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5">
                 <h2 className="text-sm font-bold font-mono text-lime-400 tracking-wider uppercase">
                   {evidenceStaged ? (

@@ -141,9 +141,10 @@ scripts/              # scan-cost audit
 - `src/components/HomePage.tsx` — the landing screen (terminal + paper
   dossier panel); the global app header hides on the scan screen.
 - `src/components/ObjectScanner.tsx` (+ `ScannerHeader`, `UploadPanel`,
-  `AnalysisPanel`) — capture a room (camera/upload/drag-drop) with the
-  audit-area category chips, then the in-flight analysis cinematic; no
-  client-side detection; "SCAN OBJECTS, NOT PEOPLE".
+  `EvidenceDropZone`, `AnalysisPanel`) — capture a room
+  (camera/upload/drag-drop) with the audit-area category chips, then the
+  in-flight analysis cinematic; no client-side detection; "SCAN OBJECTS, NOT
+  PEOPLE".
 - `src/lib/audit-lenses.ts` — the four audit lenses (art §9): neon-outline,
   evidence-photo, inspection-hud, carbon-heat — canvas renders over the
   evidence photo + item boxes.
