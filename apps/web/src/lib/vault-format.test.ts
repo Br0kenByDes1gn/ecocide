@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatCredits, formatVaultDate, isCredit, ledgerReasonLabel } from './vault-format';
+import { formatCredits, formatRoomType, formatVaultDate, isCredit, ledgerReasonLabel } from './vault-format';
 
 describe('ledger reason labels', () => {
   it('maps known reasons to readable labels', () => {
@@ -39,5 +39,17 @@ describe('vault date formatting', () => {
 
   it('passes through unparseable input', () => {
     expect(formatVaultDate('not-a-date')).toBe('not-a-date');
+  });
+});
+
+describe('audit-area labels', () => {
+  it('title-cases a recorded room type', () => {
+    expect(formatRoomType('kitchen', 'Unspecified area')).toBe('Kitchen');
+    expect(formatRoomType('living room', 'Unspecified area')).toBe('Living Room');
+  });
+
+  it('falls back when the scan carried no hint', () => {
+    expect(formatRoomType(null, 'Unspecified area')).toBe('Unspecified area');
+    expect(formatRoomType('   ', 'Unspecified area')).toBe('Unspecified area');
   });
 });

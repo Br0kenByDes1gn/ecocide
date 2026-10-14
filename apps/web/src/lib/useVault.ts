@@ -13,8 +13,9 @@ function isNativeShell(): boolean {
 }
 
 /**
- * Asset Vault session + wallet state. Hydrates from the Better Auth session and
- * exposes the OTP unlock, dossier-link and sign-out actions.
+ * Carbon Registry session + wallet state (API payload keeps its `Vault*`
+ * names). Hydrates from the Better Auth session and exposes the OTP unlock,
+ * assessment-link and sign-out actions.
  */
 export function useVault() {
   const { data: session, isPending } = authClient.useSession();
@@ -79,7 +80,7 @@ export function useVault() {
         setStatus('unlocked');
         return result;
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'VAULT LINK FAILED');
+        setError(e instanceof Error ? e.message : 'REGISTRY LINK FAILED');
         setStatus('error');
         return null;
       }

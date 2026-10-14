@@ -39,6 +39,7 @@ import {
   type MaterialFamily,
   type OverrideRuleId,
   type RatedItem,
+  type RegistryStanding,
 } from '@ecocide/compliance';
 
 export { DimensionKey, ItemRatings, ItemStatus, clampRating, itemSi, itemStamp, householdRatio } from '@ecocide/compliance';
@@ -52,6 +53,7 @@ export {
   MATERIAL_FAMILIES,
 } from '@ecocide/compliance';
 export type { ItemSize, MaterialFamily, OverrideRuleId } from '@ecocide/compliance';
+export type { RegistryAssessment, RegistryStanding } from '@ecocide/compliance';
 export { FACTIONS, getFaction, factionIndex } from '@ecocide/lore';
 export type { FactionDef, FactionColorConfig } from '@ecocide/lore';
 
@@ -171,7 +173,7 @@ export interface CitizenRecord {
   suggestions: Suggestion[];
   /** Served URL of the archived evidence photo (`/api/evidence/<id>.jpg`). */
   evidenceUrl?: string;
-  /** Owning Asset Vault account id (null/undefined while anonymous). */
+  /** Owning Carbon Registry account id (null/undefined while anonymous). */
   ownerId?: string;
 }
 
@@ -395,10 +397,11 @@ export function simulateTierRoom(caste: Caste): SimulatedScan {
 }
 
 // ---------------------------------------------------------------------------
-// Asset Vault (account wallet, unlocked via email OTP)
+// Carbon Registry (account wallet + assessment archive, unlocked via email
+// OTP). Storage/API names deliberately keep their `vault` spelling.
 // ---------------------------------------------------------------------------
 
-/** Token allowance minted into a freshly created Asset Vault. */
+/** Token allowance minted into a freshly created Carbon Registry. */
 export const VAULT_ALLOWANCE = 1_000_000;
 
 /** Certification fee deducted from the vault when a dossier is claimed. */
@@ -445,12 +448,18 @@ export interface VaultStats {
   transactionCount: number;
 }
 
-/** Lightweight dossier summary for the vault's claimed-designations list. */
+/** Lightweight dossier summary for the registry's assessment archive. */
 export interface VaultDossierSummary {
   id: string;
   caste: Caste;
   honorificTitle: string;
   biocarbonRatio: number;
+  /** Audited room type, e.g. "kitchen" (null when the scan had no hint). */
+  roomType: string | null;
+  /** Objects audited in that assessment (Σ item counts). */
+  objectCount: number;
+  /** Items in that assessment hit by at least one Step-5 override. */
+  hardFailCount: number;
   createdAt: string;
   evidenceUrl?: string;
 }
@@ -468,6 +477,8 @@ export interface VaultState {
   user: VaultUser;
   wallet: Wallet;
   stats: VaultStats;
+  /** The citizen-level carbon standing pooled from the archived assessments. */
+  standing: RegistryStanding;
   /** Lightweight summaries of dossiers linked to this vault (newest first). */
   dossiers: VaultDossierSummary[];
   /** Most recent ledger page. */

@@ -1,12 +1,12 @@
 import React from 'react';
 import { Volume2, VolumeX, Globe, Bug, Wallet } from 'lucide-react';
-import { IDENTITY } from '@ecocide/lore';
+import { IDENTITY, REGISTRY_COPY } from '@ecocide/lore';
 
 interface ScannerHeaderProps {
   isMuted: boolean;
   onToggleMute: () => void;
   onNavigateHome: () => void;
-  onGoVault: () => void;
+  onGoRegistry: () => void;
   onOpenDebug?: () => void;
   IS_DEV?: boolean;
   currentStep?: number;
@@ -19,7 +19,7 @@ export const ScannerHeader: React.FC<ScannerHeaderProps> = ({
   isMuted,
   onToggleMute,
   onNavigateHome,
-  onGoVault,
+  onGoRegistry,
   onOpenDebug,
   IS_DEV,
   currentStep = 1,
@@ -65,15 +65,15 @@ export const ScannerHeader: React.FC<ScannerHeaderProps> = ({
               <span className="hidden lg:inline">DEBUG</span>
             </button>
           )}
-          {onGoVault && (
+          {onGoRegistry && (
             <button
               type="button"
-              onClick={onGoVault}
+              onClick={onGoRegistry}
               className="text-xs font-mono text-lime-400 hover:text-lime-300 border border-lime-500/50 hover:border-lime-400 bg-lime-950/40 hover:bg-lime-900/40 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
-              title="Open your Asset Vault (/vault)"
+              title={`Open your ${REGISTRY_COPY.name} (/registry)`}
             >
               <Wallet className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">VAULT</span>
+              <span className="hidden sm:inline">{REGISTRY_COPY.navLabel.toUpperCase()}</span>
             </button>
           )}
           <button

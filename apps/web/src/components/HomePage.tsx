@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { Globe, Volume2, VolumeX, ArrowRight, ShieldAlert, Wallet, Bug } from 'lucide-react';
-import { IDENTITY } from '@ecocide/lore';
+import { IDENTITY, REGISTRY_COPY } from '@ecocide/lore';
 import { soundFx } from '../lib/audio';
 
 interface HomePageProps {
   onProceedToScan: () => void;
   isMuted?: boolean;
   onToggleMute?: () => void;
-  onGoVault?: () => void;
+  onGoRegistry?: () => void;
   onOpenDebug?: () => void;
   isDev?: boolean;
 }
@@ -16,7 +16,7 @@ export const HomePage: React.FC<HomePageProps> = ({
   onProceedToScan,
   isMuted = false,
   onToggleMute,
-  onGoVault,
+  onGoRegistry,
   onOpenDebug,
   isDev = false,
 }) => {
@@ -56,16 +56,16 @@ export const HomePage: React.FC<HomePageProps> = ({
             </button>
           )}
 
-          {/* Asset Vault */}
-          {onGoVault && (
+          {/* Carbon Registry */}
+          {onGoRegistry && (
             <button
               type="button"
-              onClick={onGoVault}
+              onClick={onGoRegistry}
               className="text-xs font-mono text-lime-400 hover:text-lime-300 border border-lime-500/50 hover:border-lime-400 bg-lime-950/40 hover:bg-lime-900/40 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
-              title="Open your Asset Vault (/vault)"
+              title={`Open your ${REGISTRY_COPY.name} (/registry)`}
             >
               <Wallet className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">VAULT</span>
+              <span className="hidden sm:inline">{REGISTRY_COPY.navLabel.toUpperCase()}</span>
             </button>
           )}
 

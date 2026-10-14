@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import type { OraclePayload } from '@ecocide/types';
 import { VAULT_APPEAL_FEE } from '@ecocide/types';
 import { Gavel, Loader2, Send, ShieldCheck } from 'lucide-react';
-import { AssetVaultPayment } from './AssetVaultPayment';
+import { RegistryPayment } from './RegistryPayment';
 
 interface AppealScreenProps {
   payload: OraclePayload;
@@ -88,7 +88,7 @@ export const AppealScreen: React.FC<AppealScreenProps> = ({ payload, permalinkId
       </div>
 
       {phase === 'pay' && (
-        <AssetVaultPayment
+        <RegistryPayment
           feeLabel="APPEAL FILING FEE"
           amount={VAULT_APPEAL_FEE}
           reason="appeal_fee"

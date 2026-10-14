@@ -2,7 +2,7 @@ import React from 'react';
 import type { OraclePayload } from '@ecocide/types';
 import { VAULT_CLAIM_FEE, getFaction } from '@ecocide/types';
 import { Trophy } from 'lucide-react';
-import { AssetVaultPayment } from './AssetVaultPayment';
+import { RegistryPayment } from './RegistryPayment';
 
 interface ClaimScreenProps {
   payload: OraclePayload;
@@ -11,8 +11,8 @@ interface ClaimScreenProps {
 
 /**
  * Claim screen (/claim/:id): certify your household's designation by unlocking
- * your Asset Vault (email OTP) and paying the (simulated) token fee from it,
- * then proceed to the static citizen dossier.
+ * your Carbon Registry (email OTP) and paying the (simulated) token fee from
+ * it, then proceed to the static citizen dossier.
  */
 export const ClaimScreen: React.FC<ClaimScreenProps> = ({ payload, onClaimed }) => {
   const { user_profile } = payload;
@@ -29,11 +29,11 @@ export const ClaimScreen: React.FC<ClaimScreenProps> = ({ payload, onClaimed }) 
           Official certification of your{' '}
           <span className="text-lime-300 font-bold">{factionName}</span> status —{' '}
           <span className="text-gray-200">{user_profile.honorific_title}</span> — requires unlocking
-          your Asset Vault.
+          your Carbon Registry.
         </p>
       </div>
 
-      <AssetVaultPayment
+      <RegistryPayment
         feeLabel="VERDICT CERTIFICATION FEE"
         amount={VAULT_CLAIM_FEE}
         reason="claim_fee"

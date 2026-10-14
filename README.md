@@ -80,8 +80,8 @@ packages/
   types/       # contracts; derives the taxonomy (tiers) from lore
 apps/
   server/      # Hono API, DB (Drizzle/SQLite), Gemini two-pass engine,
-               # evidence file store, BullMQ jobs, nodemailer, Better Auth vault
-  web/         # React PWA: intro → audit → verdict → claim/appeal → vault
+               # evidence file store, BullMQ jobs, nodemailer, Better Auth registry
+  web/         # React PWA: intro → audit → verdict → claim/appeal → registry
 charts/        # Helm chart (placeholder branding — mount a volume at
                # EVIDENCE_DIR in production)
 ```

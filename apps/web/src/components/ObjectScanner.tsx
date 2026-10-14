@@ -10,7 +10,7 @@ interface ObjectScannerProps {
   onLockIn: (data: { rawImage: string; category: ItemCategory | null }) => void;
   isLoading: boolean;
   onNavigateHome: () => void;
-  onGoVault: () => void;
+  onGoRegistry: () => void;
   onToggleMute: () => void;
   isMuted: boolean;
   onOpenDebug?: () => void;
@@ -52,7 +52,7 @@ export const ObjectScanner: React.FC<ObjectScannerProps> = ({
   onLockIn,
   isLoading,
   onNavigateHome,
-  onGoVault,
+  onGoRegistry,
   onToggleMute,
   isMuted,
   onOpenDebug,
@@ -244,7 +244,7 @@ export const ObjectScanner: React.FC<ObjectScannerProps> = ({
         isMuted={isMuted}
         onToggleMute={onToggleMute}
         onNavigateHome={onNavigateHome}
-        onGoVault={onGoVault}
+        onGoRegistry={onGoRegistry}
         onOpenDebug={onOpenDebug}
         IS_DEV={IS_DEV}
         currentStep={isLoading ? 2 : 1}

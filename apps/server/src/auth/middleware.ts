@@ -21,7 +21,7 @@ export function requireSession(auth: Auth): MiddlewareHandler<{ Variables: AuthV
   return async (c, next) => {
     const result = await auth.api.getSession({ headers: c.req.raw.headers });
     if (!result) {
-      return c.json({ error: 'Asset Vault locked — authentication required' }, 401);
+      return c.json({ error: 'Carbon Registry locked — authentication required' }, 401);
     }
     c.set('user', result.user);
     c.set('session', result.session);

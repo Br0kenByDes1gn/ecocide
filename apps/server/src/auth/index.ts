@@ -22,7 +22,7 @@ export interface CreateAuthOptions {
 /**
  * Build the Better Auth instance (explicit factory, like `initDb` /
  * `createRepositories`). Email + password is disabled entirely: the only way in
- * is an email OTP, which doubles as the Asset Vault unlock.
+ * is an email OTP, which doubles as the Carbon Registry unlock.
  */
 export function createAuth(options: CreateAuthOptions) {
   const { config } = options;
@@ -48,7 +48,7 @@ export function createAuth(options: CreateAuthOptions) {
         expiresIn: 60 * 10, // 10 minutes
         allowedAttempts: 5,
         storeOTP: 'hashed',
-        // New emails are auto-registered on first sign-in (the vault unlock).
+        // New emails are auto-registered on first sign-in (the registry unlock).
         disableSignUp: false,
         resendStrategy: 'rotate',
         rateLimit: { window: 60, max: 5 },
@@ -56,7 +56,7 @@ export function createAuth(options: CreateAuthOptions) {
           if (type !== 'sign-in') return;
           // Without SMTP the code would otherwise be unrecoverable locally.
           if (process.env.NODE_ENV !== 'production') {
-            console.log(`[Auth] Vault unlock OTP for ${email}: ${otp}`);
+            console.log(`[Auth] Registry unlock OTP for ${email}: ${otp}`);
           }
           // Fire-and-forget so the endpoint response time does not leak whether
           // the address exists (and stays fast when SMTP is slow).

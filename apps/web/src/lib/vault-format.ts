@@ -38,3 +38,13 @@ export function formatVaultDate(iso: string): string {
     d.getUTCHours()
   )}:${pad(d.getUTCMinutes())} UTC`;
 }
+
+/**
+ * Readable audit-area label for an archived assessment, e.g. `kitchen` →
+ * `Kitchen`. Falls back to the supplied label when the scan had no hint.
+ */
+export function formatRoomType(roomType: string | null, fallback: string): string {
+  const room = (roomType || '').trim();
+  if (!room) return fallback;
+  return room.replace(/\b\w/g, (m) => m.toUpperCase());
+}

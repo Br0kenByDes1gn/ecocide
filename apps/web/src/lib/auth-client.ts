@@ -2,7 +2,7 @@ import { createAuthClient } from 'better-auth/react';
 import { emailOTPClient } from 'better-auth/client/plugins';
 
 /**
- * Asset Vault auth client.
+ * Carbon Registry auth client.
  *
  * Web relies on Better Auth's HttpOnly `session_token` cookie (sent with
  * `credentials: 'include'`, same-origin through the dev proxy / prod static
