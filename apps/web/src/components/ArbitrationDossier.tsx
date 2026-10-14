@@ -10,7 +10,7 @@ import {
 } from '@ecocide/compliance';
 import { IDENTITY } from '@ecocide/lore';
 import { Gavel, ShieldCheck } from 'lucide-react';
-import { ITEM_STATUS_COLORS, ITEM_STATUS_LABELS } from '../lib/audit-lenses';
+import { ITEM_STATUS_LABELS } from '../lib/audit-lenses';
 
 interface ArbitrationDossierProps {
   payload: OraclePayload;
@@ -44,6 +44,18 @@ const RATING_INK: Record<number, string> = {
   3: '#facc15',
   4: '#f97316',
   5: '#ef4444',
+};
+
+/**
+ * Rubber-stamp inks for the item status chips on the PAPER layer (art §17.3).
+ * The bright ITEM_STATUS_COLORS are the dark-surface/HUD set; on form paper the
+ * statuses read as stamp ink, same three families as `.stamp-*` in index.css.
+ */
+const PAPER_STATUS_INK: Record<string, string> = {
+  compliant: '#2f7d3a',
+  borderline: '#b45309',
+  'non-compliant': '#c2322b',
+  'special-handling': '#b45309',
 };
 
 /** Human-readable label for a material family key (`bio-based` → Bio-based). */
@@ -140,7 +152,7 @@ const ItemRow: React.FC<{ item: AuditItem; index: number; evidenceUrl?: string }
   evidenceUrl,
 }) => {
   const status = item.status ?? 'borderline';
-  const ink = ITEM_STATUS_COLORS[status];
+  const ink = PAPER_STATUS_INK[status] ?? PAPER_STATUS_INK.borderline;
   return (
     <div
       className={`${ITEM_GRID} py-1.5 border-b border-[#e0d6bb] last:border-b-0 items-center text-[10px] font-mono text-[#1f2a1f]`}
@@ -322,9 +334,9 @@ export const ArbitrationDossier: React.FC<ArbitrationDossierProps> = ({
             <span
               className="mt-2 inline-block px-2 py-0.5 rounded border text-[10px] font-bold uppercase tracking-widest"
               style={{
-                color: faction.stampInk,
-                borderColor: `${faction.stampInk}66`,
-                backgroundColor: `${faction.stampInk}14`,
+                color: faction.colors.hex,
+                borderColor: `${faction.colors.hex}66`,
+                backgroundColor: `${faction.colors.hex}14`,
               }}
             >
               {faction.stampText}
