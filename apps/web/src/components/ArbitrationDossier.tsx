@@ -231,12 +231,12 @@ export const ArbitrationDossier: React.FC<ArbitrationDossierProps> = ({
   ];
 
   return (
-    <div className="w-full max-w-7xl mx-auto flex flex-col gap-3 lg:max-h-[calc(100dvh-160px)]">
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:flex-1 lg:min-h-0">
+    <div className="w-full max-w-7xl mx-auto flex flex-col gap-3 lg:max-h-[calc(100dvh-184px)]">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-3 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)] lg:flex-1 lg:min-h-0">
         {/* Left: compact verdict panel */}
         <section
           aria-label="Household verdict"
-          className="rounded-xl border border-gray-800 bg-[#121a14] p-4 flex flex-col min-w-0"
+          className="rounded-xl border border-gray-800 bg-[#121a14] p-4 flex flex-col min-w-0 lg:min-h-0 lg:overflow-y-auto"
         >
           <h2 className="text-[10px] font-mono tracking-[0.3em] text-lime-400/90 uppercase">
             Household Verdict
@@ -416,7 +416,7 @@ export const ArbitrationDossier: React.FC<ArbitrationDossierProps> = ({
           </div>
 
           {/* Detected household items — the only vertically scrolling region */}
-          <div className="relative mt-3 flex flex-col min-h-0 flex-1">
+          <div className="relative mt-3 flex flex-col min-h-0 min-w-0 flex-1">
             <div className="flex items-baseline justify-between gap-2">
               <h3 className="text-[9px] font-mono uppercase tracking-widest text-[#6b7263]">
                 Detected Household Items

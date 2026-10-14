@@ -34,18 +34,18 @@ export const ScannerHeader: React.FC<ScannerHeaderProps> = ({
         {/* Left: ECOCIDE Brand with Globe */}
         <div
           onClick={onNavigateHome}
-          className="flex items-center gap-3 sm:gap-4 cursor-pointer group select-none flex-shrink-0"
+          className="flex items-center gap-3 sm:gap-4 cursor-pointer group select-none min-w-0"
           title="Return to Home"
         >
           <div className="p-2 rounded-none bg-lime-950/60 border border-lime-500/40 text-lime-400 group-hover:border-lime-400 group-hover:shadow-[0_0_15px_rgba(180,255,57,0.4)] transition-all flex-shrink-0">
             <Globe className="w-7 h-7 sm:w-8 sm:h-8" />
           </div>
-          <div>
+          <div className="min-w-0">
             <h1 className="text-xl sm:text-2xl font-bold font-mono text-lime-400 tracking-wider flex items-center gap-2 whitespace-nowrap">
               {IDENTITY.appName}
-              <span className="text-xs text-gray-500 font-normal">v{IDENTITY.appVersion}</span>
+              <span className="hidden sm:inline text-xs text-gray-500 font-normal">v{IDENTITY.appVersion}</span>
             </h1>
-            <p className="text-[11px] font-mono text-gray-400 tracking-widest uppercase whitespace-nowrap">
+            <p className="hidden sm:block text-[11px] font-mono text-gray-400 tracking-widest uppercase whitespace-nowrap">
               {IDENTITY.tagline.toUpperCase()}
             </p>
           </div>
@@ -62,7 +62,7 @@ export const ScannerHeader: React.FC<ScannerHeaderProps> = ({
             >
               <Bug className="w-3.5 h-3.5 text-amber-400" />
               <span className="hidden md:inline">[DEV]</span>
-              <span>DEBUG</span>
+              <span className="hidden lg:inline">DEBUG</span>
             </button>
           )}
           {onGoVault && (
@@ -73,7 +73,7 @@ export const ScannerHeader: React.FC<ScannerHeaderProps> = ({
               title="Open your Asset Vault (/vault)"
             >
               <Wallet className="w-3.5 h-3.5" />
-              <span>VAULT</span>
+              <span className="hidden sm:inline">VAULT</span>
             </button>
           )}
           <button

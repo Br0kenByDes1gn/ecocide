@@ -386,15 +386,15 @@ export function App() {
           </div>
           <div>
             <h1 className="text-lg sm:text-xl font-bold font-mono text-lime-400 tracking-wider flex items-center gap-2 group-hover:text-lime-300 transition-colors">
-              {IDENTITY.appName} <span className="text-xs text-gray-500 font-normal">v{IDENTITY.appVersion}</span>
+              {IDENTITY.appName} <span className="hidden sm:inline text-xs text-gray-500 font-normal">v{IDENTITY.appVersion}</span>
             </h1>
-            <p className="text-[11px] font-mono text-gray-400 tracking-widest">
+            <p className="hidden sm:block text-[11px] font-mono text-gray-400 tracking-widest">
               {IDENTITY.entityName.toUpperCase()} // HOUSEHOLD AUDIT SYSTEM
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
           {IS_DEV && (
             <button
               type="button"
@@ -404,7 +404,7 @@ export function App() {
             >
               <Bug className="w-3.5 h-3.5 text-amber-400" />
               <span className="hidden md:inline">[DEV]</span>
-              <span>DEBUG BENCH</span>
+              <span className="hidden lg:inline">DEBUG BENCH</span>
             </button>
           )}
 
@@ -415,13 +415,13 @@ export function App() {
             title="Open your Asset Vault (/vault)"
           >
             <Wallet className="w-3.5 h-3.5" />
-            <span>VAULT</span>
+            <span className="hidden sm:inline">VAULT</span>
           </button>
 
           <button
             type="button"
             onClick={handleNavigateHome}
-            className="text-xs font-mono text-gray-400 hover:text-lime-400 border border-gray-800 hover:border-lime-500/50 px-3 py-1.5 rounded-lg bg-gray-950 transition-colors hidden sm:block cursor-pointer"
+            className="text-xs font-mono text-gray-400 hover:text-lime-400 border border-gray-800 hover:border-lime-500/50 px-3 py-1.5 rounded-lg bg-gray-950 transition-colors hidden md:block cursor-pointer"
           >
             INTRO
           </button>

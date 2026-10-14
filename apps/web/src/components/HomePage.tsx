@@ -25,23 +25,23 @@ export const HomePage: React.FC<HomePageProps> = ({
   return (
     <div className="min-h-screen w-full bg-[#080b08] text-[#e6efe3] cyber-grid flex flex-col">
       {/* Header */}
-      <header className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between border-b border-lime-500/20">
-        <div className="flex items-center gap-3">
+      <header className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-2 border-b border-lime-500/20">
+        <div className="flex items-center gap-3 min-w-0">
           {/* Globe Emblem */}
           <div className="p-2 rounded-lg bg-lime-950/60 border border-lime-500/40 text-lime-400 flex-shrink-0">
             <Globe className="w-6 h-6" />
           </div>
-          <div>
-            <h1 className="text-lg sm:text-xl font-bold font-mono text-lime-400 tracking-wider flex items-center gap-2">
+          <div className="min-w-0">
+            <h1 className="text-lg sm:text-xl font-bold font-mono text-lime-400 tracking-wider flex items-center gap-2 whitespace-nowrap">
               {IDENTITY.appName}
             </h1>
-            <p className="text-[11px] font-mono text-gray-400 tracking-widest uppercase">
+            <p className="hidden sm:block text-[11px] font-mono text-gray-400 tracking-widest uppercase">
               {IDENTITY.tagline}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
           {/* Debug bench (dev only) */}
           {isDev && onOpenDebug && (
             <button
@@ -52,7 +52,7 @@ export const HomePage: React.FC<HomePageProps> = ({
             >
               <Bug className="w-3.5 h-3.5 text-amber-400" />
               <span className="hidden md:inline">[DEV]</span>
-              <span>DEBUG BENCH</span>
+              <span className="hidden lg:inline">DEBUG BENCH</span>
             </button>
           )}
 
@@ -65,7 +65,7 @@ export const HomePage: React.FC<HomePageProps> = ({
               title="Open your Asset Vault (/vault)"
             >
               <Wallet className="w-3.5 h-3.5" />
-              <span>VAULT</span>
+              <span className="hidden sm:inline">VAULT</span>
             </button>
           )}
 
