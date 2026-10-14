@@ -531,9 +531,9 @@ export function App() {
         )}
       </main>
 
-      {/* Footer System Status (hidden on the scan screen — the scanner header carries its own) */}
-      {viewState !== 'scanning' && (
-      <footer className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-gray-900 pt-4 mt-8 pb-4 flex flex-col sm:flex-row items-center justify-between text-[11px] font-mono text-gray-500 gap-2">
+      {/* Footer System Status (hidden on the scan + arbitration screens — those carry their own) */}
+      {viewState !== 'scanning' && viewState !== 'arbitration' && (
+      <footer className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-gray-900 pt-2 mt-2 pb-2 flex flex-col sm:flex-row items-center justify-between text-[11px] font-mono text-gray-500 gap-2">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-lime-400 animate-pulse" />
           <span>OBJECT AUDIT ENGINE ONLINE | {IDENTITY.entityName.toUpperCase()}</span>

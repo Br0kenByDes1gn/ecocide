@@ -231,7 +231,7 @@ export const HomePage: React.FC<HomePageProps> = ({
       </main>
 
       {/* Footer */}
-      <footer className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 border-t border-gray-900/60">
+      <footer className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 border-t border-gray-900/60">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] font-mono text-gray-500">
           <div className="flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-lime-400 animate-pulse" />

@@ -320,5 +320,5 @@ export function drawAuditLens(
 export function itemChipText(item: AuditItem): string {
   const count = item.count > 1 ? ` x${item.count}` : '';
   const si = Math.round(item.si ?? siFromHarm(harmScore(item.ratings)));
-  return `${item.label.toUpperCase()}${count} // SI ${si} // ${(item.status ?? 'needs-improvement').toUpperCase()}`;
+  return `${item.label.toUpperCase()}${count} - SI ${si} - ${(item.status ?? 'needs-improvement').toUpperCase()}`;
 }

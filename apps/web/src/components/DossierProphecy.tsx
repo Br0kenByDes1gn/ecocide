@@ -71,7 +71,7 @@ export const DossierProphecy: React.FC<DossierProphecyProps> = ({
 
     return [
       tone === 'paper'
-        ? 'relative bg-[#fbf7ea] p-3 rounded-sm border border-[#b9ad8f] overflow-hidden transition-all duration-700'
+        ? 'relative overflow-hidden transition-all duration-700'
         : 'relative bg-black/30 p-3 rounded-lg border-l-2 overflow-hidden transition-all duration-700',
       CLAIM_ACCENTS[index % CLAIM_ACCENTS.length],
       tone === 'paper'
@@ -86,7 +86,7 @@ export const DossierProphecy: React.FC<DossierProphecyProps> = ({
     <div
       className={
         tone === 'paper'
-          ? 'relative space-y-4'
+          ? 'relative space-y-2'
           : 'bg-[#121a14] rounded-2xl border border-gray-800 p-6 space-y-4 shadow-xl'
       }
     >
@@ -94,11 +94,11 @@ export const DossierProphecy: React.FC<DossierProphecyProps> = ({
         <div className="flex items-center gap-2 border-b border-gray-800 pb-3">
           <Sparkles className="w-5 h-5 text-amber-400" />
           <h3 className="font-mono text-sm font-bold text-amber-400 tracking-wider uppercase">
-            {`ARBITER VERDICT // ${headline}`}
+            {`ARBITER VERDICT - ${headline}`}
           </h3>
         </div>
       )}
-      <div className="space-y-4">
+      <div className={tone === 'paper' ? 'space-y-2' : 'space-y-4'}>
         {texts.map((text, index) => {
           const collapsed = Boolean(paragraphCollapsed?.[index]);
           const expanded = Boolean(paragraphExpanded?.[index]);
@@ -124,7 +124,7 @@ export const DossierProphecy: React.FC<DossierProphecyProps> = ({
               }
             >
               <TopicIcon
-                className={`inline-block w-5 h-5 shrink-0 mr-2.5 align-middle ${ACCENT_TEXT[index % ACCENT_TEXT.length]}`}
+                className={`inline-block w-5 h-5 shrink-0 mr-2.5 align-middle ${tone === 'paper' ? 'text-[#c19a6b]' : ACCENT_TEXT[index % ACCENT_TEXT.length]}`}
                 aria-hidden
               />
               {text}

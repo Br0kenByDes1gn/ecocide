@@ -6,6 +6,12 @@ interface PaperDossierHeaderProps {
   sessionDate?: string;
   /** Subtitle under the bureau title; arbitration keeps the default. */
   subtitle?: string;
+  /** Optional second identifier shown under the case ID (citizen page). */
+  citizenId?: string | null;
+  /** Larger ID text (citizen page); arbitration keeps the compact size. */
+  largeIds?: boolean;
+  /** Render the subtitle centered below the ID row instead of beside the bureau title. */
+  subtitleBelowIds?: boolean;
 }
 
 /** Vertical barcode block: varied bar widths, same family as the arbitration dossier. */
@@ -29,6 +35,9 @@ export const PaperDossierHeader: React.FC<PaperDossierHeaderProps> = ({
   caseId,
   sessionDate,
   subtitle = 'CONSUMER IMPACT DOSSIER',
+  citizenId = null,
+  largeIds = false,
+  subtitleBelowIds = false,
 }) => {
   const barcodeBars = React.useMemo(() => {
     const source = caseId || 'AUDIT';
@@ -53,22 +62,24 @@ export const PaperDossierHeader: React.FC<PaperDossierHeaderProps> = ({
 
   return (
     <>
-      <div className="relative flex items-start justify-between gap-3 border-b border-[#cfc4a8] pb-2">
+      <div className="relative flex items-start justify-between gap-3 border-b border-[#cfc4a8] pb-px">
         <div className="flex items-center gap-3 min-w-0">
           <Recycle className="w-16 h-16 shrink-0" style={{ color: '#2f7d3a' }} />
           <div className="flex flex-col justify-center h-[3.45rem] min-w-0 gap-0">
             <div className="text-xl font-black uppercase tracking-widest text-[#1f2a1f] leading-tight">
               PLANETARY AUDIT BUREAU
             </div>
-            <div className="text-left text-sm font-mono uppercase tracking-widest text-[#6b7263] leading-tight">
-              {subtitle}
-            </div>
+            {!subtitleBelowIds && (
+              <div className="text-left text-sm font-mono uppercase tracking-widest text-[#6b7263] leading-tight">
+                {subtitle}
+              </div>
+            )}
           </div>
         </div>
         <div className="flex flex-col items-center shrink-0">
           <Barcode bars={barcodeBars} />
           <span
-            className="mt-1 text-[9px] font-mono font-black uppercase tracking-widest text-[#6b7263] whitespace-nowrap"
+            className={`mt-1 ${largeIds ? 'text-xs' : 'text-[9px]'} font-mono font-black uppercase tracking-widest text-[#6b7263] whitespace-nowrap`}
             style={{ fontFamily: "'Special Elite', ui-monospace, monospace", letterSpacing: '1px' }}
           >
             {sessionDateText
@@ -77,9 +88,30 @@ export const PaperDossierHeader: React.FC<PaperDossierHeaderProps> = ({
           </span>
         </div>
       </div>
-      <div className="relative mt-1 text-xl font-black font-mono uppercase tracking-widest text-[#1f2a1f] leading-tight">
-        Case ID - {caseId ? `#${caseId}` : 'UNAVAILABLE'}
+      <div className={`relative ${largeIds ? 'mt-[7px]' : 'mt-0'} flex items-center justify-between gap-2`}>
+        <span
+          className={`${largeIds ? 'text-[17px]' : 'text-[9px]'} font-mono font-black uppercase tracking-widest text-[#6b7263] whitespace-nowrap`}
+          style={{ fontFamily: "'Special Elite', ui-monospace, monospace", letterSpacing: '1px' }}
+        >
+          Case ID - {caseId ? `#${caseId}` : 'UNAVAILABLE'}
+        </span>
+        {citizenId && (
+          <span
+            className={`${largeIds ? 'text-[17px]' : 'text-[9px]'} font-mono font-black uppercase tracking-widest text-[#6b7263] whitespace-nowrap`}
+            style={{ fontFamily: "'Special Elite', ui-monospace, monospace", letterSpacing: '1px' }}
+          >
+            Citizen ID - {citizenId}
+          </span>
+        )}
       </div>
+      {subtitleBelowIds && (
+        <div
+          className={`relative mt-[11px] text-center ${largeIds ? 'text-[17px]' : 'text-[9px]'} font-mono font-black uppercase tracking-widest text-[#6b7263]`}
+          style={{ fontFamily: "'Special Elite', ui-monospace, monospace", letterSpacing: '1px' }}
+        >
+          {subtitle}
+        </div>
+      )}
     </>
   );
 };
