@@ -3,10 +3,148 @@
 @source "../../../packages/types/src";
 @source "../../../packages/lore/src";
 
+/*
+ * ECOCIDE theme — single source of truth derived from art_directions.md §3.
+ * The JS mirror of this palette lives in packages/lore/src/art.ts (PALETTE).
+ *
+ * The legacy utility names the components already use (cyan / gray / purple /
+ * emerald / rose …) are remapped onto the ECOCIDE palette here, so the whole
+ * app re-skins from this one block.
+ */
 @theme {
-  --color-khaki-400: #d4b170;
-  --color-khaki-500: #c29f53;
-  --color-khaki-600: #a68138;
+  /* --- System signal colors (§3.3) — name → where it is used --- */
+  --color-toxic-lime: #b4ff39;
+  /* PRIMARY: HUD, scanner beam, grid, Arbiter text, buttons */
+  --color-verdict-amber: #ffb703;
+  /* verdicts, infractions, warnings, "estimate" labels */
+  --color-hazard-yellow: #facc15;
+  /* hazard stripes, special-handling flags */
+  --color-alert-red: #ef4444;
+  /* errors, non-compliance, injection-attempt warnings */
+  --color-critical-crimson: #ff0055;
+  /* highest-severity alerts, worst planet-meter state */
+  --color-pledge-green: #22c55e;
+  /* accepted pledges, score improvements, success states */
+  --color-ledger-teal: #2dd4bf;
+  /* secondary data accent: charts, carbon totals, links */
+  --color-rust-orange: #f97316;
+  /* decay and corrosion accents, worst-tier meter */
+
+  /* Semantic role aliases so a component can name what a color *means* (§3.3). */
+  --color-primary: #b4ff39;
+  --color-verdict: #ffb703;
+  --color-hazard: #facc15;
+  --color-alert: #ef4444;
+  --color-critical: #ff0055;
+  --color-success: #22c55e;
+  --color-data: #2dd4bf;
+  --color-decay: #f97316;
+
+  /* --- Environment surfaces (§3.1) --- */
+  --color-moss-void: #080b08;
+  --color-moss-dark: #0c110d;
+  --color-panel-surface: #121a14;
+  --color-panel-alt: #17221a;
+  --color-modal-surface: #0e1510;
+  --color-canvas-void: #070a08;
+  --color-landfill-black: #0b0a06;
+  --color-leaf-white: #e6efe3;
+  --color-ink-secondary: #a9b8aa;
+  --color-ink-muted: #7c8b7e;
+
+  /* --- Paper layer (§3.2) --- */
+  --color-form-paper: #f1ead6;
+  --color-paper-shadow: #e0d6bb;
+  --color-typewriter-ink: #1f2a1f;
+  --color-stamp-red: #c2322b;
+  --color-stamp-green: #2f7d3a;
+  --color-stamp-amber: #b45309;
+  --color-compost-brown: #8b5a2b;
+
+  /* --- Compliance tier colors (§3.4) — badge, planet meter, tier banner.
+   * Keyed to the tier ids in packages/lore/src/factions.ts (art §7):
+   * legend 90+ · acceptable 75+ · average 60+ · offender 40+ · grid 20+ ·
+   * disaster 0+. Always paired with the stamp text + meter so color is never
+   * the only signal. */
+  --color-tier-legend: #84cc16;
+  --color-tier-acceptable: #22c55e;
+  --color-tier-average: #facc15;
+  --color-tier-offender: #f59e0b;
+  --color-tier-grid: #f97316;
+  --color-tier-disaster: #ef4444;
+
+  /* ===================================================================== */
+  /* Legacy scale remaps                                                  */
+  /* ===================================================================== */
+
+  /* Primary accent — former "cyan" scale now paints Toxic Lime (§3.3) */
+  --color-cyan-100: #eaffce;
+  --color-cyan-200: #d8ff8a;
+  --color-cyan-300: #c6ff66;
+  --color-cyan-400: #b4ff39;
+  --color-cyan-500: #b4ff39;
+  --color-cyan-600: #93e618;
+  --color-cyan-700: #77c112;
+  --color-cyan-800: #4f820e;
+  --color-cyan-900: #17240c;
+  --color-cyan-950: #0f1a08;
+
+  /* Neutrals — former gray/slate scales now a moss-tinted ramp (§3.1) */
+  --color-gray-50: #f4f8f2;
+  --color-gray-100: #e6efe3;
+  --color-gray-200: #d5e0d2;
+  --color-gray-300: #bccbb9;
+  --color-gray-400: #a9b8aa;
+  --color-gray-500: #7c8b7e;
+  --color-gray-600: #5f6f61;
+  --color-gray-700: #3f4f44;
+  --color-gray-800: #223026;
+  --color-gray-900: #121a14;
+  --color-gray-950: #080b08;
+
+  --color-slate-50: #f4f8f2;
+  --color-slate-100: #e6efe3;
+  --color-slate-200: #d5e0d2;
+  --color-slate-300: #bccbb9;
+  --color-slate-400: #a9b8aa;
+  --color-slate-500: #7c8b7e;
+  --color-slate-600: #5f6f61;
+  --color-slate-700: #3f4f44;
+  --color-slate-800: #223026;
+  --color-slate-900: #121a14;
+  --color-slate-950: #080b08;
+
+  /* Bureaucratic / appeal accent — former purple/violet scale → Verdict Amber */
+  --color-purple-300: #ffd166;
+  --color-purple-400: #ffb703;
+  --color-purple-500: #ffb703;
+  --color-purple-600: #b45309;
+  --color-purple-700: #92400e;
+  --color-purple-900: #3a2a06;
+  --color-purple-950: #241a04;
+
+  /* Success — former emerald scale → Pledge Green (§3.3) */
+  --color-emerald-200: #bbf7d0;
+  --color-emerald-300: #86efac;
+  --color-emerald-400: #22c55e;
+  --color-emerald-500: #16a34a;
+  --color-emerald-600: #15803d;
+  --color-emerald-900: #052e16;
+  --color-emerald-950: #052e16;
+
+  /* Errors — former rose/pink scales → Alert Red (§3.3) */
+  --color-rose-200: #fecaca;
+  --color-rose-300: #fca5a5;
+  --color-rose-400: #f87171;
+  --color-rose-500: #ef4444;
+  --color-rose-900: #450a0a;
+  --color-rose-950: #450a0a;
+  --color-pink-500: #ef4444;
+
+  /* Khaki accents → Hazard Yellow (§3.3) */
+  --color-khaki-400: #fde047;
+  --color-khaki-500: #facc15;
+  --color-khaki-600: #ca8a04;
 }
 
 @layer base {
@@ -14,20 +152,23 @@
     /* Palette tokens — JS-consumed hexes live in packages/lore/src/art.ts
        (PALETTE). Keep the two in sync (see STORY.md). */
     --toxic-lime: #b4ff39;
+    --pledge-green: #22c55e;
     --ledger-teal: #2dd4bf;
     --verdict-amber: #ffb703;
     --hazard-yellow: #facc15;
     --alert-red: #ef4444;
     --critical-crimson: #ff0055;
-    --pledge-green: #22c55e;
     --rust-orange: #f97316;
+    --moss-void: #080b08;
     --cyber-dark: #080b08;
     --cyber-moss: #0c110d;
+    --panel-surface: #121a14;
     --cyber-panel: #121a14;
     --cyber-panel-alt: #17221a;
     --cyber-modal: #0e1510;
     --paper: #f1ead6;
     --paper-ink: #1f2a1f;
+    color-scheme: dark;
   }
 
   body {
@@ -69,16 +210,77 @@
   background-size: 24px 24px;
 }
 
-.text-glow-lime {
+/* ---------------------------------------------------------------------------
+   Glow recipes (§3.5)
+   text glow:    0 0 8px <color>@0.8, 0 0 20px <color>@0.4
+   border glow:  0 0 15px <color>@0.3, inset 0 0 10px <color>@0.1
+   CTA button:   lime 0 0 30px @0.5 → hover 0 0 45px @0.8
+   tier ambient: 0 0 20px <tier-color>@0.25 (disaster tier: 0.6)
+   --------------------------------------------------------------------------- */
+.text-glow-lime,
+.text-glow-cyan {
   text-shadow: 0 0 8px rgba(180, 255, 57, 0.8), 0 0 20px rgba(180, 255, 57, 0.4);
+}
+
+.text-glow-green {
+  text-shadow: 0 0 8px rgba(34, 197, 94, 0.8), 0 0 20px rgba(34, 197, 94, 0.4);
 }
 
 .text-glow-amber {
   text-shadow: 0 0 8px rgba(255, 183, 3, 0.8), 0 0 20px rgba(255, 183, 3, 0.4);
 }
 
-.border-glow-lime {
+.text-glow-yellow {
+  text-shadow: 0 0 8px rgba(250, 204, 21, 0.8), 0 0 20px rgba(250, 204, 21, 0.4);
+}
+
+.text-glow-orange {
+  text-shadow: 0 0 8px rgba(249, 115, 22, 0.8), 0 0 20px rgba(249, 115, 22, 0.4);
+}
+
+.text-glow-red {
+  text-shadow: 0 0 8px rgba(239, 68, 68, 0.8), 0 0 20px rgba(239, 68, 68, 0.4);
+}
+
+.text-glow-teal {
+  text-shadow: 0 0 8px rgba(45, 212, 191, 0.8), 0 0 20px rgba(45, 212, 191, 0.4);
+}
+
+.text-glow-crimson,
+.text-glow-magenta {
+  text-shadow: 0 0 8px rgba(255, 0, 85, 0.8), 0 0 20px rgba(255, 0, 85, 0.4);
+}
+
+.border-glow-lime,
+.border-glow-cyan {
   box-shadow: 0 0 15px rgba(180, 255, 57, 0.3), inset 0 0 10px rgba(180, 255, 57, 0.1);
+}
+
+.border-glow-green {
+  box-shadow: 0 0 15px rgba(34, 197, 94, 0.3), inset 0 0 10px rgba(34, 197, 94, 0.1);
+}
+
+.border-glow-amber {
+  box-shadow: 0 0 15px rgba(255, 183, 3, 0.3), inset 0 0 10px rgba(255, 183, 3, 0.1);
+}
+
+.border-glow-orange {
+  box-shadow: 0 0 15px rgba(249, 115, 22, 0.3), inset 0 0 10px rgba(249, 115, 22, 0.1);
+}
+
+.border-glow-red {
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.3), inset 0 0 10px rgba(239, 68, 68, 0.1);
+}
+
+.border-glow-teal {
+  box-shadow: 0 0 15px rgba(45, 212, 191, 0.3), inset 0 0 10px rgba(45, 212, 191, 0.1);
+}
+
+.btn-glow-lime {
+  box-shadow: 0 0 30px rgba(180, 255, 57, 0.5);
+}
+.btn-glow-lime:hover {
+  box-shadow: 0 0 45px rgba(180, 255, 57, 0.8);
 }
 
 /* Paper layer: dossier / explain panels (art §3.2) */
@@ -88,7 +290,7 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
 }
 
-/* Paper layer alias used by the landing dossier panel (art §17.2) */
+/* Paper layer alias used by the landing + verdict dossiers (art §17.2) */
 .paper-layer {
   background-color: #f1ead6;
   color: #1f2a1f;
@@ -97,7 +299,9 @@
 
 /* ---------------------------------------------------------------------------
    Tier CSS variables + stamp inks (art §17.3)
-   Paper stamps use the matte stamp-ink set and never glow.
+   Class per tier id in packages/lore/src/factions.ts; add the class, then read
+   var(--tier-color) / var(--tier-glow). Paper stamps use the matte stamp-ink
+   set and never glow.
    --------------------------------------------------------------------------- */
 .tier-legend {
   --tier-color: #84cc16;
@@ -126,11 +330,25 @@
 .tier-glow {
   box-shadow: 0 0 20px var(--tier-glow, rgba(180, 255, 57, 0.25));
 }
-.btn-glow-lime {
-  box-shadow: 0 0 30px rgba(180, 255, 57, 0.5);
+
+/* Tier ambient glow (§3.4 / §3.5) — paired with the tier stamp + meter. */
+.ambient-glow-legend {
+  box-shadow: 0 0 20px rgba(132, 204, 22, 0.25);
 }
-.btn-glow-lime:hover {
-  box-shadow: 0 0 45px rgba(180, 255, 57, 0.8);
+.ambient-glow-acceptable {
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.25);
+}
+.ambient-glow-average {
+  box-shadow: 0 0 20px rgba(250, 204, 21, 0.25);
+}
+.ambient-glow-offender {
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.25);
+}
+.ambient-glow-grid {
+  box-shadow: 0 0 20px rgba(249, 115, 22, 0.25);
+}
+.ambient-glow-disaster {
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.6);
 }
 
 /* Rubber stamps on the paper layer — matte ink, no glow (art §17.3) */

@@ -80,6 +80,8 @@ export function App() {
   const [oracleData, setOracleData] = useState<OraclePayload | null>(null);
   const [evidenceUrl, setEvidenceUrl] = useState<string | undefined>(undefined);
   const [permalinkId, setPermalinkId] = useState<string | null>(null);
+  /** Archive time of the open dossier (scan time, or record.createdAt). */
+  const [sessionDate, setSessionDate] = useState<string | null>(null);
   const [systemNotice, setSystemNotice] = useState<string | null>(null);
   const [isMuted, setIsMuted] = useState(soundFx.isMuted);
 
@@ -98,6 +100,7 @@ export function App() {
         setOracleData(null);
         setPermalinkId(null);
         setEvidenceUrl(undefined);
+        setSessionDate(null);
         return;
       }
 
@@ -106,6 +109,7 @@ export function App() {
         setOracleData(null);
         setPermalinkId(null);
         setEvidenceUrl(undefined);
+        setSessionDate(null);
         return;
       }
 
@@ -124,6 +128,7 @@ export function App() {
         setOracleData(null);
         setPermalinkId(null);
         setEvidenceUrl(undefined);
+        setSessionDate(null);
         return;
       }
 
@@ -145,6 +150,7 @@ export function App() {
         setOracleData(payload);
         setEvidenceUrl(record.evidenceUrl);
         setPermalinkId(record.id);
+        setSessionDate(record.createdAt || null);
         setViewState(
           claimId
             ? 'claim'
@@ -165,6 +171,7 @@ export function App() {
         setOracleData(null);
         setPermalinkId(null);
         setEvidenceUrl(undefined);
+        setSessionDate(null);
       } finally {
         setIsLoading(false);
       }
@@ -200,6 +207,8 @@ export function App() {
       setOracleData(result);
       setEvidenceUrl(result.evidenceUrl);
       setPermalinkId(id);
+      // The scan response carries no createdAt — the client clock stamps the session.
+      setSessionDate(new Date().toISOString());
       setViewState('arbitration');
 
       if (id) {
@@ -231,6 +240,7 @@ export function App() {
     setOracleData(null);
     setPermalinkId(null);
     setEvidenceUrl(undefined);
+    setSessionDate(null);
     window.history.pushState({}, '', '/');
   };
 
@@ -239,6 +249,7 @@ export function App() {
     setOracleData(null);
     setPermalinkId(null);
     setEvidenceUrl(undefined);
+    setSessionDate(null);
     window.history.pushState({}, '', '/scan');
   };
 
@@ -273,6 +284,7 @@ export function App() {
       setOracleData(payload);
       setEvidenceUrl(record.evidenceUrl);
       setPermalinkId(record.id);
+      setSessionDate(record.createdAt || null);
       setViewState('dossier');
       window.history.pushState({}, '', `/citizen/${record.id}`);
     } catch (err) {
@@ -360,10 +372,10 @@ export function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#080b08] text-gray-100 cyber-grid flex flex-col items-center justify-between p-4 sm:p-6">
+    <div className="min-h-[100dvh] bg-[#080b08] text-gray-100 cyber-grid flex flex-col">
       {/* Top Banner Navigation (the scan screen renders its own header) */}
       {viewState !== 'scanning' && (
-      <header className="w-full max-w-4xl flex items-center justify-between border-b border-lime-500/25 pb-4 mb-6">
+      <header className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between border-b border-lime-500/25 pb-4 mb-6 pt-4">
         <div
           onClick={handleNavigateHome}
           className="flex items-center gap-3 cursor-pointer group select-none"
@@ -432,7 +444,7 @@ export function App() {
 
       {/* System Notice Notification */}
       {systemNotice && (
-        <div className="w-full max-w-4xl mb-4 px-4 py-3 rounded-lg bg-red-950/80 border border-red-500/80 text-red-200 font-mono text-xs flex items-center justify-between shadow-lg shadow-red-950/50 animate-pulse">
+        <div className="w-full max-w-4xl mx-auto mb-4 px-4 py-3 rounded-lg bg-red-950/80 border border-red-500/80 text-red-200 font-mono text-xs flex items-center justify-between shadow-lg shadow-red-950/50 animate-pulse">
           <span>⚠ {systemNotice}</span>
           <button
             type="button"
@@ -445,7 +457,7 @@ export function App() {
       )}
 
       {/* Main View Area */}
-      <main className="w-full max-w-4xl flex-1 flex flex-col items-center justify-center">
+      <main className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex-1 flex flex-col">
         {viewState === 'scanning' && (
           <ObjectScanner
             onLockIn={handleLockIn}
@@ -473,6 +485,7 @@ export function App() {
             payload={oracleData}
             evidenceUrl={evidenceUrl}
             permalinkId={permalinkId || undefined}
+            sessionDate={sessionDate || undefined}
             onClaim={permalinkId ? handleOpenClaim : undefined}
             onAppeal={permalinkId ? handleOpenAppeal : undefined}
           />
@@ -502,8 +515,9 @@ export function App() {
         {viewState === 'vault' && <VaultScreen onOpenDossier={handleOpenDossier} />}
       </main>
 
-      {/* Footer System Status */}
-      <footer className="w-full max-w-4xl border-t border-gray-900 pt-4 mt-8 flex flex-col sm:flex-row items-center justify-between text-[11px] font-mono text-gray-500 gap-2">
+      {/* Footer System Status (hidden on the scan screen — the scanner header carries its own) */}
+      {viewState !== 'scanning' && (
+      <footer className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-gray-900 pt-4 mt-8 pb-4 flex flex-col sm:flex-row items-center justify-between text-[11px] font-mono text-gray-500 gap-2">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-lime-400 animate-pulse" />
           <span>OBJECT AUDIT ENGINE ONLINE // {IDENTITY.entityName.toUpperCase()}</span>
@@ -513,6 +527,7 @@ export function App() {
           <span className="text-lime-700">{IDENTITY.auditProtocol}</span>
         </div>
       </footer>
+      )}
     </div>
   );
 }
