@@ -1,10 +1,15 @@
 import type { Caste } from '@ecocide/types';
 import { getFaction } from '@ecocide/types';
 import {
-  Briefcase,
   ClipboardList,
-  Cog,
-  Fingerprint,
+  Gavel,
+  Leaf,
+  ListChecks,
+  Recycle,
+  ScanSearch,
+  Scale,
+  Trash2,
+  Zap,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -15,25 +20,30 @@ export interface ParagraphTopic {
 
 /** Icon key → lucide component map (lore stores keys, web maps them). */
 const ICON_MAP: Record<string, LucideIcon> = {
-  briefcase: Briefcase,
+  scan: ScanSearch,
+  recycle: Recycle,
   clipboard: ClipboardList,
-  cog: Cog,
-  fingerprint: Fingerprint,
+  gavel: Gavel,
+  scale: Scale,
+  zap: Zap,
+  trash: Trash2,
+  leaf: Leaf,
+  list: ListChecks,
 };
 
 /**
- * Topic-accurate icon + label for each prophecy paragraph, honoring the faction
+ * Topic-accurate icon + label for each verdict paragraph, honoring the faction
  * for paragraphs 2–3 (labels and icon keys come from the lore pack). Shared by
- * the live dossier UI and the downloaded badge.
+ * the live dossier UI and the downloaded card.
  */
 export function paragraphTopic(index: number, caste?: Caste): ParagraphTopic {
   if (index === 0) {
-    return { Icon: Fingerprint, label: 'Biometric Audit' };
+    return { Icon: ScanSearch, label: 'Audit Summary' };
   }
   const faction = caste ? getFaction(caste) : undefined;
   const topic = index === 1 ? faction?.topics.p2 : faction?.topics.p3;
   return {
-    Icon: (topic && ICON_MAP[topic.icon]) || Cog,
+    Icon: (topic && ICON_MAP[topic.icon]) || ListChecks,
     label: topic?.label || 'Registry Assessment',
   };
 }

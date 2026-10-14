@@ -20,9 +20,9 @@ describe('REGISTRY_QUOTES Dataset (placeholder deck)', () => {
     }
   });
 
-  it('speaks as the Carbon Minded AI registry voice', () => {
+  it('speaks as the Arbiter and the Bureau', () => {
     const authors = REGISTRY_QUOTES.map((q) => q.author);
-    expect(authors).toContain('Carbon Minded AI');
-    expect(authors).toContain('Registry Office');
+    expect(authors).toContain('AI Supreme Arbiter of Consumption');
+    expect(authors).toContain('Central Audit Office');
   });
 });

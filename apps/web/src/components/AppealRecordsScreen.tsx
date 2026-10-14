@@ -257,13 +257,9 @@ function toOraclePayload(record: CitizenRecord): OraclePayload {
   return {
     user_profile: record.user_profile || record.profile,
     prophecy: record.prophecy,
+    audit: record.audit,
+    suggestions: record.suggestions,
     id: record.id,
-    avatarUrl: record.avatarUrl,
-    avatarStatus: record.avatarStatus,
-    avatarEngine: record.avatarEngine,
-    landmarks: record.landmarks,
-    telemetry: record.telemetry,
-    portraitStyle: record.portraitStyle,
-    portraitColor: record.portraitColor,
+    evidenceUrl: record.evidenceUrl,
   };
 }

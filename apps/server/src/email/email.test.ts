@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { CitizenRecord } from '@ecocide/types';
-import { getFaction } from '@ecocide/types';
 import { createMailer, loadMailConfig, normalizeEmail, vaultOtpEmail, verdictEmail } from './index.js';
 
 function makeRecord(): CitizenRecord {
@@ -8,20 +7,26 @@ function makeRecord(): CitizenRecord {
     id: 'abc123',
     createdAt: new Date().toISOString(),
     profile: {
-      caste: 'class-i',
+      caste: 'carbon-neutral-legend',
       biocarbon_ratio: 98,
-      life_stage: 'Champion',
-      equipped_wealth: 'High-Tech Elite Gear',
-      energy_level: 'Ruthless Command',
-      apparent_presentation: 'Feminine',
-      honorific_title: 'Provisional Subject #1',
+      honorific_title: 'Plastic-Curious',
     },
     prophecy: {
-      headline: 'CRITICAL ANOMALY DETECTED',
+      headline: 'HOUSEHOLD AUDIT COMPLETE',
       paragraph_1: 'P1',
       paragraph_2: 'P2',
       paragraph_3: 'P3',
     },
+    audit: {
+      roomType: 'kitchen',
+      items: [
+        { label: 'compost bin', category: 'waste', count: 1, ratings: { m: 1 }, si: 100, status: 'compliant' },
+      ],
+      ratio: 98,
+      hardFails: 0,
+      topOffenderLabel: null,
+    },
+    suggestions: [],
   };
 }
 
@@ -68,11 +73,12 @@ describe('verdict email template', () => {
     const rendered = verdictEmail(makeRecord(), 'https://arbiter.test');
     const permalink = 'https://arbiter.test/arbitration/abc123';
 
-    expect(rendered.subject).toContain(getFaction('class-i').name);
-    expect(rendered.subject).toContain('Provisional Subject #1');
+    expect(rendered.subject).toContain('Carbon Neutral Legend');
+    expect(rendered.subject).toContain('Plastic-Curious');
     expect(rendered.html).toContain(permalink);
     expect(rendered.text).toContain(permalink);
     expect(rendered.html).toContain('98%');
+    expect(rendered.html).toContain('1 items scanned');
   });
 });
 

@@ -1,137 +1,185 @@
 # AGENTS.md // Ecocide Technical Blueprint
 
-Welcome to **Ecocide (placeholder working title)** — a fork of the Aipocalypse
-biometric-classification flow with a completely re-skinnable story/art surface.
+Welcome to **ECOCIDE** — a satirical dystopian environmental-bureaucracy web
+app/PWA. A photo of your **household** is audited: objects are detected,
+rated, and sentenced by an unyielding machine authority, the **AI Supreme
+Arbiter of Consumption**.
 
 ## 1. What this project is
 
-A satirical web app/PWA: a camera or photo scan extracts 478 facial landmarks
-locally (MediaPipe WASM), a **deterministic distance-shell classifier** places
-the face into a configurable **classification taxonomy** (any number of classes,
-any quotas; placeholder pack = Class I–VI, 17/17/17/17/16/16 %), and a verdict
-engine ("the **Carbon Minded AI**") renders an official bureaucratic verdict —
-via Gemini when `GEMINI_API_KEY` is set, via a deterministic offline simulation
-when it isn't. The verdict page offers **CLAIM** (mock paywall → dossier) and
-**APPEAL** (mock filing fee → archived ruling; accepted appeals re-arbitrate
-against the archived photo snapshot). An **Asset Vault** (Better Auth email-OTP
-accounts, token wallet, ledger) backs the mock payments.
+A photo of a room (upload or camera) goes through a **two-pass AI pipeline**:
 
-## 2. Hard architectural rule — the lore seam
+1. **Pass 1 — Inventory** (server, Gemini vision, structured JSON): the model
+   detects household objects, groups identical ones with counts, emits
+   normalized bounding boxes, and rates each item **1–5** on the applicable
+   compliance dimensions (material, recyclability, decomposition, embodied
+   carbon, lifespan, toxicity, pollution shedding, operating energy).
+2. **Compliance math** (`packages/compliance`, 100% deterministic): per-item
+   Harm Score → Sustainability Index → status; count-weighted roll-up →
+   **Household Sustainability Index** → tier (via the lore taxonomy bands
+   `90/75/60/40/20/0`). The model never touches the math.
+3. **Pass 2 — Classification** (server, text-only Gemini): given the tier +
+   items summary, the model writes the funny bureaucratic verdict paragraphs
+   and 3–5 **suggestions** bound to detected items. Those suggestions power
+   the appeal tribunal's **pledge picker**.
 
-**All story, copy and art live in `packages/lore`** (dependency-free package:
-data + string templates). The apps consume it; `packages/types` derives the
-taxonomy from it. Do not reintroduce story into components, prompts, or the
-server. The lore pack is currently a **neutral placeholder** — every string is
-meant to be replaced (`TODO-LORE` markers). See `STORY.md` for the authoring
-guide and the full inventory of slots.
+The dossier then offers CLAIM (mock paywall → dossier) and APPEAL (mock
+filing fee → archived ruling; accepted appeals re-arbitrate against the
+**stored item list**, no vision re-call). An **Asset Vault** (Better Auth
+email-OTP accounts, token wallet, ledger) backs the mock payments.
 
-Key conventions:
-- **Internal storage names persist** (`caste`, `biocarbon_ratio`, `/api/citizen`,
-  `OraclePayload`…) — they are API/DB identifiers, not display copy. Display
-  vocabulary comes from the pack (`getFaction(id).name`, `IDENTITY.*`, etc.).
-- The taxonomy is **data-driven**: `packages/lore/src/factions.ts` defines the
-  ordered faction list with `quotaPct` shares (sum = 100) and an overflow
-  bucket; percentile thresholds, populations, bands and the distance-shell
-  bands in `apps/web/src/lib/face-geometry.ts` are **derived** — never hardcode
-  them in both places again.
-- React components must never render a raw faction id: use `getFaction(caste).name`.
+**Without AI tokens everything still runs**: the server degrades to a seeded
+offline simulation (archetype catalog → deterministic room → deterministic
+verdict), so `pnpm test`, the dev bench and local development cost nothing.
+
+## 2. Hard architectural rules
+
+1. **Story → lore only.** All story, copy and art live in `packages/lore`
+   (dependency-free: data + string templates). Components, prompts and the
+   server read from the pack; do not reintroduce story into them.
+2. **Math → compliance only.** The compliance formula (weights, H, SI, ratio,
+   statuses) lives in `packages/compliance` (dependency-free). Never
+   re-implement it in components, prompts, or the server; only import it.
+3. **Internal storage names persist** (`caste`, `biocarbon_ratio`,
+   `/api/citizen`, `OraclePayload`…) — they are API/DB identifiers, not
+   display copy. The taxonomy is data-driven: `packages/lore/src/factions.ts`
+   defines the six tiers with `minScore` bands; thresholds, colors, stamps and
+   titles are derived — never duplicate them.
+4. **Evidence photos are files, not DB blobs.** The archived audit photo lives
+   at `apps/server/data/evidence/<dossierId>.<ext>` (env `EVIDENCE_DIR`); the
+   database stores only `evidence_filename` and serves it via
+   `GET /api/evidence/<name>` (extension whitelist). No base64 images in the
+   DB or emails.
+5. **React components must never render a raw tier id**: use
+   `getFaction(caste).name`. Display vocab comes from the pack.
+6. **Markdown links** to files in responses: `[file](file:///path)`.
+7. **Always run `pnpm test`** before finishing a task.
 
 ## 3. Monorepo layout
 
+**Build order:** `compliance → lore → types → server → web` (root
+`pnpm build` handles it).
+
 ```
-packages/lore/     # THE STORY + ART SURFACE (identity, factions, prompts, simulate, art)
-packages/types/    # contracts only; derives Caste/FactionId + census from lore
-apps/server/       # Hono + SQLite (Drizzle) + Gemini + BullMQ + Better Auth + nodemailer
-apps/web/          # React 19 + Vite + Tailwind v4 + PWA (intro → scan → verdict → claim/appeal → vault)
-charts/            # Helm chart (placeholder branding)
-scripts/           # scan-cost audit
+packages/compliance/  # Pure formula math: dimensions+weights, H, SI, status,
+                      # household ratio roll-up, dedupe/sanitize, aggregates
+packages/lore/        # THE STORY + ART SURFACE: identity, six tiers (factions),
+                      # prompt builders + JSON schemas, offline simulation,
+                      # archetype catalog, exhibit rooms, art tokens
+packages/types/       # Contracts only; derives the taxonomy from lore +
+                      # formula from compliance; simulateScanFromItems etc.
+apps/server/          # Hono + SQLite (Drizzle) + Gemini + BullMQ + Better Auth
+                      # + nodemailer + evidence file store
+apps/web/             # React 19 + Vite + Tailwind v4 + PWA
+                      # (intro → scan → verdict → claim/appeal → vault)
+charts/               # Helm chart (placeholder branding)
+scripts/              # scan-cost audit
 ```
 
-Build order matters: `lore → types → server → web` (root `pnpm build` handles it).
+### packages/compliance
 
-### packages/lore (new — the heart of the fork)
+- `dimensions.ts` — 8 dimension keys `m r d c l t p e`, weights summing to 100.
+- `math.ts` — `harmScore` (weighted mean over applicable dims; denominator
+  rebalances, e.g. 95 without operating energy), `siFromHarm` (100(5−H)/4),
+  `itemStatus` (≥60 / ≥40 / <40), `householdRatio` (count-weighted mean,
+  integer), `hardFailCount`, `topOffender`, `dominantDimension`,
+  `dedupeItems`, `clampRating`, `sanitizeCount`.
 
-- `identity.ts` — app name, version, **`entityName: 'Carbon Minded AI'`**,
-  tagline, world population.
-- `factions.ts` — the ordered taxonomy with quota shares, colors, census
-  copy, life-stage titles, paragraph topics (icon keys), per-faction prompt
-  blocks, per-faction simulated verdict copy, per-faction badge `stylePrompt`,
-  and the derivation helpers (thresholds/bounds/populations/percentile→class).
-- `prompts.ts` — placeholder prompt builders for verdict / appeal /
-  re-arbitration (JSON contract keys like `biocarbon_ratio` must stay).
-- `simulate.ts` — deterministic offline verdict/ruling copy.
-- `art.ts` — shared palette + confetti tokens (JS side; `index.css` mirrors).
+### packages/lore
+
+- `identity.ts` — app name, `entityName: 'AI Supreme Arbiter of
+  Consumption'`, taglines, backronym, `auditProtocol: 'PROTOCOL-9'`.
+- `factions.ts` — the six tiers (art §7) with `minScore` bands (90/75/60/40/
+  20/0), colors, stamp text + ink, verdict lines, lore, prompt blocks,
+  badge art prompts, and the deterministic dimension-title bank
+  (`dimensionTitle(dominant, ratio)`); `getFactionFromScore`.
+- `prompts.ts` — `buildInventoryPrompt` + `INVENTORY_JSON_SCHEMA` (Pass 1)
+  and `buildVerdictPrompt` + `VERDICT_JSON_SCHEMA` (Pass 2; JSON contract
+  keeps `caste`/`biocarbon_ratio` keys), plus appeal/re-arbitration builders.
+- `simulate.ts` — deterministic offline content: `ITEM_ARCHETYPES` catalog,
+  `generateSimulatedInventory(seed)`, `SIMULATED_ROOMS` + `buildSimulatedRoom`
+  (one curated exhibit room per tier), verdict copy, suggestions, appeal
+  rulings, re-arbitration copy.
 
 ### apps/server
 
-- `POST /api/oracle/scan` — multimodal scan; optional `email` queues the
-  verdict email (recipient is never persisted).
-- `GET /api/citizen/:id`, `POST /api/citizen/:id/avatar`, `POST /api/citizen/:id/appeal`,
-  `GET /api/citizen/:id/appeals`, `POST /api/citizen/:id/appeals/:appealId/apply`.
+- `POST /api/oracle/scan` — the two-pass pipeline (inventory → math →
+  verdict), writes the evidence file, persists the dossier, logs both model
+  calls (`oracle_inventory`, `oracle_classify`). Offline when no Gemini creds.
+- `GET /api/citizen/:id`, `GET /api/citizen/:id/appeals`,
+  `POST /api/citizen/:id/appeal`, `POST /api/citizen/:id/appeals/:appealId/apply`.
+- `GET /api/census` — live audited-household counts per tier (display gate:
+  only once ≥50 audits exist, art §7). `GET /api/evidence/:name`.
 - `GET /api/vault`, `POST /api/vault/link`, `POST /api/vault/charge`,
   `GET /api/vault/ledger`, `/api/auth/*` (Better Auth email-OTP).
 - `GET /admin/queues` Bull Board (BullMQ mode + Basic auth only).
-- Prompt assembly is thin: `src/gemini.ts` wraps `@ecocide/lore` builders and
-  parses JSON; all world copy comes from the pack.
+- Prompt assembly is thin in `src/gemini.ts` (wraps lore builders, parses
+  JSON, sanitizes model output); world copy comes from the pack.
 - DB: `node:sqlite` + Drizzle, WAL mode, explicit `initDb()`/`createRepositories()`
   factories; migrations via drizzle-kit, applied at boot (`AUTO_MIGRATE=false`
-  to defer); never commit `*.db*` files.
+  to defer); never commit `*.db*` or `data/evidence/` files.
 
 ### apps/web
 
 - SPA flow in `src/App.tsx` (`/`, `/scan`, `/citizen/:id`, `/arbitration/:id`,
   `/claim/:id`, `/appeal/:id`, `/appeals/:id`, `/vault`, dev-only `/debug`).
-- `src/lib/face-geometry.ts` — the deterministic classifier (630-combo shell;
-  derives bands from the lore pack) + stability/flip-rate tests.
-- `src/lib/polygon-portrait.ts` — four canvas portrait render styles
-  (placeholder engine palettes; per-faction colors come from the pack).
-- Copy: neutral placeholders live inline in components today (optional future
-  refactor: hoist every string into `lore/ui.ts`); never reintroduce old
-  Aipocalypse canon.
+- `src/components/ObjectScanner.tsx` — capture a room (camera/upload); no
+  client-side detection; "SCAN OBJECTS, NOT PEOPLE".
+- `src/lib/audit-lenses.ts` — the four audit lenses (art §9): neon-outline,
+  evidence-photo, inspection-hud, carbon-heat — canvas renders over the
+  evidence photo + item boxes.
+- `src/components/HouseholdAuditCard.tsx` — the dossier card: lens view, tier
+  stamp, title, index + waste gauge, 2×2 stats, per-item cards, barcode.
+- Copy: all world strings live in the lore pack; inline UI strings are
+  generic chrome, not story.
 
 ## 4. Commands
 
 | Command | Action |
 | --- | --- |
 | `pnpm install` | Install all workspace deps |
-| `pnpm build` | lore → types → server → web |
+| `pnpm build` | compliance → lore → types → server → web |
 | `pnpm dev:all` | API (:3001) + web (:5173) concurrently |
 | `pnpm dev:web` / `pnpm dev:server` | Single process |
 | `pnpm test` | Vitest across packages (hermetic) |
 | `pnpm scan-costs` | Token/cost audit from the local DB |
 
-Dev without AI tokens: `/debug` bench (preset verdicts for every class),
-`sample_face.png`, simulated verdicts (no `GEMINI_API_KEY`), OTP printed to the
-server console, emails logged via jsonTransport (no SMTP), inline job dispatcher
-(no Redis).
+Dev without AI tokens: `/debug` bench (six exhibit rooms, one per tier),
+simulated audits (no `GEMINI_API_KEY`), OTP printed to the server console,
+emails logged via jsonTransport (no SMTP), inline job dispatcher (no Redis).
 
 ## 5. Guidelines for agents
 
-1. **Story → lore only.** No old-canon words outside `packages/lore`
-   (brand, caste names, etc.). Verification:
+1. **Story → lore only; math → compliance only.** Verification:
    `pnpm build && pnpm test`, then the grep gate (below).
-2. **Rebuild after touching `lore` or `types`**: `pnpm --filter @ecocide/lore build && pnpm --filter @ecocide/types build` before server/web builds.
-3. **Taxonomy changes** (class count/quotas) touch `lore/factions.ts` only;
-   thresholds/populations come along automatically — keep the invariant tests
-   (quotas sum to 100, monotonic thresholds, band/percentile consistency,
-   stability/flip-rate) green.
-4. **DB discipline**: no `*.db*` in git; schema changes go through
-   `drizzle-kit generate`; never hand-write DDL.
+2. **Rebuild after touching deps**: `pnpm --filter @ecocide/compliance build
+   && pnpm --filter @ecocide/lore build && pnpm --filter @ecocide/types build`
+   before server/web builds.
+3. **Taxonomy changes** (tier count/bands) touch `lore/factions.ts` only;
+   colors, stamps and titles follow. Keep the invariant tests green
+   (band monotonicity, boundary mapping, exhibit rooms landing in-band,
+   simulate determinism).
+4. **DB discipline**: no `*.db*` or `data/evidence/` in git; schema changes
+   go through `drizzle-kit generate`; never hand-write DDL.
 5. **Display vs storage**: `caste`/`biocarbon_ratio` stay in code/DB/API;
    all user-facing strings are pack-driven.
 6. **Markdown links** to files in responses: `[file](file:///path)`.
 7. **Always run `pnpm test`** before finishing a task.
 
-### Grep gate (old canon must not leak)
+### Grep gate (placeholder canon must not leak)
 
 ```bash
-rg -i -n "aipocalypse|supreme arbiter|neon grid|mainframe|biocarbon(?!_ratio)|redundan|overlord|enforcer|bootlick|untouchable|free spirit" apps packages --pcre2 | grep -vE "CASTE|caste"
+rg -i -n "carbon minded|aipocalypse|neon grid|mainframe|biocarbon(?!_ratio)|redundan|overlord|enforcer|bootlick|untouchable|free spirit|\bclass (i|ii|iii|iv|v|vi)\b|class-[ivx]+" apps packages scripts --pcre2 | grep -vE "caste|biocarbonRatio|classify|classification"
 ```
 
-(Internal `caste`/`biocarbon_ratio` identifiers are exempt.)
+(Internal `caste`/`biocarbon_ratio`/`biocarbonRatio` identifiers are exempt.)
 
 ## 6. Related docs
 
-- [`STORY.md`](STORY.md) — lore-pack authoring handbook (every slot, taxonomy
+- [`STORY.md`](STORY.md) — lore-pack authoring handbook (every slot, tier
   mechanics, prompts, art, workflow).
 - [`README.md`](README.md) — user-facing overview + quick start.
+- `art_directions.md` — visual style bible (§-numbered; the source of truth
+  for colors, tiers, stamps, lenses, motion, copy rules).
+- `compliance_formula.md` — the item-level formula implemented verbatim by
+  `packages/compliance`.

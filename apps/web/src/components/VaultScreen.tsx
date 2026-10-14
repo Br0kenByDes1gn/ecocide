@@ -275,7 +275,7 @@ export const VaultScreen: React.FC<VaultScreenProps> = ({ onOpenDossier }) => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4">
             {dossiers.map((d) => {
               const colors = CASTE_COLORS[d.caste];
-              const thumb = d.portraitUrl || d.avatarUrl;
+              const thumb = d.evidenceUrl;
               return (
                 <button
                   key={d.id}

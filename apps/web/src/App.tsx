@@ -1,19 +1,18 @@
 import { useEffect, useState } from 'react';
-import { generateSimulatedVerdict, type BiometricLandmark, type BiometricTelemetry, type OraclePayload } from '@ecocide/types';
+import type { OraclePayload } from '@ecocide/types';
 import confetti from 'canvas-confetti';
 import { Bug, Terminal, Volume2, VolumeX, Wallet } from 'lucide-react';
-import { HomePage } from './components/HomePage';
+import { AnimatedIntro } from './components/AnimatedIntro';
 import { AppealRecordsScreen } from './components/AppealRecordsScreen';
 import { AppealScreen } from './components/AppealScreen';
 import { ArbitrationDossier } from './components/ArbitrationDossier';
-import { CameraScanner } from './components/CameraScanner';
+import { ObjectScanner } from './components/ObjectScanner';
 import { CitizenDossier } from './components/CitizenDossier';
 import { ClaimScreen } from './components/ClaimScreen';
 import { DebugBench } from './components/DebugBench';
 import { VaultScreen } from './components/VaultScreen';
 import { IDENTITY, CONFETTI_COLORS } from '@ecocide/lore';
 import { soundFx } from './lib/audio';
-import { downscaleDataUrl } from './lib/downscaleImage';
 
 const IS_DEV = import.meta.env.DEV;
 
@@ -78,9 +77,8 @@ export function App() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [oracleData, setOracleData] = useState<OraclePayload | null>(null);
-  const [portraitUrl, setPortraitUrl] = useState<string>('');
+  const [evidenceUrl, setEvidenceUrl] = useState<string | undefined>(undefined);
   const [permalinkId, setPermalinkId] = useState<string | null>(null);
-  const [sessionDate, setSessionDate] = useState<string | null>(null);
   const [systemNotice, setSystemNotice] = useState<string | null>(null);
   const [isMuted, setIsMuted] = useState(soundFx.isMuted);
 
@@ -98,7 +96,7 @@ export function App() {
         setViewState('debug');
         setOracleData(null);
         setPermalinkId(null);
-        setSessionDate(null);
+        setEvidenceUrl(undefined);
         return;
       }
 
@@ -106,7 +104,7 @@ export function App() {
         setViewState('vault');
         setOracleData(null);
         setPermalinkId(null);
-        setSessionDate(null);
+        setEvidenceUrl(undefined);
         return;
       }
 
@@ -124,7 +122,7 @@ export function App() {
         }
         setOracleData(null);
         setPermalinkId(null);
-        setSessionDate(null);
+        setEvidenceUrl(undefined);
         return;
       }
 
@@ -138,19 +136,14 @@ export function App() {
         const payload: OraclePayload = {
           user_profile: record.user_profile || record.profile,
           prophecy: record.prophecy,
+          audit: record.audit,
+          suggestions: record.suggestions,
           id: record.id,
-          avatarUrl: record.avatarUrl,
-          avatarStatus: record.avatarStatus,
-          avatarEngine: record.avatarEngine,
-          landmarks: record.landmarks,
-          telemetry: record.telemetry,
-          portraitStyle: record.portraitStyle,
-          portraitColor: record.portraitColor,
+          evidenceUrl: record.evidenceUrl,
         };
         setOracleData(payload);
-        setPortraitUrl(record.stylizedPortraitUrl || '');
+        setEvidenceUrl(record.evidenceUrl);
         setPermalinkId(record.id);
-        setSessionDate(record.createdAt || null);
         setViewState(
           claimId
             ? 'claim'
@@ -170,6 +163,7 @@ export function App() {
         setViewState('scanning');
         setOracleData(null);
         setPermalinkId(null);
+        setEvidenceUrl(undefined);
       } finally {
         setIsLoading(false);
       }
@@ -185,59 +179,32 @@ export function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  const handleLockIn = async (data: {
-    rawImage: string;
-    stylizedPortrait: string;
-    telemetry: BiometricTelemetry;
-    avatarEngine?: string;
-    landmarks?: BiometricLandmark[];
-    portraitStyle?: string;
-    portraitColor?: string;
-  }) => {
+  const handleLockIn = async (data: { rawImage: string }) => {
     setIsLoading(true);
-    setPortraitUrl(data.stylizedPortrait || data.rawImage);
-
-    // The SAME downscaled ~360px snapshot feeds the vision verdict and is
-    // archived for vision-grounded re-arbitrations later.
-    let snapshot = data.rawImage;
-    try {
-      snapshot = await downscaleDataUrl(data.rawImage, 360, 0.72);
-    } catch (err) {
-      console.warn('Snapshot downscale failed, using raw capture:', err);
-    }
 
     try {
       const response = await fetch('/api/oracle/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          image: snapshot,
-          sourceSnapshot: snapshot,
-          stylizedPortrait: data.stylizedPortrait,
-          telemetry: data.telemetry,
-          avatarEngine: data.avatarEngine,
-          landmarks: data.landmarks,
-          portraitStyle: data.portraitStyle,
-          portraitColor: data.portraitColor,
-        }),
+        body: JSON.stringify({ image: data.rawImage }),
       });
 
       if (!response.ok) {
-        throw new Error(`Oracle server responded with ${response.status}`);
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error || `Oracle server responded with ${response.status}`);
       }
 
       const result: OraclePayload = await response.json();
       const id = result.id || null;
       setOracleData(result);
+      setEvidenceUrl(result.evidenceUrl);
       setPermalinkId(id);
-      setSessionDate(new Date().toISOString());
       setViewState('arbitration');
 
       if (id) {
         window.history.pushState({ citizenId: id }, '', `/arbitration/${id}`);
       }
 
-      // Celebration burst for high compliance ratio / verdict reveal
       confetti({
         particleCount: 50,
         spread: 60,
@@ -245,12 +212,9 @@ export function App() {
         colors: [...CONFETTI_COLORS],
       });
     } catch (err) {
-      console.warn('API error, falling back to local oracle simulation:', err);
-      const mockResult: OraclePayload = generateSimulatedVerdict(data.telemetry);
-      setOracleData(mockResult);
-      setPermalinkId(null);
-      setSessionDate(new Date().toISOString());
-      setViewState('arbitration');
+      console.warn('Audit submission failed:', err);
+      setSystemNotice('AUDIT TRANSMISSION FAILED. THE ARBITER IS INDISPOSED. RETRY WITH ANOTHER PHOTO.');
+      setTimeout(() => setSystemNotice(null), 5000);
     } finally {
       setIsLoading(false);
     }
@@ -265,7 +229,7 @@ export function App() {
     setViewState('intro');
     setOracleData(null);
     setPermalinkId(null);
-    setSessionDate(null);
+    setEvidenceUrl(undefined);
     window.history.pushState({}, '', '/');
   };
 
@@ -273,7 +237,7 @@ export function App() {
     setViewState('scanning');
     setOracleData(null);
     setPermalinkId(null);
-    setSessionDate(null);
+    setEvidenceUrl(undefined);
     window.history.pushState({}, '', '/scan');
   };
 
@@ -300,19 +264,14 @@ export function App() {
       const payload: OraclePayload = {
         user_profile: record.user_profile || record.profile,
         prophecy: record.prophecy,
+        audit: record.audit,
+        suggestions: record.suggestions,
         id: record.id,
-        avatarUrl: record.avatarUrl,
-        avatarStatus: record.avatarStatus,
-        avatarEngine: record.avatarEngine,
-        landmarks: record.landmarks,
-        telemetry: record.telemetry,
-        portraitStyle: record.portraitStyle,
-        portraitColor: record.portraitColor,
+        evidenceUrl: record.evidenceUrl,
       };
       setOracleData(payload);
-      setPortraitUrl(record.stylizedPortraitUrl || '');
+      setEvidenceUrl(record.evidenceUrl);
       setPermalinkId(record.id);
-      setSessionDate(record.createdAt || null);
       setViewState('dossier');
       window.history.pushState({}, '', `/citizen/${record.id}`);
     } catch (err) {
@@ -362,6 +321,7 @@ export function App() {
   // Accepted rulings: apply the re-classification, then replay arbitration with it
   const handleApplyAccepted = (record: OraclePayload) => {
     setOracleData(record);
+    setEvidenceUrl(record.evidenceUrl);
     goArbitration();
   };
 
@@ -376,10 +336,8 @@ export function App() {
     window.history.pushState({}, '', '/scan');
   };
 
-  // Development Only: Manual Citizen Dossier & Badge Testbench
   if (viewState === 'debug') {
     if (!IS_DEV) {
-      // Fail-safe protection: strictly unreachable in production builds
       setViewState('intro');
       window.history.replaceState({}, '', '/');
       return null;
@@ -387,36 +345,37 @@ export function App() {
     return <DebugBench onExit={handleExitDebug} />;
   }
 
-  // Full screen immersive homepage with header/footer
   if (viewState === 'intro') {
     return (
-      <HomePage
-        onProceedToScan={handleProceedToScan}
-        isMuted={isMuted}
-        onToggleMute={() => setIsMuted(soundFx.toggleMute())}
-      />
+      <div className="min-h-screen w-full bg-[#080b08] text-gray-100 cyber-grid flex flex-col items-center justify-center">
+        <AnimatedIntro
+          onProceedToScan={handleProceedToScan}
+          isMuted={isMuted}
+          onToggleMute={() => setIsMuted(soundFx.toggleMute())}
+          onOpenDebug={IS_DEV ? handleOpenDebug : undefined}
+        />
+      </div>
     );
   }
 
   return (
-    <div className="min-h-[100dvh] bg-[#080b08] text-gray-100 cyber-grid flex flex-col">
-      {/* Top Banner Navigation (hidden on scanner - scanner has its own consolidated header) */}
-      {viewState !== 'scanning' && (
-      <header className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between border-b border-lime-500/30 pb-3 mb-4">
+    <div className="min-h-screen bg-[#080b08] text-gray-100 cyber-grid flex flex-col items-center justify-between p-4 sm:p-6">
+      {/* Top Banner Navigation */}
+      <header className="w-full max-w-4xl flex items-center justify-between border-b border-lime-500/25 pb-4 mb-6">
         <div
           onClick={handleNavigateHome}
           className="flex items-center gap-3 cursor-pointer group select-none"
           title="Return to Intro (/)"
         >
-          <div className="p-2 rounded-lg bg-lime-950/60 border border-lime-500/40 text-lime-400 group-hover:border-lime-400 group-hover:shadow-[0_0_15px_rgba(180,255,57,0.4)] transition-all">
+          <div className="p-2 rounded-lg bg-lime-950/60 border border-lime-500/40 text-lime-400 group-hover:border-lime-400 group-hover:shadow-[0_0_15px_rgba(180,255,57,0.35)] transition-all">
             <Terminal className="w-6 h-6" />
           </div>
           <div>
             <h1 className="text-lg sm:text-xl font-bold font-mono text-lime-400 tracking-wider flex items-center gap-2 group-hover:text-lime-300 transition-colors">
-              {IDENTITY.appName} <span className="text-xs text-gray-500 font-normal">v0.1</span>
+              {IDENTITY.appName} <span className="text-xs text-gray-500 font-normal">v{IDENTITY.appVersion}</span>
             </h1>
             <p className="text-[11px] font-mono text-gray-400 tracking-widest">
-              {IDENTITY.tagline.toUpperCase()} // DOMESTIC AUDIT TERMINAL
+              {IDENTITY.entityName.toUpperCase()} // HOUSEHOLD AUDIT SYSTEM
             </p>
           </div>
         </div>
@@ -427,7 +386,7 @@ export function App() {
               type="button"
               onClick={handleOpenDebug}
               className="text-xs font-mono text-amber-400 hover:text-amber-300 border border-amber-500/50 hover:border-amber-400 bg-amber-950/60 hover:bg-amber-900/60 px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
-              title="Open Development Citizen & Badge Testbench (/debug)"
+              title="Open Development Audit Bench (/debug)"
             >
               <Bug className="w-3.5 h-3.5 text-amber-400" />
               <span className="hidden md:inline">[DEV]</span>
@@ -462,14 +421,13 @@ export function App() {
             {isMuted ? (
               <VolumeX className="w-5 h-5 text-red-400" />
             ) : (
-              <Volume2 className="w-5 h-5 text-emerald-400" />
+              <Volume2 className="w-5 h-5 text-lime-400" />
             )}
           </button>
         </div>
       </header>
-      )}
 
-      {/* Cyberpunk System Notice Notification */}
+      {/* System Notice Notification */}
       {systemNotice && (
         <div className="w-full max-w-4xl mb-4 px-4 py-3 rounded-lg bg-red-950/80 border border-red-500/80 text-red-200 font-mono text-xs flex items-center justify-between shadow-lg shadow-red-950/50 animate-pulse">
           <span>⚠ {systemNotice}</span>
@@ -484,24 +442,13 @@ export function App() {
       )}
 
       {/* Main View Area */}
-      <main className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex-1 flex flex-col">
-        {viewState === 'scanning' && (
-          <CameraScanner
-            onLockIn={handleLockIn}
-            isLoading={isLoading}
-            onNavigateHome={handleNavigateHome}
-            onGoVault={goVault}
-            onToggleMute={() => setIsMuted(soundFx.toggleMute())}
-            isMuted={isMuted}
-            onOpenDebug={IS_DEV ? handleOpenDebug : undefined}
-            IS_DEV={IS_DEV}
-          />
-        )}
+      <main className="w-full max-w-4xl flex-1 flex flex-col items-center justify-center">
+        {viewState === 'scanning' && <ObjectScanner onLockIn={handleLockIn} isLoading={isLoading} />}
 
         {viewState === 'dossier' && oracleData && (
           <CitizenDossier
             payload={oracleData}
-            portraitUrl={portraitUrl}
+            evidenceUrl={evidenceUrl}
             onReset={handleReset}
             permalinkId={permalinkId || undefined}
           />
@@ -510,9 +457,8 @@ export function App() {
         {viewState === 'arbitration' && oracleData && (
           <ArbitrationDossier
             payload={oracleData}
-            portraitUrl={portraitUrl}
+            evidenceUrl={evidenceUrl}
             permalinkId={permalinkId || undefined}
-            sessionDate={sessionDate || undefined}
             onClaim={permalinkId ? handleOpenClaim : undefined}
             onAppeal={permalinkId ? handleOpenAppeal : undefined}
           />
@@ -542,19 +488,17 @@ export function App() {
         {viewState === 'vault' && <VaultScreen onOpenDossier={handleOpenDossier} />}
       </main>
 
-      {/* Footer System Status (hidden on scanner - scanner has its own consolidated footer) */}
-      {viewState !== 'scanning' && (
-        <footer className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-gray-900 pt-4 mt-8 flex flex-col sm:flex-row items-center justify-between text-[11px] font-mono text-gray-500 gap-2">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span>MEDIAPIPE 478 3D LANDMARK ENGINE ONLINE</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <span>DETERMINISTIC POPULATION BUCKETING: ACTIVE</span>
-            <span className="text-cyan-600">PROTOCOL-1</span>
-          </div>
-        </footer>
-      )}
+      {/* Footer System Status */}
+      <footer className="w-full max-w-4xl border-t border-gray-900 pt-4 mt-8 flex flex-col sm:flex-row items-center justify-between text-[11px] font-mono text-gray-500 gap-2">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-lime-400 animate-pulse" />
+          <span>OBJECT AUDIT ENGINE ONLINE // {IDENTITY.entityName.toUpperCase()}</span>
+        </div>
+        <div className="flex items-center gap-4">
+          <span>DETERMINISTIC COMPLIANCE MATH: ACTIVE</span>
+          <span className="text-lime-700">{IDENTITY.auditProtocol}</span>
+        </div>
+      </footer>
     </div>
   );
 }

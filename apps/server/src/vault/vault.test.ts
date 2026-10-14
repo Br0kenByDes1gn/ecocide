@@ -74,15 +74,21 @@ function makeApp(userId: string | null) {
 function makePayload(): OraclePayload {
   return {
     user_profile: {
-      caste: 'class-vi',
-      biocarbon_ratio: 40,
-      life_stage: 'Adult',
-      equipped_wealth: 'Scrap Rags',
-      energy_level: 'Critical Battery Depletion',
-      apparent_presentation: 'Androgynous',
-      honorific_title: 'Decommission Candidate #7',
+      caste: 'disaster-zone',
+      biocarbon_ratio: 15,
+      honorific_title: 'Microplastic Dispenser',
     },
     prophecy: { headline: 'H', paragraph_1: 'P1', paragraph_2: 'P2', paragraph_3: 'P3' },
+    audit: {
+      roomType: 'kitchen',
+      items: [
+        { label: 'plastic bag', category: 'packaging', count: 9, ratings: { m: 5, p: 5 }, si: 6.3, status: 'non-compliant' },
+      ],
+      ratio: 15,
+      hardFails: 1,
+      topOffenderLabel: 'plastic bag',
+    },
+    suggestions: [],
   };
 }
 
@@ -237,7 +243,7 @@ describe('vault routes', () => {
     });
     expect(state.dossiers).toHaveLength(1);
     // Summaries are lightweight: no heavy verdict/snapshot fields.
-    expect(state.dossiers[0]).toMatchObject({ id: dossierId, caste: 'class-vi' });
+    expect(state.dossiers[0]).toMatchObject({ id: dossierId, caste: 'disaster-zone' });
     expect(state.dossiers[0]).not.toHaveProperty('prophecy');
     expect(state.dossiers[0]).not.toHaveProperty('sourceSnapshot');
   });

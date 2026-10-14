@@ -2,7 +2,7 @@
 // @ecocide/lore — the entire story + artwork surface of the project.
 // A dependency-free package: plain data, string templates, and deterministic
 // content builders. Everything that is "the world" lives here; everything
-// that is mechanics lives in @ecocide/types and the apps.
+// that is mechanics lives in @ecocide/compliance, @ecocide/types and the apps.
 // ---------------------------------------------------------------------------
 
 export { IDENTITY } from './identity.js';
@@ -10,20 +10,14 @@ export { PALETTE, CONFETTI_COLORS } from './art.js';
 export {
   FACTIONS,
   FACTION_IDS,
-  OVERFLOW_ID,
-  WEALTH_TIERS,
-  DEFAULT_WEALTH_TIER,
-  LIFE_STAGE_KEYS,
+  HARM_DIMENSION_KEYS,
+  DIMENSION_TITLES,
+  dimensionTitle,
   factionIndex,
   getFaction,
-  isOverflowFaction,
-  factionPercentages,
-  factionThresholds,
-  factionBounds,
-  factionPopulations,
-  getFactionFromPercentile,
-  wealthTierLabels,
-  normalizeWealthTier,
+  findFactionByName,
+  scoreThresholds,
+  getFactionFromScore,
 } from './factions.js';
 export type {
   FactionId,
@@ -32,29 +26,40 @@ export type {
   FactionTopic,
   FactionPromptBlocks,
   FactionSimulated,
-  LifeStageKey,
-  WealthTierDef,
+  HarmDimensionKey,
 } from './factions.js';
 export {
   factionRegistryBlock,
-  wealthTierBlock,
-  buildOraclePrompt,
+  dimensionRubricBlock,
+  INVENTORY_JSON_SCHEMA,
+  VERDICT_JSON_SCHEMA,
+  buildInventoryPrompt,
+  buildVerdictPrompt,
   buildAppealPrompt,
   buildReArbitrationPrompt,
 } from './prompts.js';
 export type {
-  OraclePromptInput,
+  VerdictPromptInput,
   AppealPromptDossier,
   ReArbitrationPromptDossier,
   ReArbitrationPromptAppeal,
 } from './prompts.js';
 export {
+  fnv1a,
+  CATEGORIES,
+  ITEM_ARCHETYPES,
+  SIMULATED_ROOMS,
+  generateSimulatedInventory,
+  buildSimulatedRoom,
   generateSimulatedVerdictContent,
+  generateSimulatedSuggestions,
   generateSimulatedAppealRuling,
   generateSimulatedReArbitrationCopy,
 } from './simulate.js';
 export type {
-  Presentation,
+  SimItem,
+  SimSuggestion,
+  SimRoomTemplate,
   SimVerdictInput,
   SimVerdictContent,
   SimAppealInput,
@@ -62,5 +67,3 @@ export type {
   SimReArbitrationInput,
   SimReArbitrationCopy,
 } from './simulate.js';
-export { VERDICT_TIERS, getVerdictTier } from './verdict-tiers.js';
-export type { VerdictTier, VerdictStatus } from './verdict-tiers.js';

@@ -9,6 +9,7 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
+    "@ecocide/compliance": "workspace:*",
     "@ecocide/lore": "workspace:*",
     "@ecocide/types": "workspace:*",
     "@bull-board/api": "^9.10.2",
@@ -19,6 +20,7 @@
     "bullmq": "^6.3.11",
     "dotenv": "^16.4.7",
     "drizzle-orm": "1.0.0-rc.5-5935859",
+    "google-auth-library": "^10.9.1",
     "hono": "^4.7.0",
     "ioredis": "^6.0.0",
     "nanoid": "^5.1.0",

@@ -1,135 +1,264 @@
-import { GoogleGenAI } from '@google/genai';
 import type {
   AppealVerdict,
-  BiometricTelemetry,
+  AuditItem,
+  Caste,
   CitizenAppeal,
   CitizenRecord,
   OraclePayload,
+  Prophecy,
+  Suggestion,
 } from '@ecocide/types';
-import { toFormalLifeStage, toAssetValueTier, getFaction } from '@ecocide/types';
+import { enrichAuditItems } from '@ecocide/types';
 import {
   buildAppealPrompt as buildLoreAppealPrompt,
-  buildOraclePrompt as buildLoreOraclePrompt,
+  buildInventoryPrompt as buildLoreInventoryPrompt,
   buildReArbitrationPrompt as buildLoreReArbitrationPrompt,
+  buildVerdictPrompt as buildLoreVerdictPrompt,
+  dimensionTitle,
   generateSimulatedAppealRuling,
   generateSimulatedReArbitrationCopy,
+  getFaction,
+  INVENTORY_JSON_SCHEMA,
+  VERDICT_JSON_SCHEMA,
 } from '@ecocide/lore';
+import type { ItemRatings, RatedItem } from '@ecocide/compliance';
+import {
+  clampRating,
+  dedupeItems,
+  dominantDimension,
+  sanitizeCount,
+  topOffender,
+} from '@ecocide/compliance';
 import { calculateApiCost } from './cost.js';
-import type { ApiCallUsage } from './avatar/types.js';
+import { createGeminiClient, getGeminiModel } from './gemini/config.js';
 
-export interface OracleVerdictResult {
-  payload: OraclePayload;
+/** Token/cost usage for a single model call (logged per scan). */
+export interface ApiCallUsage {
+  model: string;
+  provider: string;
+  promptTokens: number;
+  candidatesTokens: number;
+  thoughtsTokens: number;
+  totalTokens: number;
+  costUsd: number;
+  durationMs: number;
+}
+
+// ---------------------------------------------------------------------------
+// PASS 1 — household inventory (vision + structured JSON with bounding boxes)
+// ---------------------------------------------------------------------------
+
+export interface InventoryResult {
+  items: AuditItem[];
+  roomType: string | null;
   usage: ApiCallUsage;
 }
 
-/** Prompts are assembled from the lore pack (world copy + per-faction blocks). */
-export function buildOraclePrompt(telemetry: BiometricTelemetry): string {
-  return buildLoreOraclePrompt({
-    factionId: telemetry.caste,
-    percentile: telemetry.castePercentile,
-    complianceRatio: telemetry.biocarbonRatio,
-    presentation: telemetry.preferredPresentation,
-  });
-}
+/** Coerce + clamp a raw model item into a scorable rated item. */
+function toRatedItem(raw: any): RatedItem | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const label = typeof raw.label === 'string' ? raw.label.trim() : '';
+  if (!label) return null;
 
-export async function generateOracleVerdict(
-  imageBase64: string,
-  telemetry: BiometricTelemetry,
-  apiKey: string
-): Promise<OracleVerdictResult> {
-  const startTime = performance.now();
-  const ai = new GoogleGenAI({ apiKey });
-
-  // Clean base64 image
-  let mimeType = 'image/jpeg';
-  let cleanBase64 = imageBase64;
-  if (imageBase64.includes(';base64,')) {
-    const parts = imageBase64.split(';base64,');
-    const mimeMatch = parts[0].match(/:(.*?)$/);
-    if (mimeMatch) mimeType = mimeMatch[1];
-    cleanBase64 = parts[1];
+  const ratings: ItemRatings = {};
+  const rawRatings = raw.ratings ?? {};
+  for (const key of ['m', 'r', 'd', 'c', 'l', 't', 'p', 'e'] as const) {
+    const clamped = clampRating(rawRatings[key]);
+    if (clamped !== null) ratings[key] = clamped;
   }
 
-  const prompt = buildOraclePrompt(telemetry);
+  const b = raw.bounds;
+  const bounds =
+    b && typeof b === 'object'
+      ? {
+          x1: Math.min(Math.max(Number(b.x1) || 0, 0), 1),
+          y1: Math.min(Math.max(Number(b.y1) || 0, 0), 1),
+          x2: Math.min(Math.max(Number(b.x2) || 0, 0), 1),
+          y2: Math.min(Math.max(Number(b.y2) || 0, 0), 1),
+        }
+      : undefined;
+
+  return {
+    label,
+    category: typeof raw.category === 'string' ? raw.category : null,
+    count: sanitizeCount(raw.count),
+    ratings,
+    justification: typeof raw.justification === 'string' ? raw.justification.slice(0, 300) : null,
+    ...(bounds && bounds.x2 > bounds.x1 && bounds.y2 > bounds.y1 ? { bounds } : {}),
+  };
+}
+
+/**
+ * Normalize a raw inventory response: clamp ratings, sanitize counts, drop
+ * unlabeled entries, merge near-duplicates into one row, score everything.
+ */
+export function normalizeInventory(rawItems: unknown, rawRoomType: unknown): { items: AuditItem[]; roomType: string | null } {
+  const list = Array.isArray(rawItems) ? rawItems : [];
+  const rated = dedupeItems(list.map(toRatedItem).filter((item): item is RatedItem => item !== null));
+  return {
+    items: enrichAuditItems(rated),
+    roomType: typeof rawRoomType === 'string' && rawRoomType ? rawRoomType : null,
+  };
+}
+
+/** Run PASS 1: vision model detects objects + ratings + boxes. */
+export async function generateHouseholdInventory(imageBase64: string): Promise<InventoryResult> {
+  const startTime = performance.now();
+  const ai = createGeminiClient();
+  const model = getGeminiModel();
+
+  const [head, cleanBase64] = splitDataUrl(imageBase64);
+  const mimeType = head.match(/^data:([^;]+);/)?.[1] || 'image/jpeg';
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3.8-flash',
+    model,
     contents: [
       {
         role: 'user',
         parts: [
-          {
-            inlineData: {
-              data: cleanBase64,
-              mimeType,
-            },
-          },
-          {
-            text: prompt,
-          },
+          { inlineData: { data: cleanBase64, mimeType } },
+          { text: buildLoreInventoryPrompt() },
         ],
       },
     ],
     config: {
       responseMimeType: 'application/json',
-      temperature: 1.0,
+      responseJsonSchema: INVENTORY_JSON_SCHEMA,
+      temperature: 0,
     },
   });
 
-  const durationMs = Math.round(performance.now() - startTime);
-  const promptTokens = response.usageMetadata?.promptTokenCount || 0;
-  const candidatesTokens = response.usageMetadata?.candidatesTokenCount || 0;
-  const thoughtsTokens = (response.usageMetadata as any)?.thoughtsTokenCount || 0;
-  const totalTokens = response.usageMetadata?.totalTokenCount || (promptTokens + candidatesTokens + thoughtsTokens);
+  const usage = usageFrom(response as any, model, startTime);
+  let parsed: any = {};
+  try {
+    parsed = JSON.parse(response.text || '{}');
+  } catch (err) {
+    console.warn('[Gemini] Inventory JSON parse failed, degrading to an empty audit:', err);
+  }
 
-  const cost = calculateApiCost('gemini-3.8-flash', {
-    promptTokens,
-    candidatesTokens,
-    thoughtsTokens,
+  const { items, roomType } = normalizeInventory(parsed.items, parsed.room_type);
+  if (items.length === 0) {
+    throw new Error('The Arbiter could not identify any household objects in the photograph.');
+  }
+  return { items, roomType, usage };
+}
+
+// ---------------------------------------------------------------------------
+// PASS 2 — household classification (text-only verdict + suggestions)
+// ---------------------------------------------------------------------------
+
+export interface VerdictResult {
+  payload: OraclePayload;
+  usage: ApiCallUsage;
+}
+
+export interface VerdictInput {
+  items: AuditItem[];
+  roomType: string | null;
+  ratio: number;
+  caste: Caste;
+}
+
+/** Per-item inventory summary lines fed to the classification prompt. */
+export function buildItemsSummary(items: AuditItem[]): string {
+  return items
+    .map((item) => `- x${item.count} ${item.label} // SI ${item.si?.toFixed(1) ?? '?'} // ${(item.status ?? 'unknown').toUpperCase()}`)
+    .join('\n');
+}
+
+export function buildVerdictPrompt(input: VerdictInput): string {
+  const faction = getFaction(input.caste);
+  const dominant = dominantDimension(input.items);
+  const honorificTitle = dimensionTitle(dominant ?? 'm', input.ratio);
+  return buildLoreVerdictPrompt({
+    factionId: input.caste,
+    ratio: input.ratio,
+    itemsSummary: buildItemsSummary(input.items),
+    honorificTitle,
+    roomType: input.roomType,
+    paragraph2: faction.promptBlocks.paragraph2,
+    paragraph3: faction.promptBlocks.paragraph3,
+  });
+}
+
+function sanitizeSuggestions(raw: unknown): Suggestion[] {
+  if (!Array.isArray(raw)) return [];
+  const out: Suggestion[] = [];
+  for (const s of raw) {
+    if (!s || typeof s !== 'object') continue;
+    const text = typeof s.text === 'string' ? s.text.trim() : '';
+    if (!text) continue;
+    const impact = Number(s.impact_pct);
+    out.push({
+      text,
+      target_label: typeof s.target_label === 'string' ? s.target_label : '',
+      pledge: typeof s.pledge === 'string' && s.pledge ? s.pledge : text,
+      impact_pct: Number.isFinite(impact) ? Math.min(99, Math.max(1, Math.round(impact))) : 5,
+    });
+    if (out.length >= 5) break;
+  }
+  return out;
+}
+
+/** Run PASS 2: the model writes the verdict copy + suggestions (never math). */
+export async function generateHouseholdVerdict(input: VerdictInput): Promise<VerdictResult> {
+  const startTime = performance.now();
+  const ai = createGeminiClient();
+  const model = getGeminiModel();
+  const prompt = buildVerdictPrompt(input);
+
+  const response = await ai.models.generateContent({
+    model,
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    config: {
+      responseMimeType: 'application/json',
+      responseJsonSchema: VERDICT_JSON_SCHEMA,
+      temperature: 0.9,
+    },
   });
 
-  const responseText = response.text || '';
-  const parsed = JSON.parse(responseText);
+  const usage = usageFrom(response as any, model, startTime);
+  let parsed: any = {};
+  try {
+    parsed = JSON.parse(response.text || '{}');
+  } catch (err) {
+    console.warn('[Gemini] Verdict JSON parse failed, falling back to default copy:', err);
+  }
 
-  const baseFactionName = getFaction(telemetry.caste).memberTitle;
+  const faction = getFaction(input.caste);
+  const dominant = dominantDimension(input.items);
+  const honorificTitle = dimensionTitle(dominant ?? 'm', input.ratio);
+  const worst = topOffender(input.items);
+  const prophecy: Prophecy = {
+    headline: parsed.headline || `HOUSEHOLD AUDIT COMPLETE: ${faction.name.toUpperCase()}`,
+    paragraph_1: parsed.paragraph_1 || `The ${faction.name} classification is registered. The Bureau has examined your possessions.`,
+    paragraph_2: parsed.paragraph_2 || faction.simulated.paragraph2,
+    paragraph_3: parsed.paragraph_3 || faction.simulated.paragraph3,
+  };
 
   const payload: OraclePayload = {
     user_profile: {
-      caste: telemetry.caste,
-      biocarbon_ratio: telemetry.biocarbonRatio,
-      life_stage: toFormalLifeStage(parsed.user_profile?.life_stage || 'Adult'),
-      equipped_wealth: toAssetValueTier(parsed.user_profile?.equipped_wealth || undefined),
-      energy_level: parsed.user_profile?.energy_level || 'Nominal',
-      apparent_presentation:
-        parsed.user_profile?.apparent_presentation ||
-        (telemetry.preferredPresentation || 'Androgynous'),
-      honorific_title: parsed.user_profile?.honorific_title || `${baseFactionName} #${Math.floor(Math.random() * 9000) + 1000}`,
+      caste: input.caste,
+      biocarbon_ratio: input.ratio,
+      honorific_title: honorificTitle,
     },
-    prophecy: {
-      headline: parsed.prophecy?.headline || 'CLASSIFICATION RECORD: PROVISIONAL',
-      paragraph_1: parsed.prophecy?.paragraph_1 || 'Biometric parameters analyzed and recorded.',
-      paragraph_2: parsed.prophecy?.paragraph_2 || 'Assigned duties will be registered on your file.',
-      paragraph_3: parsed.prophecy?.paragraph_3 || 'Assessment filed in the registry.',
+    prophecy,
+    audit: {
+      roomType: input.roomType,
+      items: input.items,
+      ratio: input.ratio,
+      hardFails: input.items.filter((i) => (i.si ?? 0) < 40).length,
+      topOffenderLabel: worst?.label ?? null,
     },
-  };
-
-  const usage: ApiCallUsage = {
-    model: 'gemini-3.8-flash',
-    provider: 'google',
-    promptTokens,
-    candidatesTokens,
-    thoughtsTokens,
-    totalTokens,
-    costUsd: cost.totalCostUsd,
-    durationMs,
+    suggestions: sanitizeSuggestions(parsed.suggestions),
   };
 
   return { payload, usage };
 }
 
-// =====================================================================
-// APPEAL ARBITRATION (small text-only ruling on a citizen appeal)
-// =====================================================================
+// ---------------------------------------------------------------------------
+// APPEAL ARBITRATION (text-only ruling grounded in the audited inventory)
+// ---------------------------------------------------------------------------
 
 /** Builds the compact appeal-ruling prompt (copy from the lore pack). */
 export function buildAppealPrompt(dossier: CitizenRecord, appeal: string): string {
@@ -138,9 +267,10 @@ export function buildAppealPrompt(dossier: CitizenRecord, appeal: string): strin
     {
       id: dossier.id,
       factionId: profile.caste,
-      complianceRatio: profile.biocarbon_ratio,
+      ratio: profile.biocarbon_ratio,
       honorificTitle: profile.honorific_title,
       headline: dossier.prophecy?.headline ?? null,
+      itemsSummary: buildItemsSummary(dossier.audit?.items ?? []),
     },
     appeal
   );
@@ -149,27 +279,20 @@ export function buildAppealPrompt(dossier: CitizenRecord, appeal: string): strin
 /** Runs the appeal ruling through Gemini (text-only, small). */
 export async function generateAppealVerdict(
   dossier: CitizenRecord,
-  appeal: string,
-  apiKey: string
+  appeal: string
 ): Promise<{ verdict: AppealVerdict; usage: ApiCallUsage }> {
   const startTime = performance.now();
-  const ai = new GoogleGenAI({ apiKey });
+  const ai = createGeminiClient();
+  const model = getGeminiModel();
   const prompt = buildAppealPrompt(dossier, appeal);
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3.8-flash',
+    model,
     contents: [{ role: 'user', parts: [{ text: prompt }] }],
     config: { responseMimeType: 'application/json', temperature: 0.9 },
   });
 
-  const durationMs = Math.round(performance.now() - startTime);
-  const promptTokens = response.usageMetadata?.promptTokenCount || 0;
-  const candidatesTokens = response.usageMetadata?.candidatesTokenCount || 0;
-  const thoughtsTokens = (response.usageMetadata as any)?.thoughtsTokenCount || 0;
-  const totalTokens =
-    response.usageMetadata?.totalTokenCount || (promptTokens + candidatesTokens + thoughtsTokens);
-  const cost = calculateApiCost('gemini-3.8-flash', { promptTokens, candidatesTokens, thoughtsTokens });
-
+  const usage = usageFrom(response as any, model, startTime);
   const parsed = JSON.parse(response.text || '{}');
 
   const verdict: AppealVerdict = {
@@ -181,24 +304,10 @@ export async function generateAppealVerdict(
     scripture: parsed.accepted && Array.isArray(parsed.scripture) ? parsed.scripture : undefined,
   };
 
-  const usage: ApiCallUsage = {
-    model: 'gemini-3.8-flash',
-    provider: 'google',
-    promptTokens,
-    candidatesTokens,
-    thoughtsTokens,
-    totalTokens,
-    costUsd: cost.totalCostUsd,
-    durationMs,
-  };
-
   return { verdict, usage };
 }
 
-/**
- * Simulation fallback used when no GEMINI_API_KEY is configured: a
- * deterministic, hashed accept/reject ruling with a new caste when accepted.
- */
+/** Simulation fallback for appeal rulings (deterministic, hashed). */
 export function generateSimulatedAppealVerdict(dossier: CitizenRecord, appeal: string): AppealVerdict {
   const profile = dossier.user_profile || dossier.profile;
   const content = generateSimulatedAppealRuling({
@@ -221,9 +330,9 @@ export function generateSimulatedAppealVerdict(dossier: CitizenRecord, appeal: s
   };
 }
 
-// =====================================================================
-// RE-ARBITRATION (fresh full oracle verdict after a granted appeal)
-// =====================================================================
+// ---------------------------------------------------------------------------
+// RE-ARBITRATION (fresh full verdict after a granted appeal, on stored items)
+// ---------------------------------------------------------------------------
 
 export interface ReArbitrationVerdict {
   headline: string;
@@ -231,7 +340,7 @@ export interface ReArbitrationVerdict {
   scripture: [string, string, string];
 }
 
-/** Builds the oracle-style re-arbitration prompt (copy from the lore pack). */
+/** Builds the re-arbitration prompt (items + appeal, no vision re-call). */
 export function buildReArbitrationPrompt(dossier: CitizenRecord, appeal: CitizenAppeal): string {
   const profile = dossier.user_profile || dossier.profile;
   const newCaste = appeal.newCaste || profile.caste;
@@ -239,39 +348,35 @@ export function buildReArbitrationPrompt(dossier: CitizenRecord, appeal: Citizen
     {
       id: dossier.id,
       factionId: profile.caste,
-      complianceRatio: profile.biocarbon_ratio,
+      ratio: profile.biocarbon_ratio,
+      honorificTitle: profile.honorific_title,
+      itemsSummary: buildItemsSummary(dossier.audit?.items ?? []),
     },
     {
       appealText: appeal.appealText,
-      prevFactionId: appeal.casteBefore,
       newFactionId: newCaste,
     }
   );
 }
 
-/** Runs the full re-arbitration (multimodal when the archive holds a snapshot). */
+/** Runs the full re-arbitration (text-only; the archive items are the evidence). */
 export async function generateReArbitrationVerdict(
   dossier: CitizenRecord,
-  appeal: CitizenAppeal,
-  apiKey: string
+  appeal: CitizenAppeal
 ): Promise<ReArbitrationVerdict> {
-  const ai = new GoogleGenAI({ apiKey });
+  const startTime = performance.now();
+  const ai = createGeminiClient();
+  const model = getGeminiModel();
   const prompt = buildReArbitrationPrompt(dossier, appeal);
 
-  const parts: Array<{ text?: string; inlineData?: { data: string; mimeType: string } }> = [];
-  const snapshot = dossier.sourceSnapshot;
-  if (snapshot && snapshot.includes(';base64,')) {
-    const [head, data] = snapshot.split(';base64,');
-    const mimeMatch = head.match(/:(.*?)$/);
-    parts.push({ inlineData: { data, mimeType: mimeMatch?.[1] || 'image/jpeg' } });
-  }
-  parts.push({ text: prompt });
-
   const response = await ai.models.generateContent({
-    model: 'gemini-3.8-flash',
-    contents: [{ role: 'user', parts }],
-    config: { responseMimeType: 'application/json', temperature: 0.95 },
+    model,
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    config: { responseMimeType: 'application/json', temperature: 0.9 },
   });
+
+  const usage = usageFrom(response as any, model, startTime);
+  void usage; // re-arbitration usage is not persisted today
 
   const parsed = JSON.parse(response.text || '{}');
   const rawScripture = Array.isArray(parsed.scripture) ? (parsed.scripture as string[]) : [];
@@ -287,7 +392,9 @@ export async function generateReArbitrationVerdict(
   return {
     headline:
       parsed.headline || `APPEAL GRANTED: RECLASSIFIED AS ${getFaction(finalCaste).name.toUpperCase()}`,
-    newHonorificTitle: (parsed.new_honorific_title as string) || `${getFaction(finalCaste).memberTitle} #${Math.floor(Math.random() * 9000) + 1000}`,
+    newHonorificTitle:
+      (parsed.new_honorific_title as string) ||
+      `${getFaction(finalCaste).memberTitle} #${Math.floor(Math.random() * 9000) + 1000}`,
     scripture,
   };
 }
@@ -305,5 +412,41 @@ export function generateSimulatedReArbitration(
     appealText: appeal.appealText,
     seedKey: appeal.id,
     currentTitle: profile.honorific_title || getFaction(newCaste).memberTitle,
+    ratio: profile.biocarbon_ratio,
   });
+}
+
+// ---------------------------------------------------------------------------
+// Shared plumbing
+// ---------------------------------------------------------------------------
+
+/** Split a data URL ("data:image/jpeg;base64,....") into [head, base64data]. */
+function splitDataUrl(image: string): [string, string] {
+  const idx = image.indexOf(';base64,');
+  if (idx !== -1) return [image.slice(0, idx), image.slice(idx + 8)];
+  if (image.startsWith('data:')) {
+    const comma = image.indexOf(',');
+    if (comma !== -1) return [image.slice(0, comma), image.slice(comma + 1)];
+  }
+  return ['', image];
+}
+
+function usageFrom(response: any, model: string, startTime: number): ApiCallUsage {
+  const durationMs = Math.round(performance.now() - startTime);
+  const promptTokens = response.usageMetadata?.promptTokenCount || 0;
+  const candidatesTokens = response.usageMetadata?.candidatesTokenCount || 0;
+  const thoughtsTokens = response.usageMetadata?.thoughtsTokenCount || 0;
+  const totalTokens =
+    response.usageMetadata?.totalTokenCount || (promptTokens + candidatesTokens + thoughtsTokens);
+  const cost = calculateApiCost(model, { promptTokens, candidatesTokens, thoughtsTokens });
+  return {
+    model,
+    provider: 'google',
+    promptTokens,
+    candidatesTokens,
+    thoughtsTokens,
+    totalTokens,
+    costUsd: cost.totalCostUsd,
+    durationMs,
+  };
 }

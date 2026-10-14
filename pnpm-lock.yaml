@@ -26,6 +26,9 @@ importers:
       '@bull-board/hono':
         specifier: ^9.10.2
         version: 9.10.4(bullmq@6.3.12(ioredis@6.0.0))(hono@4.13.13)(typescript@5.7.3)
+      '@ecocide/compliance':
+        specifier: workspace:*
+        version: link:../../packages/compliance
       '@ecocide/lore':
         specifier: workspace:*
         version: link:../../packages/lore
@@ -50,6 +53,9 @@ importers:
       drizzle-orm:
         specifier: 1.0.0-rc.5-5935859
         version: 1.0.0-rc.5-5935859(valibot@1.5.0(typescript@5.7.3))(zod@4.6.6)
+      google-auth-library:
+        specifier: ^10.9.1
+        version: 10.9.1
       hono:
         specifier: ^4.7.0
         version: 4.13.13
@@ -87,15 +93,15 @@ importers:
 
   apps/web:
     dependencies:
+      '@ecocide/compliance':
+        specifier: workspace:*
+        version: link:../../packages/compliance
       '@ecocide/lore':
         specifier: workspace:*
         version: link:../../packages/lore
       '@ecocide/types':
         specifier: workspace:*
         version: link:../../packages/types
-      '@mediapipe/tasks-vision':
-        specifier: ^0.10.21
-        version: 0.10.35
       better-auth:
         specifier: 1.7.7
         version: 1.7.7(drizzle-kit@1.0.0-rc.5-5935859)(drizzle-orm@1.0.0-rc.5-5935859(valibot@1.5.0(typescript@5.7.3))(zod@4.6.6))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(vitest@3.2.7(@types/node@22.20.5)(jiti@2.7.0)(lightningcss@1.33.0)(terser@5.51.2)(tsx@4.23.15))
@@ -149,6 +155,12 @@ importers:
         specifier: ^1.2.0
         version: 1.3.0(vite@8.3.4(@types/node@22.20.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15))(workbox-build@7.4.1)(workbox-window@7.4.1)
 
+  packages/compliance:
+    devDependencies:
+      typescript:
+        specifier: ^5.7.0
+        version: 5.7.3
+
   packages/lore:
     devDependencies:
       typescript:
@@ -157,6 +169,9 @@ importers:
 
   packages/types:
     dependencies:
+      '@ecocide/compliance':
+        specifier: workspace:*
+        version: link:../compliance
       '@ecocide/lore':
         specifier: workspace:*
         version: link:../lore
@@ -1297,9 +1312,6 @@ packages:
   '@js-temporal/polyfill@0.5.1':
     resolution: {integrity: sha512-hloP58zRVCRSpgDxmqCWJNlizAlUgJFqG2ypq79DCvyv9tHjRYMDOcPFjzfl/A1/YxDvRCZz8wvZvmapQnKwFQ==}
     engines: {node: '>=12'}
-
-  '@mediapipe/tasks-vision@0.10.35':
-    resolution: {integrity: sha512-HOvadwVRE6JC+45nyYhmnywnr5h/J8KZvOeUNVOG9q/0875pZgItznFB9bRTvLc264YSJqiZ1NsIpCStJw/egg==}
 
   '@msgpackr-extract/msgpackr-extract-darwin-arm64@3.0.4':
     resolution: {integrity: sha512-LCkGo6JDfaBhgST7UpPWgNgLINpcpabaHfyz5OBx75nUYxBsaEPxjnyNjWpeb/xBup/682QnBfRBy2/LvPutZQ==}
@@ -4921,8 +4933,6 @@ snapshots:
   '@js-temporal/polyfill@0.5.1':
     dependencies:
       jsbi: 4.3.2
-
-  '@mediapipe/tasks-vision@0.10.35': {}
 
   '@msgpackr-extract/msgpackr-extract-darwin-arm64@3.0.4':
     optional: true

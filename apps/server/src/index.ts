@@ -10,42 +10,69 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
-import { generateSimulatedVerdict, type AppealVerdict, type AppealRequest, type OraclePayload, type ScanRequest } from '@ecocide/types';
+import { nanoid } from 'nanoid';
+import type { AppealRequest, AppealVerdict, OraclePayload, ScanRequest } from '@ecocide/types';
+import { getCasteFromScore, simulateHouseholdScan, type Caste } from '@ecocide/types';
+import { householdRatio } from '@ecocide/compliance';
 import {
   generateAppealVerdict,
-  generateOracleVerdict,
+  generateHouseholdInventory,
+  generateHouseholdVerdict,
   generateReArbitrationVerdict,
   generateSimulatedAppealVerdict,
   generateSimulatedReArbitration,
-  type OracleVerdictResult,
+  type InventoryResult,
   type ReArbitrationVerdict,
+  type VerdictResult,
 } from './gemini.js';
 import { createRepositories, initDb, runMigrations } from './db/index.js';
 import { createMailer, loadMailConfig, normalizeEmail } from './email/index.js';
 import { createJobSystem } from './jobs/index.js';
-import { avatarRegistry } from './avatar/registry.js';
 import { createAuth } from './auth/index.js';
 import { loadAuthConfig } from './auth/config.js';
 import type { AuthVariables } from './auth/middleware.js';
 import { createVaultRoutes } from './vault/routes.js';
+import { geminiConfigured, geminiModeLabel } from './gemini/config.js';
+import {
+  evidenceFileNameFor,
+  evidenceUrlFor,
+  isValidEvidenceName,
+  mimeForEvidenceName,
+  readEvidenceFile,
+  saveEvidenceBase64,
+  splitBase64DataUrl,
+} from './evidence.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-dotenv.config({ path: path.resolve(__dirname, '../.env') });
-dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+
+// .env resolution order (first file to define a key wins; a real process env var
+// always beats the files; missing files are skipped silently):
+//   1. DOTENV_CONFIG_PATH — explicit override for custom deployments.
+//   2. apps/server/.env  — package-local override.
+//   3. Repo/workspace root .env — where README/.env.example tell you to put it.
+//   4. cwd/.env — fallback when launched from an unexpected directory.
+dotenv.config({
+  path: [
+    ...(process.env.DOTENV_CONFIG_PATH ? [process.env.DOTENV_CONFIG_PATH] : []),
+    path.resolve(__dirname, '../.env'),
+    path.resolve(__dirname, '../../../.env'),
+    path.resolve(process.cwd(), '.env'),
+  ],
+});
 
 // Explicitly boot the database: open the connection, apply drizzle-kit migrations,
 // then build the typed repository interface the routes call. Top-level await is
 // supported under NodeNext, and env vars are loaded above *before* the DB opens.
-//
-// AUTO_MIGRATE defaults to running migrations at boot (dev, plain docker run).
-// The Helm chart sets AUTO_MIGRATE=false because a dedicated "migrate" init
-// container owns DDL — migrations then run exactly once per pod start.
 const { db, close } = await initDb();
 if (process.env.AUTO_MIGRATE !== 'false') {
   await runMigrations(db);
 }
 const repositories = createRepositories(db);
+
+// Boot-time engine status: makes a missing/typo'd env file obvious immediately
+// instead of only surfacing as a simulated verdict on the first scan.
+console.log(`[Oracle] Gemini engine ${geminiConfigured() ? `online — ${geminiModeLabel()}` : 'offline — simulated audits enabled.'}`);
 
 // Email + async jobs. With REDIS_URL set the job system runs an in-process
 // BullMQ worker (durable, retried); without it, handlers run inline so local
@@ -61,8 +88,7 @@ const jobSystem = await createJobSystem({
 });
 const jobs = jobSystem.dispatcher;
 
-// Better Auth: email-OTP identity + Asset Vault sessions. Built after the job
-// system so the OTP email can be dispatched through the same queue/mailer.
+// Better Auth: email-OTP identity + Asset Vault sessions.
 const authConfig = loadAuthConfig();
 const auth = createAuth({ db, jobs, config: authConfig });
 
@@ -81,9 +107,6 @@ process.once('SIGTERM', () => void shutdown('SIGTERM'));
 
 const app = new Hono<{ Variables: AuthVariables }>();
 
-// CORS is an allowlist (not `*`) so credentialed requests — the session cookie
-// and the bearer fallback — are accepted. Same-origin dev/prod requests are
-// unaffected.
 app.use(
   '*',
   cors({
@@ -93,7 +116,7 @@ app.use(
   })
 );
 
-// Asset Vault identity (Better Auth). Must be mounted before the SPA catch-all.
+// Asset Vault identity (Better Auth).
 app.all('/api/auth/*', (c) => auth.handler(c.req.raw));
 app.route('/api/vault', createVaultRoutes({ repositories, auth }));
 
@@ -103,61 +126,89 @@ app.get('/api/health', (c) => {
     status: 'online',
     system: 'ECOCIDE Core',
     database: 'SQLite Active',
-    avatarEngines: avatarRegistry.list(),
+    auditProtocol: 'PROTOCOL-9',
+    engine: geminiModeLabel(),
     timestamp: new Date().toISOString(),
   });
 });
 
-// List Available Avatar Engines
-app.get('/api/avatar/engines', (c) => {
-  return c.json({
-    default: process.env.AVATAR_ENGINE || 'gemini-text-svg',
-    engines: avatarRegistry.list(),
-  });
-});
-
-// Primary Biometric Scan Endpoint
+// ---------------------------------------------------------------------------
+// Primary Household Audit Endpoint
+//
+// Runs the full two-pass pipeline server-side:
+//   PASS 1  inventory  — vision model detects objects + ratings + boxes
+//   MATH    compliance — H → SI → Household Sustainability Index → tier
+//   PASS 2  verdict    — second prompt writes copy + suggestions (never math)
+// The evidence photo is written to disk; the DB stores only the file name.
+// ---------------------------------------------------------------------------
 app.post('/api/oracle/scan', async (c) => {
   try {
     const body = await c.req.json<ScanRequest>();
-    const { image, telemetry, stylizedPortrait, landmarks, portraitStyle, portraitColor, sourceSnapshot } = body;
-
-    if (!telemetry || !image) {
-      return c.json({ error: 'Missing image or biometric telemetry payload' }, 400);
+    const { image } = body;
+    if (!image) {
+      return c.json({ error: 'Missing audit photograph' }, 400);
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    let result: OraclePayload;
-    let oracleResult: OracleVerdictResult | null = null;
+    let inventory: InventoryResult | null = null;
+    let oracleResult: VerdictResult | null = null;
+    let payload: OraclePayload;
+    let ratio: number;
+    let caste: Caste;
 
-    if (apiKey) {
-      // Invoke Gemini 3.8 Flash Multimodal Vision + Sarcastic Fortune
-      oracleResult = await generateOracleVerdict(image, telemetry, apiKey);
-      result = oracleResult.payload;
+    if (geminiConfigured()) {
+      // PASS 1 — object inventory (vision + structured JSON).
+      inventory = await generateHouseholdInventory(image);
+      ratio = householdRatio(inventory.items);
+      // Deterministic tier from the arithmetic (lore taxonomy).
+      caste = getCasteFromScore(ratio);
+
+      // PASS 2 — classification verdict (text-only copy).
+      oracleResult = await generateHouseholdVerdict({
+        items: inventory.items,
+        roomType: inventory.roomType,
+        ratio,
+        caste,
+      });
+      payload = oracleResult.payload;
     } else {
-      // Development mock fallback
-      console.warn('[Oracle] GEMINI_API_KEY not configured, using dynamic simulated oracle engine.');
-      result = generateSimulatedVerdict(telemetry);
+      // Development mock fallback: the image hash seeds a deterministic audit.
+      console.warn('[Oracle] Gemini engine offline — using simulated household audit.');
+      const simulated = simulateHouseholdScan(image);
+      ratio = simulated.ratio;
+      caste = simulated.caste;
+      payload = simulated.payload;
     }
 
-    // Determine chosen avatar synthesis engine
-    const queryEngine = c.req.query('engine');
-    const chosenEngine = body.avatarEngine || queryEngine || process.env.AVATAR_ENGINE || 'gemini-text-svg';
+    // Persist the evidence photo as a file (DB keeps only the file name).
+    const dossierId = nanoid(10);
+    const [head] = splitBase64DataUrl(image);
+    const evidenceName = evidenceFileNameFor(dossierId, head.match(/^data:([^;]+);/)?.[1] || 'image/jpeg');
+    saveEvidenceBase64(image, dossierId);
 
-    // Persist to SQLite with initial 'synthesizing' status
-    const id = await repositories.saveDossier(result, stylizedPortrait, 'synthesizing', chosenEngine, {
-      landmarks,
-      telemetry,
-      portraitStyle: portraitStyle || 'neon-hologram',
-      portraitColor: portraitColor || undefined,
-      sourceSnapshot: sourceSnapshot || image,
+    const id = await repositories.saveDossier(payload, {
+      id: dossierId,
+      evidenceFileName: evidenceName,
+      roomType: payload.audit.roomType,
     });
 
-    // Log the oracle verdict API call
-    if (oracleResult?.usage) {
+    // Log both model calls under the new dossier id.
+    if (inventory?.usage && oracleResult?.usage) {
       await repositories.logApiCall({
         dossierId: id,
-        callType: 'oracle_verdict',
+        callType: 'oracle_inventory',
+        provider: oracleResult.usage.provider,
+        model: oracleResult.usage.model,
+        promptTokens: inventory.usage.promptTokens,
+        candidatesTokens: inventory.usage.candidatesTokens,
+        thoughtsTokens: inventory.usage.thoughtsTokens,
+        totalTokens: inventory.usage.totalTokens,
+        costUsd: inventory.usage.costUsd,
+        durationMs: inventory.usage.durationMs,
+        status: 'success',
+      });
+      await repositories.logApiCall({
+        dossierId: id,
+        callType: 'oracle_classify',
         provider: oracleResult.usage.provider,
         model: oracleResult.usage.model,
         promptTokens: oracleResult.usage.promptTokens,
@@ -171,7 +222,20 @@ app.post('/api/oracle/scan', async (c) => {
     } else {
       await repositories.logApiCall({
         dossierId: id,
-        callType: 'oracle_verdict',
+        callType: 'oracle_inventory',
+        provider: 'mock',
+        model: 'simulated-engine',
+        promptTokens: 0,
+        candidatesTokens: 0,
+        thoughtsTokens: 0,
+        totalTokens: 0,
+        costUsd: 0,
+        durationMs: 1,
+        status: 'success',
+      });
+      await repositories.logApiCall({
+        dossierId: id,
+        callType: 'oracle_classify',
         provider: 'mock',
         model: 'simulated-engine',
         promptTokens: 0,
@@ -184,9 +248,6 @@ app.post('/api/oracle/scan', async (c) => {
       });
     }
 
-    // Queue durable background avatar synthesis (retried by BullMQ)
-    await jobs.enqueue('avatar:synthesize', { dossierId: id, engine: chosenEngine });
-
     // Optional: deliver the verdict to the address supplied with the scan
     const email = normalizeEmail(body.email);
     if (email) {
@@ -194,14 +255,9 @@ app.post('/api/oracle/scan', async (c) => {
     }
 
     return c.json({
-      ...result,
+      ...payload,
       id,
-      avatarStatus: 'synthesizing',
-      avatarEngine: chosenEngine,
-      landmarks,
-      telemetry,
-      portraitStyle: portraitStyle || 'neon-hologram',
-      portraitColor: portraitColor || undefined,
+      evidenceUrl: evidenceUrlFor(evidenceName),
     });
   } catch (error: any) {
     console.error('[Oracle Scan Error]', error);
@@ -219,30 +275,24 @@ app.get('/api/citizen/:id', async (c) => {
   return c.json(record);
 });
 
-// Trigger Avatar Re-Synthesis with Specific Engine
-app.post('/api/citizen/:id/avatar', async (c) => {
-  const id = c.req.param('id');
-  const record = await repositories.getDossier(id);
-  if (!record) {
-    return c.json({ error: 'Citizen record not found' }, 404);
+// Live census of audited households (art §7: real counts, never invented)
+app.get('/api/census', async (c) => {
+  return c.json(await repositories.getCensusReport());
+});
+
+// Archived evidence photos (file on disk, DB stores only the name)
+app.get('/api/evidence/:name', (c) => {
+  const name = c.req.param('name');
+  if (!isValidEvidenceName(name)) {
+    return c.json({ error: 'Invalid evidence reference' }, 400);
   }
-
-  const body = await c.req.json<{ engine?: string; image?: string }>().catch(() => ({ engine: undefined, image: undefined }));
-  const engine = body.engine || c.req.query('engine') || process.env.AVATAR_ENGINE || 'gemini-text-svg';
-
-  const photo = body.image || record.stylizedPortraitUrl;
-  if (!photo) {
-    return c.json({ error: 'No reference image available for avatar synthesis' }, 400);
+  const buffer = readEvidenceFile(name);
+  if (!buffer) {
+    return c.json({ error: 'Evidence not found in the archive' }, 404);
   }
-
-  await repositories.updateDossierAvatar(id, null, 'synthesizing', engine);
-  await jobs.enqueue('avatar:synthesize', { dossierId: id, engine, image: body.image || undefined });
-
-  return c.json({
-    status: 'synthesizing',
-    id,
-    engine,
-  });
+  c.header('Content-Type', mimeForEvidenceName(name));
+  c.header('Cache-Control', 'public, max-age=31536000, immutable');
+  return c.body(buffer);
 });
 
 // Citizen Appeal Arbitration Endpoint
@@ -260,13 +310,12 @@ app.post('/api/citizen/:id/appeal', async (c) => {
       return c.json({ error: 'Appeal text is required' }, 400);
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
     let verdict: AppealVerdict;
-    if (apiKey) {
-      const result = await generateAppealVerdict(record, appeal, apiKey);
+    if (geminiConfigured()) {
+      const result = await generateAppealVerdict(record, appeal);
       verdict = result.verdict;
     } else {
-      console.warn('[Appeal] GEMINI_API_KEY not configured, using simulated appeal ruling.');
+      console.warn('[Appeal] Gemini engine offline, using simulated appeal ruling.');
       verdict = generateSimulatedAppealVerdict(record, appeal);
     }
 
@@ -331,13 +380,10 @@ app.post('/api/citizen/:id/appeals/:appealId/apply', async (c) => {
     return c.json({ error: 'Only an accepted appeal with a re-classification can be applied' }, 400);
   }
 
-  // Re-arbitrate like a brand-new scan: the ORIGINAL oracle vision prompt is
-  // re-run against the archived photo snapshot, with the appeal acknowledged
-  // only in paragraph 1. Text-only simulation when no vision key is present.
-  const apiKey = process.env.GEMINI_API_KEY;
+  // Re-arbitrate against the STORED inventory (no vision re-call).
   let fresh: ReArbitrationVerdict;
-  if (apiKey && record.sourceSnapshot) {
-    fresh = await generateReArbitrationVerdict(record, appeal, apiKey);
+  if (geminiConfigured()) {
+    fresh = await generateReArbitrationVerdict(record, appeal);
   } else {
     fresh = generateSimulatedReArbitration(record, appeal);
   }
@@ -362,7 +408,6 @@ app.get('/api/citizens/recent', async (c) => {
 });
 
 // Bull Board queue dashboard (BullMQ mode only, protected by HTTP Basic auth).
-// bull-board ships no authentication, so it inherits the middleware below.
 const bullBoardUser = process.env.BULL_BOARD_USER;
 const bullBoardPass = process.env.BULL_BOARD_PASS;
 if (jobSystem.queue && bullBoardUser && bullBoardPass) {

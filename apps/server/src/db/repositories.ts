@@ -3,17 +3,15 @@ import { nanoid } from 'nanoid';
 import type {
   ApiCallLog,
   ApiCallType,
-  ApparentPresentation,
-  AvatarStatus,
-  BiometricLandmark,
-  BiometricTelemetry,
+  AuditItem,
   Caste,
+  CensusReport,
   CitizenAppeal,
   CitizenRecord,
-  LifeStage,
   OraclePayload,
-  PortraitStyle,
+  Prophecy,
   ScanCostSummary,
+  Suggestion,
   UserProfile,
   VaultDossierSummary,
   VaultStats,
@@ -21,6 +19,9 @@ import type {
   WalletLedgerEntry,
   WalletLedgerReason,
 } from '@ecocide/types';
+import { CASTE_ORDER } from '@ecocide/types';
+import { hardFailCount, topOffender } from '@ecocide/compliance';
+import { evidenceUrlFor } from '../evidence.js';
 import type { DbConnection } from './client.js';
 import { appeals, dossiers, scanApiLogs, walletLedger, wallets } from './schema.js';
 
@@ -33,12 +34,12 @@ import { appeals, dossiers, scanApiLogs, walletLedger, wallets } from './schema.
  */
 
 export interface SaveDossierOptions {
-  landmarks?: BiometricLandmark[];
-  telemetry?: BiometricTelemetry;
-  portraitStyle?: PortraitStyle | string;
-  portraitColor?: string;
-  /** Downscaled ~360px source photo snapshot, archived for re-arbitration. */
-  sourceSnapshot?: string;
+  /** Optional explicit dossier id (defaults to a fresh nanoid). */
+  id?: string;
+  /** Evidence photo file name on disk (e.g. `<id>.jpg`). */
+  evidenceFileName?: string;
+  /** Audited room type. */
+  roomType?: string | null;
 }
 
 export interface AppealUpdateFields {
@@ -66,55 +67,49 @@ export interface SaveAppealEntry {
 type DossierRow = typeof dossiers.$inferSelect;
 type ScanLogRow = typeof scanApiLogs.$inferSelect;
 
+function parseJson<T>(raw: string | null | undefined, fallback: T): T {
+  if (!raw) return fallback;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}
+
 function mapRowToRecord(row: DossierRow): CitizenRecord {
   const userProfile: UserProfile = {
     caste: row.caste as Caste,
     biocarbon_ratio: row.biocarbon_ratio,
-    life_stage: row.life_stage as LifeStage,
-    equipped_wealth: row.equipped_wealth,
-    energy_level: row.energy_level,
-    apparent_presentation: row.apparent_presentation as ApparentPresentation,
     honorific_title: row.honorific_title,
   };
 
-  let landmarks: BiometricLandmark[] | undefined;
-  if (row.landmarks_json) {
-    try {
-      landmarks = JSON.parse(row.landmarks_json);
-    } catch {
-      landmarks = undefined;
-    }
-  }
-
-  let telemetry: BiometricTelemetry | undefined;
-  if (row.telemetry_json) {
-    try {
-      telemetry = JSON.parse(row.telemetry_json);
-    } catch {
-      telemetry = undefined;
-    }
-  }
+  const items: AuditItem[] = parseJson<AuditItem[]>(row.items_json, []);
+  const hardFails = hardFailCount(items);
+  const top = topOffender(items);
+  const audit = {
+    roomType: row.room_type ?? null,
+    items,
+    ratio: row.biocarbon_ratio,
+    hardFails,
+    topOffenderLabel: top?.label ?? null,
+  };
+  const suggestions: Suggestion[] = parseJson<Suggestion[]>(row.suggestions_json, []);
+  const prophecy: Prophecy = {
+    headline: row.headline,
+    paragraph_1: row.paragraph_1,
+    paragraph_2: row.paragraph_2,
+    paragraph_3: row.paragraph_3,
+  };
 
   return {
     id: row.id,
     createdAt: row.created_at,
     profile: userProfile,
     user_profile: userProfile,
-    prophecy: {
-      headline: row.headline,
-      paragraph_1: row.paragraph_1,
-      paragraph_2: row.paragraph_2,
-      paragraph_3: row.paragraph_3,
-    },
-    stylizedPortraitUrl: row.stylized_portrait || undefined,
-    sourceSnapshot: row.source_snapshot || undefined,
-    avatarUrl: row.avatar_url || undefined,
-    avatarStatus: (row.avatar_status as AvatarStatus) || undefined,
-    avatarEngine: row.avatar_engine || undefined,
-    landmarks,
-    telemetry,
-    portraitStyle: (row.portrait_style as PortraitStyle) || undefined,
-    portraitColor: row.portrait_color || undefined,
+    prophecy,
+    audit,
+    suggestions,
+    evidenceUrl: row.evidence_filename ? evidenceUrlFor(row.evidence_filename) : undefined,
     ownerId: row.user_id || undefined,
   };
 }
@@ -165,15 +160,12 @@ function mapLedgerRow(row: WalletLedgerRow): WalletLedgerEntry {
 
 export function createRepositories(db: DbConnection['db']) {
   return {
-    /** Persists a fresh oracle scan verdict and returns the new dossier id. */
+    /** Persists a fresh audit verdict and returns the dossier id. */
     async saveDossier(
       payload: OraclePayload,
-      stylizedPortrait?: string,
-      initialAvatarStatus: AvatarStatus = 'idle',
-      avatarEngine?: string,
       options: SaveDossierOptions = {}
     ): Promise<string> {
-      const id = nanoid(10);
+      const id = options.id || nanoid(10);
       const createdAt = new Date().toISOString();
 
       await db.insert(dossiers).values({
@@ -181,45 +173,18 @@ export function createRepositories(db: DbConnection['db']) {
         created_at: createdAt,
         caste: payload.user_profile.caste,
         biocarbon_ratio: payload.user_profile.biocarbon_ratio,
-        life_stage: payload.user_profile.life_stage,
-        equipped_wealth: payload.user_profile.equipped_wealth,
-        energy_level: payload.user_profile.energy_level,
-        apparent_presentation: payload.user_profile.apparent_presentation,
         honorific_title: payload.user_profile.honorific_title,
         headline: payload.prophecy.headline,
         paragraph_1: payload.prophecy.paragraph_1,
         paragraph_2: payload.prophecy.paragraph_2,
         paragraph_3: payload.prophecy.paragraph_3,
-        stylized_portrait: stylizedPortrait || null,
-        source_snapshot: options.sourceSnapshot || null,
-        avatar_url: payload.avatarUrl || null,
-        avatar_status: payload.avatarStatus || initialAvatarStatus,
-        avatar_engine: avatarEngine || payload.avatarEngine || null,
-        landmarks_json: options.landmarks?.length ? JSON.stringify(options.landmarks) : null,
-        telemetry_json: options.telemetry ? JSON.stringify(options.telemetry) : null,
-        portrait_style: options.portraitStyle || payload.portraitStyle || 'neon-hologram',
-        portrait_color: options.portraitColor || payload.portraitColor || null,
+        room_type: options.roomType ?? payload.audit.roomType ?? null,
+        items_json: JSON.stringify(payload.audit.items ?? []),
+        suggestions_json: JSON.stringify(payload.suggestions ?? []),
+        evidence_filename: options.evidenceFileName ?? null,
       }).run();
 
       return id;
-    },
-
-    async updateDossierAvatar(
-      id: string,
-      avatarUrl: string | null,
-      status: AvatarStatus,
-      engineId?: string
-    ): Promise<void> {
-      await db
-        .update(dossiers)
-        .set({
-          avatar_url: avatarUrl || null,
-          avatar_status: status,
-          // Preserves legacy COALESCE behavior: only touch the engine when one is given.
-          ...(engineId ? { avatar_engine: engineId } : {}),
-        })
-        .where(eq(dossiers.id, id))
-        .run();
     },
 
     /** Rewrites the classification columns of a dossier after a granted appeal. */
@@ -312,6 +277,26 @@ export function createRepositories(db: DbConnection['db']) {
       return rows.map(mapRowToRecord);
     },
 
+    /** Live census: audited-household counts per tier (art §7). */
+    async getCensusReport(): Promise<CensusReport> {
+      const rows = db
+        .select({ caste: dossiers.caste, count: sql<number>`count(*)` })
+        .from(dossiers)
+        .groupBy(dossiers.caste)
+        .all();
+      const total = rows.reduce((sum, r) => sum + Number(r.count), 0);
+      const byCaste = new Map<string, number>(rows.map((r) => [r.caste as string, Number(r.count)]));
+      const entries = CASTE_ORDER.map((caste) => {
+        const count = byCaste.get(caste) ?? 0;
+        return {
+          caste,
+          count,
+          sharePct: total > 0 ? Math.round((count / total) * 1000) / 10 : 0,
+        };
+      });
+      return { total, sufficient: total >= 50, entries };
+    },
+
     async logApiCall(entry: Omit<ApiCallLog, 'id' | 'createdAt'>): Promise<string> {
       const id = nanoid(10);
       const createdAt = new Date().toISOString();
@@ -374,8 +359,6 @@ export function createRepositories(db: DbConnection['db']) {
           biocarbonRatio: dossier.biocarbon_ratio,
           honorificTitle: dossier.honorific_title,
           headline: dossier.headline,
-          avatarEngine: dossier.avatar_engine || null,
-          avatarStatus: dossier.avatar_status || 'idle',
           totalCostUsd,
           totalTokens,
           totalDurationMs,
@@ -576,8 +559,7 @@ export function createRepositories(db: DbConnection['db']) {
           honorific_title: dossiers.honorific_title,
           biocarbon_ratio: dossiers.biocarbon_ratio,
           created_at: dossiers.created_at,
-          stylized_portrait: dossiers.stylized_portrait,
-          avatar_url: dossiers.avatar_url,
+          evidence_filename: dossiers.evidence_filename,
         })
         .from(dossiers)
         .where(eq(dossiers.user_id, userId))
@@ -590,8 +572,7 @@ export function createRepositories(db: DbConnection['db']) {
         honorificTitle: row.honorific_title,
         biocarbonRatio: row.biocarbon_ratio,
         createdAt: row.created_at,
-        portraitUrl: row.stylized_portrait || undefined,
-        avatarUrl: row.avatar_url || undefined,
+        evidenceUrl: row.evidence_filename ? evidenceUrlFor(row.evidence_filename) : undefined,
       }));
     },
   };

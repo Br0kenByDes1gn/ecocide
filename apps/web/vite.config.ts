@@ -65,9 +65,9 @@ export default defineConfig({
         ],
       },
       manifest: {
-        name: 'Ecocide',
-        short_name: 'Ecocide',
-        description: 'Placeholder description — replace alongside the lore pack.',
+        name: 'ECOCIDE',
+        short_name: 'ECOCIDE',
+        description: 'Carbon Excess Eliminator — the Arbiter audits your household objects.',
         theme_color: '#080b08',
         background_color: '#080b08',
         display: 'standalone',

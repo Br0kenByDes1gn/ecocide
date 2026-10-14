@@ -81,7 +81,7 @@ export function applyParagraphExpand(
 /**
  * Orchestrates the post-fill arbitration animation on /arbitration/:id:
  *   1. pause, then collapse the filled card into a compact summary bar
- *      (mesh + ratio + title),
+ *      (stamp + title + ratio),
  *   2. type each prophecy paragraph in sequence (bigger font) with a pause
  *      after each, then collapse it to its first line,
  *   3. mark complete — from then on the card and paragraphs can be clicked to
