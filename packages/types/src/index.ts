@@ -155,6 +155,8 @@ export interface CitizenRecord {
 
 export interface ScanRequest {
   image: string; // Base64 JPEG data URL or base64 string (1024px household photo)
+  /** Optional audit-area hint from the scanner category chips (e.g. "fridge"). */
+  category?: string | null;
   /** Optional address to deliver the verdict to by email. Not persisted. */
   email?: string;
 }

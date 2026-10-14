@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react';
 import type { OraclePayload } from '@ecocide/types';
 import confetti from 'canvas-confetti';
 import { Bug, Terminal, Volume2, VolumeX, Wallet } from 'lucide-react';
-import { AnimatedIntro } from './components/AnimatedIntro';
+import { HomePage } from './components/HomePage';
 import { AppealRecordsScreen } from './components/AppealRecordsScreen';
 import { AppealScreen } from './components/AppealScreen';
 import { ArbitrationDossier } from './components/ArbitrationDossier';
 import { ObjectScanner } from './components/ObjectScanner';
+import type { ItemCategory } from './components/UploadPanel';
 import { CitizenDossier } from './components/CitizenDossier';
 import { ClaimScreen } from './components/ClaimScreen';
 import { DebugBench } from './components/DebugBench';
@@ -179,14 +180,14 @@ export function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  const handleLockIn = async (data: { rawImage: string }) => {
+  const handleLockIn = async (data: { rawImage: string; category: ItemCategory | null }) => {
     setIsLoading(true);
 
     try {
       const response = await fetch('/api/oracle/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: data.rawImage }),
+        body: JSON.stringify({ image: data.rawImage, category: data.category }),
       });
 
       if (!response.ok) {
@@ -347,20 +348,21 @@ export function App() {
 
   if (viewState === 'intro') {
     return (
-      <div className="min-h-screen w-full bg-[#080b08] text-gray-100 cyber-grid flex flex-col items-center justify-center">
-        <AnimatedIntro
-          onProceedToScan={handleProceedToScan}
-          isMuted={isMuted}
-          onToggleMute={() => setIsMuted(soundFx.toggleMute())}
-          onOpenDebug={IS_DEV ? handleOpenDebug : undefined}
-        />
-      </div>
+      <HomePage
+        onProceedToScan={handleProceedToScan}
+        isMuted={isMuted}
+        onToggleMute={() => setIsMuted(soundFx.toggleMute())}
+        onGoVault={goVault}
+        onOpenDebug={IS_DEV ? handleOpenDebug : undefined}
+        isDev={IS_DEV}
+      />
     );
   }
 
   return (
     <div className="min-h-screen bg-[#080b08] text-gray-100 cyber-grid flex flex-col items-center justify-between p-4 sm:p-6">
-      {/* Top Banner Navigation */}
+      {/* Top Banner Navigation (the scan screen renders its own header) */}
+      {viewState !== 'scanning' && (
       <header className="w-full max-w-4xl flex items-center justify-between border-b border-lime-500/25 pb-4 mb-6">
         <div
           onClick={handleNavigateHome}
@@ -426,6 +428,7 @@ export function App() {
           </button>
         </div>
       </header>
+      )}
 
       {/* System Notice Notification */}
       {systemNotice && (
@@ -443,7 +446,18 @@ export function App() {
 
       {/* Main View Area */}
       <main className="w-full max-w-4xl flex-1 flex flex-col items-center justify-center">
-        {viewState === 'scanning' && <ObjectScanner onLockIn={handleLockIn} isLoading={isLoading} />}
+        {viewState === 'scanning' && (
+          <ObjectScanner
+            onLockIn={handleLockIn}
+            isLoading={isLoading}
+            onNavigateHome={handleNavigateHome}
+            onGoVault={goVault}
+            onToggleMute={() => setIsMuted(soundFx.toggleMute())}
+            isMuted={isMuted}
+            onOpenDebug={IS_DEV ? handleOpenDebug : undefined}
+            IS_DEV={IS_DEV}
+          />
+        )}
 
         {viewState === 'dossier' && oracleData && (
           <CitizenDossier

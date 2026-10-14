@@ -102,7 +102,10 @@ export function normalizeInventory(rawItems: unknown, rawRoomType: unknown): { i
 }
 
 /** Run PASS 1: vision model detects objects + ratings + boxes. */
-export async function generateHouseholdInventory(imageBase64: string): Promise<InventoryResult> {
+export async function generateHouseholdInventory(
+  imageBase64: string,
+  roomHint?: string | null
+): Promise<InventoryResult> {
   const startTime = performance.now();
   const ai = createGeminiClient();
   const model = getGeminiModel();
@@ -117,7 +120,7 @@ export async function generateHouseholdInventory(imageBase64: string): Promise<I
         role: 'user',
         parts: [
           { inlineData: { data: cleanBase64, mimeType } },
-          { text: buildLoreInventoryPrompt() },
+          { text: buildLoreInventoryPrompt(roomHint) },
         ],
       },
     ],

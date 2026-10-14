@@ -1,5 +1,5 @@
-import React from 'react';
-import { Globe, Volume2, VolumeX, ArrowRight, ShieldAlert } from 'lucide-react';
+import React, { useState } from 'react';
+import { Globe, Volume2, VolumeX, ArrowRight, ShieldAlert, Wallet, Bug } from 'lucide-react';
 import { IDENTITY } from '@ecocide/lore';
 import { soundFx } from '../lib/audio';
 
@@ -7,13 +7,21 @@ interface HomePageProps {
   onProceedToScan: () => void;
   isMuted?: boolean;
   onToggleMute?: () => void;
+  onGoVault?: () => void;
+  onOpenDebug?: () => void;
+  isDev?: boolean;
 }
 
 export const HomePage: React.FC<HomePageProps> = ({
   onProceedToScan,
   isMuted = false,
   onToggleMute,
+  onGoVault,
+  onOpenDebug,
+  isDev = false,
 }) => {
+  // One stable case reference per visit (the Bureau does not renumber cases on re-render).
+  const [caseRef] = useState(() => Math.floor(Math.random() * 900000 + 100000));
   return (
     <div className="min-h-screen w-full bg-[#080b08] text-[#e6efe3] cyber-grid flex flex-col">
       {/* Header */}
@@ -34,6 +42,33 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Debug bench (dev only) */}
+          {isDev && onOpenDebug && (
+            <button
+              type="button"
+              onClick={onOpenDebug}
+              className="text-xs font-mono text-amber-400 hover:text-amber-300 border border-amber-500/50 hover:border-amber-400 bg-amber-950/60 hover:bg-amber-900/60 px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="Open Development Audit Bench (/debug)"
+            >
+              <Bug className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden md:inline">[DEV]</span>
+              <span>DEBUG BENCH</span>
+            </button>
+          )}
+
+          {/* Asset Vault */}
+          {onGoVault && (
+            <button
+              type="button"
+              onClick={onGoVault}
+              className="text-xs font-mono text-lime-400 hover:text-lime-300 border border-lime-500/50 hover:border-lime-400 bg-lime-950/40 hover:bg-lime-900/40 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
+              title="Open your Asset Vault (/vault)"
+            >
+              <Wallet className="w-3.5 h-3.5" />
+              <span>VAULT</span>
+            </button>
+          )}
+
           {/* Audio Toggle */}
           {onToggleMute && (
             <button
@@ -74,7 +109,8 @@ export const HomePage: React.FC<HomePageProps> = ({
 
             {/* Supporting Copy */}
             <p className="text-sm font-mono text-gray-400 mb-4 leading-relaxed max-w-md">
-              The Carbon Minded AI is reviewing your domestic excess. Submit your household objects for audit and receive your compliance verdict.
+              The {IDENTITY.entityName} is reviewing your domestic excess. Submit your household
+              objects for audit and receive your compliance verdict.
             </p>
 
             {/* Primary CTA Button */}
@@ -92,7 +128,7 @@ export const HomePage: React.FC<HomePageProps> = ({
 
             {/* Secondary tagline */}
             <p className="mt-3 text-xs font-mono text-gray-500 tracking-wider text-center sm:text-left">
-              {IDENTITY.secondaryTagline}
+              {IDENTITY.secondaryLine}
             </p>
           </div>
         </div>
@@ -113,7 +149,7 @@ export const HomePage: React.FC<HomePageProps> = ({
             <div className="relative z-10 mb-3 border-b border-[#e0d6bb] pb-2">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-[10px] font-mono text-[#7c8b7e] tracking-widest uppercase">CASE FILE</span>
-                <span className="text-[10px] font-mono text-[#7c8b7e] tracking-widest">PROTOCOL-1</span>
+                <span className="text-[10px] font-mono text-[#7c8b7e] tracking-widest">{IDENTITY.auditProtocol}</span>
               </div>
               <h3 className="text-sm font-bold font-mono text-[#1f2a1f] tracking-wide">AUDIT PROCEDURE</h3>
               <p className="text-[10px] font-mono text-[#7c8b7e] mt-0">STANDARDIZED DOMESTIC INSPECTION WORKFLOW</p>
@@ -122,10 +158,10 @@ export const HomePage: React.FC<HomePageProps> = ({
             {/* Numbered Instructions */}
             <ol className="relative z-10 space-y-2 mb-3">
               {[
-                'Position household in well-lit area. Remove obstructions.',
-                'Scan room — MediaPipe extracts 478 spatial landmarks.',
-                'Deterministic classifier assigns compliance tier.',
-                'Arbiter renders verdict with carbon ledger breakdown.',
+                'Photograph the room in good light. Do not tidy up; the Arbiter prefers evidence.',
+                'The audit engine inventories your objects — labels, counts, materials.',
+                'Deterministic compliance math scores every item. No model touches the arithmetic.',
+                'The Arbiter renders a verdict with a carbon-ledger breakdown.',
                 'Pledge binding habit changes to appeal the ruling.',
               ].map((step, i) => (
                 <li key={i} className="flex gap-3 group">
@@ -147,7 +183,7 @@ export const HomePage: React.FC<HomePageProps> = ({
               </div>
               <div className="flex justify-between">
                 <span>CASE REF</span>
-                <span className="text-[#1f2a1f] font-medium font-mono tracking-widest">ECD-{Math.floor(Math.random() * 900000 + 100000)}</span>
+                <span className="text-[#1f2a1f] font-medium font-mono tracking-widest">ECD-{caseRef}</span>
               </div>
               <div className="flex justify-between">
                 <span>AUTHORITY</span>
@@ -155,7 +191,7 @@ export const HomePage: React.FC<HomePageProps> = ({
               </div>
               <div className="flex justify-between">
                 <span>PROTOCOL</span>
-                <span className="text-[#1f2a1f] font-medium">PROTOCOL-1 // GRID-VERIFIED</span>
+                <span className="text-[#1f2a1f] font-medium">{IDENTITY.auditProtocol} // GRID-VERIFIED</span>
               </div>
               <div className="flex justify-between border-t border-[#e0d6bb] pt-1.5">
                 <span>ALL VALUES</span>
@@ -187,7 +223,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                 ))}
               </div>
               <p className="text-[8px] font-mono text-[#7c8b7e] text-center mt-0.5 tracking-widest">
-                GRID-VERIFIED // ECOCIDE CENTRAL MAINFRAME
+                GRID-VERIFIED // ECOCIDE CENTRAL ARCHIVE
               </p>
             </div>
           </div>
@@ -198,12 +234,12 @@ export const HomePage: React.FC<HomePageProps> = ({
       <footer className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 border-t border-gray-900/60">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] font-mono text-gray-500">
           <div className="flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span>MEDIAPIPE 478 3D LANDMARK ENGINE ONLINE</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-lime-400 animate-pulse" />
+            <span>OBJECT AUDIT ENGINE ONLINE // {IDENTITY.entityName.toUpperCase()}</span>
           </div>
           <div className="flex items-center gap-4">
-            <span>DETERMINISTIC POPULATION BUCKETING: ACTIVE</span>
-            <span className="text-cyan-600">PROTOCOL-1</span>
+            <span>DETERMINISTIC COMPLIANCE MATH: ACTIVE</span>
+            <span className="text-lime-700">{IDENTITY.auditProtocol}</span>
           </div>
           <div className="flex items-center gap-4 text-gray-600">
             <span>{IDENTITY.backronym}</span>

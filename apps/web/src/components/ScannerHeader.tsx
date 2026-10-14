@@ -1,5 +1,5 @@
 import React from 'react';
-import { Volume2, VolumeX, Globe } from 'lucide-react';
+import { Volume2, VolumeX, Globe, Bug, Wallet } from 'lucide-react';
 import { IDENTITY } from '@ecocide/lore';
 
 interface ScannerHeaderProps {
@@ -19,9 +19,12 @@ export const ScannerHeader: React.FC<ScannerHeaderProps> = ({
   isMuted,
   onToggleMute,
   onNavigateHome,
+  onGoVault,
+  onOpenDebug,
+  IS_DEV,
   currentStep = 1,
-  totalSteps = 5,
-  stepLabel = 'DOMESTIC AUDIT // STEP 01',
+  totalSteps = 2,
+  stepLabel = 'CAPTURE EVIDENCE',
   onSkip,
 }) => {
   return (
@@ -40,7 +43,7 @@ export const ScannerHeader: React.FC<ScannerHeaderProps> = ({
           <div>
             <h1 className="text-xl sm:text-2xl font-bold font-mono text-lime-400 tracking-wider flex items-center gap-2 whitespace-nowrap">
               {IDENTITY.appName}
-              <span className="text-xs text-gray-500 font-normal">v0.1</span>
+              <span className="text-xs text-gray-500 font-normal">v{IDENTITY.appVersion}</span>
             </h1>
             <p className="text-[11px] font-mono text-gray-400 tracking-widest uppercase whitespace-nowrap">
               {IDENTITY.tagline.toUpperCase()}
@@ -48,8 +51,31 @@ export const ScannerHeader: React.FC<ScannerHeaderProps> = ({
           </div>
         </div>
 
-        {/* Right: Audio Toggle */}
+        {/* Right: actions */}
         <div className="flex items-center gap-2 ml-auto flex-shrink-0">
+          {IS_DEV && onOpenDebug && (
+            <button
+              type="button"
+              onClick={onOpenDebug}
+              className="text-xs font-mono text-amber-400 hover:text-amber-300 border border-amber-500/50 hover:border-amber-400 bg-amber-950/60 hover:bg-amber-900/60 px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="Open Development Audit Bench (/debug)"
+            >
+              <Bug className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden md:inline">[DEV]</span>
+              <span>DEBUG</span>
+            </button>
+          )}
+          {onGoVault && (
+            <button
+              type="button"
+              onClick={onGoVault}
+              className="text-xs font-mono text-lime-400 hover:text-lime-300 border border-lime-500/50 hover:border-lime-400 bg-lime-950/40 hover:bg-lime-900/40 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
+              title="Open your Asset Vault (/vault)"
+            >
+              <Wallet className="w-3.5 h-3.5" />
+              <span>VAULT</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={onToggleMute}
@@ -74,7 +100,7 @@ export const ScannerHeader: React.FC<ScannerHeaderProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div className="flex items-center gap-3 flex-wrap">
             <span className="px-2.5 py-1 text-[10px] font-mono text-lime-400 border border-lime-500/40 rounded bg-lime-500/10">
-              DOMESTIC AUDIT // STEP 01
+              DOMESTIC AUDIT // STEP {String(currentStep).padStart(2, '0')} — {stepLabel}
             </span>
             <div className="flex items-center gap-1">
               {Array.from({ length: totalSteps }, (_, i) => {
@@ -105,7 +131,7 @@ export const ScannerHeader: React.FC<ScannerHeaderProps> = ({
               onClick={onSkip}
               className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-mono text-gray-400 hover:text-lime-400 border border-gray-700 hover:border-lime-500/50 rounded-lg bg-gray-900/50 transition-colors cursor-pointer"
             >
-              <span>SKIP</span>
+              <span>SKIP CAMERA</span>
             </button>
           )}
         </div>

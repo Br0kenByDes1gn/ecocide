@@ -108,11 +108,12 @@ export const INVENTORY_JSON_SCHEMA = {
 /**
  * PASS 1 — household inventory prompt. The server sends the photograph plus
  * this text and parses the JSON against INVENTORY_JSON_SCHEMA.
+ * `roomHint` is the optional audit-area chip from the scanner (e.g. "fridge").
  */
-export function buildInventoryPrompt(): string {
+export function buildInventoryPrompt(roomHint?: string | null): string {
   return `
 You are the ${ENTITY}. The attached photograph is EVIDENCE of a household under audit. Your only task: catalog the objects.
-
+${roomHint ? `\nAUDITOR HINT: the household has filed this area as "${roomHint}". Verify against the evidence; the photograph remains the authority.\n` : ''}
 STRICT RULES:
 - Audit OBJECTS ONLY. The subject of the audit is the household and its possessions. NEVER mention, describe, rate or count people, pets, faces or bodies. If a person is visible, disregard them entirely.
 - NEVER joke about real environmental disasters or about people's income or living circumstances. The charge is always the household's excess.
