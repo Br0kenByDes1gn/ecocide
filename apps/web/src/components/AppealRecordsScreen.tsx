@@ -89,7 +89,7 @@ export const AppealRecordsScreen: React.FC<AppealRecordsScreenProps> = ({
 
   if (!appeals) {
     return (
-      <div className="w-full max-w-3xl mx-auto bg-[#0f121d] rounded-2xl border border-gray-800 p-10 flex flex-col items-center gap-4 shadow-xl">
+      <div className="w-full max-w-3xl mx-auto bg-[#121a14] rounded-2xl border border-gray-800 p-10 flex flex-col items-center gap-4 shadow-xl">
         <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
         <div className="font-mono text-xs text-gray-300 tracking-widest animate-pulse">
           RETRIEVING APPEAL RECORDS...
@@ -100,13 +100,13 @@ export const AppealRecordsScreen: React.FC<AppealRecordsScreenProps> = ({
 
   if (!latest) {
     return (
-      <div className="w-full max-w-3xl mx-auto bg-[#0f121d] rounded-2xl border border-gray-800 p-10 text-center shadow-xl space-y-4">
+      <div className="w-full max-w-3xl mx-auto bg-[#121a14] rounded-2xl border border-gray-800 p-10 text-center shadow-xl space-y-4">
         <Gavel className="w-8 h-8 text-purple-400 mx-auto" />
         <div className="font-mono text-sm text-gray-300">NO APPEALS HAVE BEEN FILED FOR THIS CITIZEN.</div>
         <button
           type="button"
           onClick={onNewAppeal}
-          className="px-6 py-3 bg-purple-600 hover:bg-purple-500 text-white font-black rounded-xl font-mono text-sm tracking-widest uppercase cursor-pointer shadow-lg"
+          className="px-6 py-3 bg-purple-600 hover:bg-purple-500 text-black font-black rounded-xl font-mono text-sm tracking-widest uppercase cursor-pointer shadow-lg"
         >
           FILE FIRST APPEAL
         </button>
@@ -192,7 +192,7 @@ export const AppealRecordsScreen: React.FC<AppealRecordsScreenProps> = ({
               <button
                 type="button"
                 onClick={onNewAppeal}
-                className="flex-1 min-w-[180px] px-6 py-4 bg-purple-600 hover:bg-purple-500 text-white font-black rounded-xl font-mono text-sm tracking-widest uppercase flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg"
+                className="flex-1 min-w-[180px] px-6 py-4 bg-purple-600 hover:bg-purple-500 text-black font-black rounded-xl font-mono text-sm tracking-widest uppercase flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg"
               >
                 <Gavel className="w-5 h-5" /> NEW APPEAL
               </button>
@@ -210,7 +210,7 @@ export const AppealRecordsScreen: React.FC<AppealRecordsScreenProps> = ({
 
       {/* Browsable history */}
       {history.length > 0 && (
-        <div className="bg-[#0f121d] rounded-2xl border border-gray-800 shadow-xl overflow-hidden">
+        <div className="bg-[#121a14] rounded-2xl border border-gray-800 shadow-xl overflow-hidden">
           <button
             type="button"
             onClick={() => setHistoryOpen((o) => !o)}

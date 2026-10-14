@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import {
   FACTIONS,
   FACTION_IDS,
-  dimensionTitle,
+  householdTitle,
   factionIndex,
   generateSimulatedInventory,
   getFaction,
@@ -60,13 +60,22 @@ describe('tier taxonomy (art §7)', () => {
     }
   });
 
-  it('dimension titles are deterministic and bounded by ratio severity', () => {
-    expect(dimensionTitle('c', 20)).toBe('Embodied Carbon Baron');
-    expect(dimensionTitle('c', 75)).toBe('Carbon-Curious');
-    expect(dimensionTitle('e', 10)).toBe('Phantom Load Keeper');
-    expect(dimensionTitle('m', 90)).toBe('Plastic-Curious');
-    // unknown dimension falls back to the material bank
-    expect(dimensionTitle('x' as never, 30)).toBe('Petroleum Hoarder');
+  it('household titles are deterministic and driven by material / dimension / ratio', () => {
+    // Plastic material or shedding dominates
+    expect(householdTitle({ ratio: 20, dominant: 'm', dominantMaterial: 'plastic' })).toBe('Petroleum Hoarder');
+    expect(householdTitle({ ratio: 75, dominant: 'p', dominantMaterial: 'glass' })).toBe('Petroleum Hoarder');
+    // Textiles / electronics dominate by material family
+    expect(householdTitle({ ratio: 30, dominant: 'm', dominantMaterial: 'textile' })).toBe('Fast-Fashion Collector');
+    expect(householdTitle({ ratio: 30, dominant: 'e', dominantMaterial: 'electronic' })).toBe('Gadget Graveyard Keeper');
+    // Dimension drivers
+    expect(householdTitle({ ratio: 30, dominant: 'l', dominantMaterial: 'paper' })).toBe('Disposable Enthusiast');
+    expect(householdTitle({ ratio: 30, dominant: 'e', dominantMaterial: 'metal' })).toBe('Watt Wizard');
+    // Compliant households with no worse driver
+    expect(householdTitle({ ratio: 91, dominant: 'm', dominantMaterial: 'organic' })).toBe('Model Citizen (grudgingly)');
+    // Dimension fallbacks below the compliant threshold
+    expect(householdTitle({ ratio: 30, dominant: 'c', dominantMaterial: 'glass' })).toBe('Embodied Carbon Baron');
+    expect(householdTitle({ ratio: 30, dominant: 'r', dominantMaterial: 'metal' })).toBe('Bin Protocol Violator');
+    expect(householdTitle({ ratio: 30, dominant: null, dominantMaterial: null })).toBe('Model Citizen (grudgingly)');
   });
 });
 

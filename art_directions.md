@@ -554,3 +554,136 @@ Before adding any element, ask:
 - Does this element strengthen the ECOCIDE identity without adding clutter?
 
 **If an element is not useful, remove it.** The goal is not to make the page empty; it is to make every remaining element feel intentional.
+
+## 17. Website Layout & Paper Interface Components
+
+### 17.1 Core Layout Direction
+
+The website should resemble a government environmental audit terminal with physical case-file paperwork layered into the digital interface.
+
+Use two complementary visual layers:
+
+- **System layer:** Near-black moss backgrounds, toxic-lime highlights, monospace typography, thin borders, and restrained terminal effects.
+- **Paper layer:** Warm off-white document surfaces, dark typewriter text, subtle paper shadows, and matte rubber stamps.
+
+The paper layer should contrast with the dark system interface. Do not apply paper styling to every card or section.
+
+### 17.2 Paper Dossier Panels
+
+Use paper-style panels for important information that should feel like an official document, including:
+
+- Household audit instructions.
+- Compliance reports and case dossiers.
+- Plain-language explanations of verdicts.
+- Downloadable or shareable audit summaries.
+
+**Visual specifications:**
+
+- Background: Form paper `#f1ead6`.
+- Main text: Typewriter ink `#1f2a1f`.
+- Paper edges and secondary surfaces: `#e0d6bb`.
+- Supporting accents: Compost brown `#8b5a2b`.
+- Shadow: `0 4px 12px rgba(0,0,0,0.35)`.
+- Typography: Typewriter or slab-serif for document content; monospace for codes, metadata, and labels.
+
+Paper panels should feel like restrained physical documents, not glossy cards.
+
+Use subtle texture, layered paper edges, or a small piece of tape only where they improve the case-file appearance. Avoid excessive torn edges, overlapping sheets, or decorative clutter.
+
+### 17.3 ### Compliance Tier Stamps
+
+Each household compliance tier must use its designated UI theme color, stamp ink color, and ambient glow. The stamp ink is a matte, physical-document color; it must not be replaced by the neon UI theme color.
+
+| Tier | Score | Status | UI Theme Hex | Stamp Ink Hex | Glow RGBA |
+|---|---|---|---|---|---|
+| **Carbon Neutral Legend** | 90–100 | Compliant | `#84cc16` lime | `#2f7d3a` stamp green | `rgba(132,204,22,0.4)` |
+| **Marginally Acceptable Human** | 75–89 | Compliant | `#22c55e` green | `#2f7d3a` stamp green | `rgba(34,197,94,0.4)` |
+| **Statistically Average Polluter** | 60–74 | Compliant | `#facc15` yellow | `#b45309` stamp amber | `rgba(250,204,21,0.4)` |
+| **High-Impact Habitual Offender** | 40–59 | Borderline | `#f59e0b` amber | `#b45309` stamp amber | `rgba(245,158,11,0.4)` |
+| **Power Grid Liability** | 20–39 | Non-Compliant | `#f97316` orange | `#c2322b` stamp red | `rgba(249,115,22,0.4)` |
+| **Environmental Disaster Zone** | 0–19 | Non-Compliant | `#ef4444` red | `#c2322b` stamp red | `rgba(239,68,68,0.6)` |
+
+#### Stamp Implementation Rules
+
+- Use the **Stamp Ink Hex** for the stamp's text and border on paper-style panels.
+- Use the **UI Theme Hex** for dark-system-layer tier indicators, badges, meter fills, and tier-colored accents.
+- Use the **Glow RGBA** for the tier's ambient glow on system-layer elements only.
+- Paper stamps must remain matte and must not have neon glow effects.
+- Every stamp must display its full status label, such as `EXEMPLARY`, `APPROVED`, `APPROVED (GRUDGINGLY)`, `PENDING REVIEW`, `DENIED`, or `FINAL NOTICE`, as appropriate to the tier.
+- Never use color as the only indicator of compliance status.
+- The same tier must use consistent colors across the dossier, compliance meter, tier badge, and share card.
+
+**Stamp styling:**
+
+- Use uppercase text with a stencil, typewriter, or official document-style face.
+- Use a thin or moderately thick border matching the stamp ink.
+- Slightly imperfect edges or a subtle ink texture are acceptable.
+- Allow a small rotation when it improves the physical-document effect.
+- Keep stamps compact and legible.
+- Do not add neon glow to paper stamps.
+- Pair every status stamp with readable text; never communicate status using color alone.
+
+Stamps should appear only where a verdict, approval, warning, or case status needs emphasis. Do not decorate every panel with a stamp.
+
+### 17.4 Case-File Details
+
+Use a small selection of bureaucratic details to establish the ECOCIDE identity:
+
+- Case numbers and file references.
+- Short classification codes.
+- Compact barcode strips.
+- Small `GRID-VERIFIED` or `CASE FILE` labels.
+- Thin document dividers.
+- Redacted lines where contextually appropriate.
+- Small official seals or recycling symbols.
+
+Keep these elements secondary to the actual information. They must not compete with the page heading, compliance score, or primary action.
+
+Do not place all motifs on the same screen. Select only the details that serve the screen's purpose.
+
+### 17.5 Homepage Composition
+
+The homepage should follow a restrained editorial split layout.
+
+**Header**
+- ECOCIDE wordmark and a simple globe or inspection emblem.
+- A short subtitle or tagline.
+- Essential navigation and accessibility controls only.
+
+**Main content**
+- Left side: A prominent headline, a short explanation, and one primary `BEGIN AUDIT` button.
+- Right side: One prominent paper dossier panel with concise audit instructions and a small number of numbered steps.
+- Optional supporting artwork should remain subordinate to the headline and primary action.
+
+**Footer**
+- Small, muted legal and informational links.
+- Minimal metadata or classification text where useful.
+
+Use the existing dark system background across the page. The paper panel should provide the main contrasting surface.
+
+On smaller screens, stack the content vertically and keep the primary action easy to find.
+
+### 17.6 Buttons and Interactive Elements
+
+- Primary action: Toxic Lime `#b4ff39` background with dark text.
+- Appeal or warning action: Verdict Amber `#ffb703` with dark text.
+- Success indicators: Pledge Green `#22c55e`.
+- Secondary information: Ledger Teal `#2dd4bf`.
+- Errors: Alert Red `#ef4444`.
+- Critical alerts: Critical Crimson `#ff0055`.
+
+Use restrained borders and glow effects on interactive system elements. Paper-layer buttons and stamps should retain a matte, printed appearance.
+
+Keep one visually dominant action per screen. Secondary actions must be quieter.
+
+### 17.7 Implementation Rules
+
+- Reuse the existing theme variables and shared components wherever possible.
+- Keep the color palette consistent with Section 3.
+- Apply paper styling only to components that represent documents or official records.
+- Do not turn every panel into a paper card.
+- Do not introduce new decorative graphics unless they support the intended user journey.
+- Preserve existing application functionality, routes, and accessibility behavior when changing the visual design.
+- Prefer reusable components for paper panels and stamps so their styling remains consistent across the application.
+
+The objective is a clear contrast between a cold digital authority and its physical-looking paperwork. Every stamp, document, and decorative detail must reinforce that identity without making the interface crowded.

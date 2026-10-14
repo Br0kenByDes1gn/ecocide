@@ -88,6 +88,79 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
 }
 
+/* Paper layer alias used by the landing dossier panel (art §17.2) */
+.paper-layer {
+  background-color: #f1ead6;
+  color: #1f2a1f;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+/* ---------------------------------------------------------------------------
+   Tier CSS variables + stamp inks (art §17.3)
+   Paper stamps use the matte stamp-ink set and never glow.
+   --------------------------------------------------------------------------- */
+.tier-legend {
+  --tier-color: #84cc16;
+  --tier-glow: rgba(132, 204, 22, 0.4);
+}
+.tier-acceptable {
+  --tier-color: #22c55e;
+  --tier-glow: rgba(34, 197, 94, 0.4);
+}
+.tier-average {
+  --tier-color: #facc15;
+  --tier-glow: rgba(250, 204, 21, 0.4);
+}
+.tier-offender {
+  --tier-color: #f59e0b;
+  --tier-glow: rgba(245, 158, 11, 0.4);
+}
+.tier-grid {
+  --tier-color: #f97316;
+  --tier-glow: rgba(249, 115, 22, 0.4);
+}
+.tier-disaster {
+  --tier-color: #ef4444;
+  --tier-glow: rgba(239, 68, 68, 0.6);
+}
+.tier-glow {
+  box-shadow: 0 0 20px var(--tier-glow, rgba(180, 255, 57, 0.25));
+}
+.btn-glow-lime {
+  box-shadow: 0 0 30px rgba(180, 255, 57, 0.5);
+}
+.btn-glow-lime:hover {
+  box-shadow: 0 0 45px rgba(180, 255, 57, 0.8);
+}
+
+/* Rubber stamps on the paper layer — matte ink, no glow (art §17.3) */
+.stamp-approved,
+.stamp-exemplary {
+  border: 2px solid #2f7d3a;
+  color: #2f7d3a;
+  background-color: rgba(47, 125, 58, 0.06);
+}
+.stamp-denied,
+.stamp-final-notice {
+  border: 2px solid #c2322b;
+  color: #c2322b;
+  background-color: rgba(194, 50, 43, 0.06);
+}
+.stamp-pending,
+.stamp-grudging {
+  border: 2px solid #b45309;
+  color: #b45309;
+  background-color: rgba(180, 83, 9, 0.06);
+}
+.stamp-approved,
+.stamp-exemplary,
+.stamp-denied,
+.stamp-final-notice,
+.stamp-pending,
+.stamp-grudging {
+  box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.12);
+}
+
 @keyframes pulse-slow {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }

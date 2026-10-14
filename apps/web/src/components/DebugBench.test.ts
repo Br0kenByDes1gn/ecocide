@@ -48,7 +48,7 @@ describe('DebugBench Configuration & Presets', () => {
       // Inventory consistency.
       expect(payload.audit.items.length).toBeGreaterThan(0);
       expect(payload.audit.hardFails).toBe(
-        payload.audit.items.filter((i) => (i.si ?? 0) < 40).length
+        payload.audit.items.filter((i) => (i.overrides?.length ?? 0) > 0).length
       );
       expect(payload.audit.topOffenderLabel).not.toBeNull();
 

@@ -209,7 +209,7 @@ export async function downloadHouseholdDossierPng(source: HouseholdDossierPngSou
   ctx.fillText(`AUDIT INVENTORY // ${audit.items.length} ITEMS // ${audit.hardFails} HARD FAILS`, statsX, y + 14);
   y += 24;
   itemLines.slice(0, 8).forEach((line) => {
-    ctx.fillStyle = line.includes('NON-COMPLIANT') ? '#ef4444' : line.includes('BORDERLINE') ? '#facc15' : '#a9b8aa';
+    ctx.fillStyle = line.includes('NON-COMPLIANT') ? '#ef4444' : line.includes('SPECIAL HANDLING') ? '#facc15' : line.includes('BORDERLINE') ? '#fbbf24' : '#a9b8aa';
     ctx.font = 'bold 11px monospace';
     ctx.fillText(line, statsX, y);
     y += 20;

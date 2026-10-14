@@ -15,9 +15,10 @@ A photo of a room (upload or camera) goes through a **two-pass AI pipeline**:
    compliance dimensions (material, recyclability, decomposition, embodied
    carbon, lifespan, toxicity, pollution shedding, operating energy).
 2. **Compliance math** (`packages/compliance`, 100% deterministic): per-item
-   Harm Score → Sustainability Index → status; count-weighted roll-up →
-   **Household Sustainability Index** → tier (via the lore taxonomy bands
-   `90/75/60/40/20/0`). The model never touches the math.
+   Harm Score → Sustainability Index → status; Step-5 override rules
+   (single-use plastic, hazardous → Special Handling, landfill traps); the
+   size-weighted roll-up → **Household Sustainability Index** → tier (via the
+   lore taxonomy bands `90/75/60/40/20/0`). The model never touches the math.
 3. **Pass 2 — Classification** (server, text-only Gemini): given the tier +
    items summary, the model writes the funny bureaucratic verdict paragraphs
    and 3–5 **suggestions** bound to detected items. Those suggestions power
@@ -81,9 +82,11 @@ scripts/              # scan-cost audit
 - `dimensions.ts` — 8 dimension keys `m r d c l t p e`, weights summing to 100.
 - `math.ts` — `harmScore` (weighted mean over applicable dims; denominator
   rebalances, e.g. 95 without operating energy), `siFromHarm` (100(5−H)/4),
-  `itemStatus` (≥60 / ≥40 / <40), `householdRatio` (count-weighted mean,
-  integer), `hardFailCount`, `topOffender`, `dominantDimension`,
-  `dedupeItems`, `clampRating`, `sanitizeCount`.
+  `baseItemStatus` + `itemStatus` (≥60 / ≥40 / <40, extended by Step-5
+  overrides), `evaluateOverrides` (single-use plastic / hazardous / landfill
+  trap), `householdRatio` (quantity × size-factor weighted mean, integer),
+  `hardFailCount` (override hits), `topOffender`, `dominantDimension`,
+  `dominantMaterialFamily`, `dedupeItems`, `clampRating`, `sanitizeCount`.
 
 ### packages/lore
 
@@ -91,11 +94,12 @@ scripts/              # scan-cost audit
   Consumption'`, taglines, backronym, `auditProtocol: 'PROTOCOL-9'`.
 - `factions.ts` — the six tiers (art §7) with `minScore` bands (90/75/60/40/
   20/0), colors, stamp text + ink, verdict lines, lore, prompt blocks,
-  badge art prompts, and the deterministic dimension-title bank
-  (`dimensionTitle(dominant, ratio)`); `getFactionFromScore`.
-- `prompts.ts` — `buildInventoryPrompt` + `INVENTORY_JSON_SCHEMA` (Pass 1)
-  and `buildVerdictPrompt` + `VERDICT_JSON_SCHEMA` (Pass 2; JSON contract
-  keeps `caste`/`biocarbon_ratio` keys), plus appeal/re-arbitration builders.
+  badge art prompts, and the deterministic title driver table
+  (`HOUSEHOLD_TITLES` + `householdTitle`); `getFactionFromScore`.
+- `prompts.ts` — `buildInventoryPrompt` + `INVENTORY_JSON_SCHEMA` (Pass 1:
+  objects, material family, size, ratings, boxes, optional room hint) and
+  `buildVerdictPrompt` + `VERDICT_JSON_SCHEMA` (Pass 2; JSON contract keeps
+  `caste`/`biocarbon_ratio` keys), plus appeal/re-arbitration builders.
 - `simulate.ts` — deterministic offline content: `ITEM_ARCHETYPES` catalog,
   `generateSimulatedInventory(seed)`, `SIMULATED_ROOMS` + `buildSimulatedRoom`
   (one curated exhibit room per tier), verdict copy, suggestions, appeal
@@ -123,13 +127,18 @@ scripts/              # scan-cost audit
 
 - SPA flow in `src/App.tsx` (`/`, `/scan`, `/citizen/:id`, `/arbitration/:id`,
   `/claim/:id`, `/appeal/:id`, `/appeals/:id`, `/vault`, dev-only `/debug`).
-- `src/components/ObjectScanner.tsx` — capture a room (camera/upload); no
+- `src/components/HomePage.tsx` — the landing screen (terminal + paper
+  dossier panel); the global app header hides on the scan screen.
+- `src/components/ObjectScanner.tsx` (+ `ScannerHeader`, `UploadPanel`,
+  `AnalysisPanel`) — capture a room (camera/upload/drag-drop) with the
+  audit-area category chips, then the in-flight analysis cinematic; no
   client-side detection; "SCAN OBJECTS, NOT PEOPLE".
 - `src/lib/audit-lenses.ts` — the four audit lenses (art §9): neon-outline,
   evidence-photo, inspection-hud, carbon-heat — canvas renders over the
   evidence photo + item boxes.
 - `src/components/HouseholdAuditCard.tsx` — the dossier card: lens view, tier
-  stamp, title, index + waste gauge, 2×2 stats, per-item cards, barcode.
+  stamp, title, index + waste gauge, 2×2 stats, per-item cards (with Step-5
+  override flags), barcode.
 - Copy: all world strings live in the lore pack; inline UI strings are
   generic chrome, not story.
 
@@ -181,5 +190,7 @@ rg -i -n "carbon minded|aipocalypse|neon grid|mainframe|biocarbon(?!_ratio)|redu
 - [`README.md`](README.md) — user-facing overview + quick start.
 - `art_directions.md` — visual style bible (§-numbered; the source of truth
   for colors, tiers, stamps, lenses, motion, copy rules).
-- `compliance_formula.md` — the item-level formula implemented verbatim by
-  `packages/compliance`.
+- `compliance_formula.md` — the base item-level formula implemented verbatim
+  by `packages/compliance`.
+- `readme/sustainability_scoring_framework.md` — the extended framework
+  (Step-5 overrides, size-weighted roll-up, title drivers, modifiers).

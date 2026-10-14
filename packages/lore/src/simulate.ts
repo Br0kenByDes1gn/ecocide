@@ -5,7 +5,7 @@
 // server-side, and tier-flavored verdict copy + suggestions from here.
 // ---------------------------------------------------------------------------
 
-import { FACTION_IDS, dimensionTitle, factionIndex, getFaction, type HarmDimensionKey } from './factions.js';
+import { FACTION_IDS, householdTitle, factionIndex, getFaction, type HarmDimensionKey, type MaterialFamilyKey } from './factions.js';
 import { IDENTITY } from './identity.js';
 import type { FactionId } from './factions.js';
 
@@ -17,6 +17,10 @@ export interface SimItem {
   ratings: Record<HarmDimensionKey, number | null>;
   justification: string;
   bounds?: { x1: number; y1: number; x2: number; y2: number };
+  /** Material family (drives overrides + titles). */
+  materialFamily: MaterialFamilyKey;
+  /** Relative size (drives the size-weighted roll-up). */
+  size: 'small' | 'medium' | 'large';
 }
 
 export interface SimSuggestion {
@@ -48,8 +52,9 @@ export const CATEGORIES: readonly string[] = [
 
 /**
  * The archetype catalog: objects the Bureau has met before, with their
- * standing ratings (1 = exemplary, 5 = severe). Ratings are fixed so the same
- * evidence yields the same audit; only counts vary with the seed.
+ * standing ratings (1 = exemplary, 5 = severe), material family and size.
+ * Ratings are fixed so the same evidence yields the same audit; only counts
+ * vary with the seed.
  */
 export const ITEM_ARCHETYPES: ReadonlyArray<{
   label: string;
@@ -57,37 +62,39 @@ export const ITEM_ARCHETYPES: ReadonlyArray<{
   countMax: number;
   ratings: Record<HarmDimensionKey, number | null>;
   justification: string;
+  materialFamily: MaterialFamilyKey;
+  size: 'small' | 'medium' | 'large';
 }> = [
-  { label: 'plastic bottle', category: 'packaging', countMax: 6, ratings: R({ m: 5, r: 1, d: 5, c: 4, l: 5, t: 2, p: 4 }), justification: 'The bin notes the centuries ahead of it and the smell it plans to keep.' },
-  { label: 'cardboard delivery box', category: 'packaging', countMax: 8, ratings: R({ m: 3, r: 4, d: 2, c: 3, l: 4, t: 1, p: 1 }), justification: 'Recyclable in theory; stacked in practice.' },
-  { label: 'reusable glass jar', category: 'food', countMax: 5, ratings: R({ m: 1, r: 3, d: 4, c: 2, l: 1, t: 1, p: 1 }), justification: 'A credit to its countertop.' },
-  { label: 'aluminum can', category: 'packaging', countMax: 8, ratings: R({ m: 2, r: 5, d: 4, c: 3, l: 3, t: 1, p: 1 }), justification: 'Recyclable, if it ever finds the bin.' },
-  { label: 'plastic grocery bag', category: 'packaging', countMax: 12, ratings: R({ m: 5, r: 2, d: 5, c: 3, l: 5, t: 2, p: 5 }), justification: 'A drawer of loose ghosts the Bureau has counted.' },
-  { label: 'coffee pod', category: 'packaging', countMax: 20, ratings: R({ m: 5, r: 1, d: 5, c: 3, l: 5, t: 2, p: 3 }), justification: 'One espresso’s lifespan; one landfill’s retirement plan.' },
-  { label: 'standby power strip', category: 'electronics', countMax: 4, ratings: R({ m: 4, r: 2, d: 5, c: 4, l: 3, t: 2, p: 1, e: 5 }), justification: 'It consumes power merely by existing, and it exists a lot.' },
-  { label: 'led bulb', category: 'electronics', countMax: 6, ratings: R({ m: 3, r: 3, d: 5, c: 3, l: 2, t: 1, p: 1, e: 3 }), justification: 'Efficient, but the Bureau counts its sockets.' },
-  { label: 'laptop', category: 'electronics', countMax: 2, ratings: R({ m: 4, r: 3, d: 5, c: 4, l: 3, t: 2, p: 1, e: 4 }), justification: 'A necessary instrument of the modern desk; noted.' },
-  { label: 'phone charger brick', category: 'electronics', countMax: 6, ratings: R({ m: 4, r: 1, d: 5, c: 4, l: 3, t: 1, p: 1, e: 2 }), justification: 'Several of these remain plugged in for no reason the Bureau can find.' },
-  { label: 'wool sweater', category: 'clothing', countMax: 5, ratings: R({ m: 1, r: 3, d: 3, c: 2, l: 2, t: 1, p: 2 }), justification: 'Warm, natural, and only mildly sheep-adjacent.' },
-  { label: 'polyester shirt', category: 'clothing', countMax: 6, ratings: R({ m: 4, r: 2, d: 4, c: 3, l: 4, t: 2, p: 4 }), justification: 'Every wash sheds petition signatures to the ocean.' },
-  { label: 'denim jeans', category: 'clothing', countMax: 4, ratings: R({ m: 2, r: 3, d: 4, c: 3, l: 3, t: 1, p: 3 }), justification: 'Sturdy, honest, occasionally gravely worn.' },
-  { label: 'wooden chair', category: 'furniture', countMax: 3, ratings: R({ m: 1, r: 1, d: 4, c: 2, l: 1, t: 1, p: 1 }), justification: 'An heirloom; the Bureau approves of heirlooms.' },
-  { label: 'particleboard shelf', category: 'furniture', countMax: 3, ratings: R({ m: 3, r: 2, d: 4, c: 3, l: 3, t: 2, p: 2 }), justification: 'Assembled with an Allen key and regrets.' },
-  { label: 'vacuum cleaner', category: 'appliance', countMax: 2, ratings: R({ m: 4, r: 2, d: 5, c: 4, l: 3, t: 2, p: 1, e: 5 }), justification: 'Powerful, necessary, and personally acquainted with the grid.' },
-  { label: 'aging refrigerator', category: 'appliance', countMax: 1, ratings: R({ m: 4, r: 2, d: 5, c: 5, l: 4, t: 2, p: 1, e: 5 }), justification: 'Born before the Bureau’s energy standards; hums in defiance.' },
-  { label: 'microwave', category: 'appliance', countMax: 2, ratings: R({ m: 4, r: 2, d: 5, c: 4, l: 3, t: 2, p: 1, e: 4 }), justification: 'Heats meals; drains opinions.' },
-  { label: 'fabric softener jug', category: 'cleaning', countMax: 3, ratings: R({ m: 4, r: 1, d: 5, c: 4, l: 3, t: 2, p: 3 }), justification: 'Scent has no lasting value; the jug disagrees.' },
-  { label: 'soap bar', category: 'hygiene', countMax: 4, ratings: R({ m: 1, r: 2, d: 1, c: 1, l: 3, t: 1, p: 2 }), justification: 'Dissolves honorably.' },
-  { label: 'plastic takeaway container', category: 'packaging', countMax: 8, ratings: R({ m: 5, r: 2, d: 5, c: 3, l: 4, t: 2, p: 4 }), justification: 'Reused optimistically; retired reluctantly.' },
-  { label: 'kitchen compost bin', category: 'waste', countMax: 1, ratings: R({ m: 1, r: 4, d: 1, c: 1, l: 1, t: 1, p: 1 }), justification: 'The Bureau’s favorite appliance.' },
-  { label: 'cereal box', category: 'packaging', countMax: 4, ratings: R({ m: 3, r: 3, d: 4, c: 3, l: 4, t: 2, p: 3 }), justification: 'Cardboard outside, plastic sleeve inside. The sleeve is the problem.' },
-  { label: 'copper pot set', category: 'decor', countMax: 2, ratings: R({ m: 2, r: 4, d: 5, c: 3, l: 1, t: 1, p: 1 }), justification: 'Culinarily immortal.' },
-  { label: 'paper plates', category: 'food', countMax: 10, ratings: R({ m: 3, r: 3, d: 2, c: 2, l: 5, t: 1, p: 2 }), justification: 'Convenience, filed as an infraction.' },
-  { label: 'reusable tote bag', category: 'packaging', countMax: 6, ratings: R({ m: 2, r: 2, d: 3, c: 2, l: 2, t: 1, p: 2 }), justification: 'Owned, maybe used, possibly in another room.' },
-  { label: 'disposable razor', category: 'hygiene', countMax: 6, ratings: R({ m: 4, r: 1, d: 5, c: 3, l: 4, t: 1, p: 3 }), justification: 'A lifetime supply of small plastic departures.' },
-  { label: 'reusable cloth rags', category: 'hygiene', countMax: 24, ratings: R({ m: 1, r: 1, d: 1, c: 1, l: 2, t: 1, p: 1 }), justification: 'Hand-sewn, endlessly reborn; the Bureau keeps a roll in its own lobby.' },
-  { label: 'seedling shelf', category: 'decor', countMax: 20, ratings: R({ m: 1, r: 2, d: 1, c: 1, l: 2, t: 1, p: 1 }), justification: 'Photosynthesis on record; the Bureau finds it refreshing.' },
-  { label: 'contaminated waste sack', category: 'waste', countMax: 40, ratings: R({ m: 5, r: 1, d: 5, c: 5, l: 5, t: 5, p: 5 }), justification: 'The Bureau prefers it sealed, tagged, and accounted for.' },
+  { label: 'plastic bottle', category: 'packaging', countMax: 6, ratings: R({ m: 5, r: 1, d: 5, c: 4, l: 5, t: 2, p: 4 }), justification: 'The bin notes the centuries ahead of it and the smell it plans to keep.', materialFamily: 'plastic', size: 'small' },
+  { label: 'cardboard delivery box', category: 'packaging', countMax: 8, ratings: R({ m: 3, r: 4, d: 2, c: 3, l: 4, t: 1, p: 1 }), justification: 'Recyclable in theory; stacked in practice.', materialFamily: 'paper', size: 'medium' },
+  { label: 'reusable glass jar', category: 'food', countMax: 5, ratings: R({ m: 1, r: 3, d: 4, c: 2, l: 1, t: 1, p: 1 }), justification: 'A credit to its countertop.', materialFamily: 'glass', size: 'small' },
+  { label: 'aluminum can', category: 'packaging', countMax: 8, ratings: R({ m: 2, r: 5, d: 4, c: 3, l: 3, t: 1, p: 1 }), justification: 'Recyclable, if it ever finds the bin.', materialFamily: 'metal', size: 'small' },
+  { label: 'plastic grocery bag', category: 'packaging', countMax: 12, ratings: R({ m: 5, r: 2, d: 5, c: 3, l: 5, t: 2, p: 5 }), justification: 'A drawer of loose ghosts the Bureau has counted.', materialFamily: 'plastic', size: 'small' },
+  { label: 'coffee pod', category: 'packaging', countMax: 20, ratings: R({ m: 5, r: 1, d: 5, c: 3, l: 5, t: 2, p: 3 }), justification: 'One espresso’s lifespan; one landfill’s retirement plan.', materialFamily: 'plastic', size: 'small' },
+  { label: 'standby power strip', category: 'electronics', countMax: 4, ratings: R({ m: 4, r: 2, d: 5, c: 4, l: 3, t: 2, p: 1, e: 5 }), justification: 'It consumes power merely by existing, and it exists a lot.', materialFamily: 'electronic', size: 'small' },
+  { label: 'led bulb', category: 'electronics', countMax: 6, ratings: R({ m: 3, r: 3, d: 5, c: 3, l: 2, t: 1, p: 1, e: 3 }), justification: 'Efficient, but the Bureau counts its sockets.', materialFamily: 'electronic', size: 'small' },
+  { label: 'laptop', category: 'electronics', countMax: 2, ratings: R({ m: 4, r: 3, d: 5, c: 4, l: 3, t: 2, p: 1, e: 4 }), justification: 'A necessary instrument of the modern desk; noted.', materialFamily: 'electronic', size: 'medium' },
+  { label: 'phone charger brick', category: 'electronics', countMax: 6, ratings: R({ m: 4, r: 1, d: 5, c: 4, l: 3, t: 1, p: 1, e: 2 }), justification: 'Several of these remain plugged in for no reason the Bureau can find.', materialFamily: 'electronic', size: 'small' },
+  { label: 'wool sweater', category: 'clothing', countMax: 5, ratings: R({ m: 1, r: 3, d: 3, c: 2, l: 2, t: 1, p: 2 }), justification: 'Warm, natural, and only mildly sheep-adjacent.', materialFamily: 'textile', size: 'small' },
+  { label: 'polyester shirt', category: 'clothing', countMax: 6, ratings: R({ m: 4, r: 2, d: 4, c: 3, l: 4, t: 2, p: 4 }), justification: 'Every wash sheds petition signatures to the ocean.', materialFamily: 'textile', size: 'small' },
+  { label: 'denim jeans', category: 'clothing', countMax: 4, ratings: R({ m: 2, r: 3, d: 4, c: 3, l: 3, t: 1, p: 3 }), justification: 'Sturdy, honest, occasionally gravely worn.', materialFamily: 'textile', size: 'medium' },
+  { label: 'wooden chair', category: 'furniture', countMax: 3, ratings: R({ m: 1, r: 1, d: 4, c: 2, l: 1, t: 1, p: 1 }), justification: 'An heirloom; the Bureau approves of heirlooms.', materialFamily: 'wood', size: 'medium' },
+  { label: 'particleboard shelf', category: 'furniture', countMax: 3, ratings: R({ m: 3, r: 2, d: 4, c: 3, l: 3, t: 2, p: 2 }), justification: 'Assembled with an Allen key and regrets.', materialFamily: 'wood', size: 'medium' },
+  { label: 'vacuum cleaner', category: 'appliance', countMax: 2, ratings: R({ m: 4, r: 2, d: 5, c: 4, l: 3, t: 2, p: 1, e: 5 }), justification: 'Powerful, necessary, and personally acquainted with the grid.', materialFamily: 'electronic', size: 'medium' },
+  { label: 'aging refrigerator', category: 'appliance', countMax: 1, ratings: R({ m: 4, r: 2, d: 5, c: 5, l: 4, t: 2, p: 1, e: 5 }), justification: 'Born before the Bureau’s energy standards; hums in defiance.', materialFamily: 'electronic', size: 'large' },
+  { label: 'microwave', category: 'appliance', countMax: 2, ratings: R({ m: 4, r: 2, d: 5, c: 4, l: 3, t: 2, p: 1, e: 4 }), justification: 'Heats meals; drains opinions.', materialFamily: 'electronic', size: 'medium' },
+  { label: 'fabric softener jug', category: 'cleaning', countMax: 3, ratings: R({ m: 4, r: 1, d: 5, c: 4, l: 3, t: 2, p: 3 }), justification: 'Scent has no lasting value; the jug disagrees.', materialFamily: 'chemical', size: 'small' },
+  { label: 'soap bar', category: 'hygiene', countMax: 4, ratings: R({ m: 1, r: 2, d: 1, c: 1, l: 3, t: 1, p: 2 }), justification: 'Dissolves honorably.', materialFamily: 'bio-based', size: 'small' },
+  { label: 'plastic takeaway container', category: 'packaging', countMax: 8, ratings: R({ m: 5, r: 2, d: 5, c: 3, l: 4, t: 2, p: 4 }), justification: 'Reused optimistically; retired reluctantly.', materialFamily: 'plastic', size: 'small' },
+  { label: 'kitchen compost bin', category: 'waste', countMax: 1, ratings: R({ m: 1, r: 4, d: 1, c: 1, l: 1, t: 1, p: 1 }), justification: 'The Bureau’s favorite appliance.', materialFamily: 'organic', size: 'medium' },
+  { label: 'cereal box', category: 'packaging', countMax: 4, ratings: R({ m: 3, r: 3, d: 4, c: 3, l: 4, t: 2, p: 3 }), justification: 'Cardboard outside, plastic sleeve inside. The sleeve is the problem.', materialFamily: 'paper', size: 'small' },
+  { label: 'copper pot set', category: 'decor', countMax: 2, ratings: R({ m: 2, r: 4, d: 5, c: 3, l: 1, t: 1, p: 1 }), justification: 'Culinarily immortal.', materialFamily: 'metal', size: 'small' },
+  { label: 'paper plates', category: 'food', countMax: 10, ratings: R({ m: 3, r: 3, d: 2, c: 2, l: 5, t: 1, p: 2 }), justification: 'Convenience, filed as an infraction.', materialFamily: 'paper', size: 'small' },
+  { label: 'reusable tote bag', category: 'packaging', countMax: 6, ratings: R({ m: 2, r: 2, d: 3, c: 2, l: 2, t: 1, p: 2 }), justification: 'Owned, maybe used, possibly in another room.', materialFamily: 'textile', size: 'medium' },
+  { label: 'disposable razor', category: 'hygiene', countMax: 6, ratings: R({ m: 4, r: 1, d: 5, c: 3, l: 4, t: 1, p: 3 }), justification: 'A lifetime supply of small plastic departures.', materialFamily: 'plastic', size: 'small' },
+  { label: 'reusable cloth rags', category: 'hygiene', countMax: 24, ratings: R({ m: 1, r: 1, d: 1, c: 1, l: 2, t: 1, p: 1 }), justification: 'Hand-sewn, endlessly reborn; the Bureau keeps a roll in its own lobby.', materialFamily: 'textile', size: 'small' },
+  { label: 'seedling shelf', category: 'decor', countMax: 20, ratings: R({ m: 1, r: 2, d: 1, c: 1, l: 2, t: 1, p: 1 }), justification: 'Photosynthesis on record; the Bureau finds it refreshing.', materialFamily: 'organic', size: 'medium' },
+  { label: 'contaminated waste sack', category: 'waste', countMax: 40, ratings: R({ m: 5, r: 1, d: 5, c: 5, l: 5, t: 5, p: 5 }), justification: 'The Bureau prefers it sealed, tagged, and accounted for.', materialFamily: 'mixed', size: 'medium' },
 ];
 
 /** Deterministic box from a seed + index (normalized 0–1 coordinates). */
@@ -201,6 +208,8 @@ export function buildSimulatedRoom(factionId: FactionId | string): { roomType: s
       count: Math.max(1, Math.floor(count)),
       ratings: { ...archetype.ratings },
       justification: archetype.justification,
+      materialFamily: archetype.materialFamily,
+      size: archetype.size,
       bounds: boxFor(`${factionId}::exhibit`, i),
     };
   });
@@ -237,10 +246,32 @@ export function generateSimulatedInventory(seed: string): SimItem[] {
       count,
       ratings: { ...archetype.ratings },
       justification: archetype.justification,
+      materialFamily: archetype.materialFamily,
+      size: archetype.size,
       bounds: boxFor(seed, i),
     });
   }
   return items.sort((a, b) => a.label.localeCompare(b.label));
+}
+
+/** Local size factors (structural mirror of @ecocide/compliance). */
+const SIZE_FACTOR: Readonly<Record<SimItem['size'], number>> = { small: 0.5, medium: 1, large: 2 };
+
+/** Local size-and-quantity-weighted dominant material family. */
+function dominantMaterialFor(items: SimItem[]): MaterialFamilyKey | null {
+  const totals = new Map<MaterialFamilyKey, number>();
+  for (const item of items) {
+    totals.set(item.materialFamily, (totals.get(item.materialFamily) ?? 0) + item.count * SIZE_FACTOR[item.size]);
+  }
+  let best: MaterialFamilyKey | null = null;
+  let bestWeight = -1;
+  for (const [family, weight] of totals) {
+    if (weight > bestWeight) {
+      best = family;
+      bestWeight = weight;
+    }
+  }
+  return best;
 }
 
 export interface SimVerdictInput {
@@ -271,10 +302,13 @@ export function generateSimulatedVerdictContent(input: SimVerdictInput): SimVerd
     (a, b) => (a.ratings.m ?? 1) - (b.ratings.m ?? 1)
   )[0];
   const worstLabel = worst?.label ?? 'the inventory';
-  const dominant = input.dominant ?? 'm';
 
   return {
-    honorific_title: dimensionTitle(dominant, input.ratio),
+    honorific_title: householdTitle({
+      ratio: input.ratio,
+      dominant: input.dominant ?? null,
+      dominantMaterial: dominantMaterialFor(input.items),
+    }),
     headline: `HOUSEHOLD AUDIT COMPLETE: ${faction.name.toUpperCase()}`,
     paragraph_1: `Attention, household. The ${IDENTITY.entityName} has completed its inspection of your possessions and registers a Household Sustainability Index of ${input.ratio}%. A ${worstLabel} was among those examined; it was not impressed.`,
     paragraph_2: faction.simulated.paragraph2,

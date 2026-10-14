@@ -1,7 +1,12 @@
 // ---------------------------------------------------------------------------
-// The compliance math (steps 2–4 of compliance_formula.md) plus the household
-// roll-up and the input sanitizers used at the server boundary (model output
-// is clamped and deduped BEFORE any scoring).
+// The compliance math (steps 2–5 of the sustainability scoring framework)
+// plus the household roll-up and the input sanitizers used at the server
+// boundary (model output is clamped and deduped BEFORE any scoring).
+//
+//   Step 2  Harm H       weighted mean over applicable dimensions
+//   Step 3  SI           100 × (5 − H) / 4
+//   Step 4  Status       ≥60 Compliant · 40–59.9 Borderline · <40 Non-Compliant
+//   Step 5  Overrides    single-use plastic · hazardous · landfill trap
 // ---------------------------------------------------------------------------
 
 import { DIMENSION_KEYS, DIMENSION_WEIGHTS, type DimensionKey } from './dimensions.js';
@@ -15,12 +20,66 @@ export type DimensionRating = 1 | 2 | 3 | 4 | 5;
  */
 export type ItemRatings = Partial<Record<DimensionKey, DimensionRating>>;
 
-/** Minimal scored input: label + repeat count + ratings. */
+/**
+ * Material family reported by the auditor (drives the single-use-plastic
+ * override and the household title driver).
+ */
+export type MaterialFamily =
+  | 'plastic'
+  | 'bio-based'
+  | 'metal'
+  | 'glass'
+  | 'paper'
+  | 'wood'
+  | 'textile'
+  | 'rubber'
+  | 'ceramic'
+  | 'chemical'
+  | 'electronic'
+  | 'organic'
+  | 'mixed'
+  | 'other';
+
+export const MATERIAL_FAMILIES: readonly MaterialFamily[] = [
+  'plastic',
+  'bio-based',
+  'metal',
+  'glass',
+  'paper',
+  'wood',
+  'textile',
+  'rubber',
+  'ceramic',
+  'chemical',
+  'electronic',
+  'organic',
+  'mixed',
+  'other',
+] as const;
+
+/** Relative size of an item in the household roll-up (framework §6). */
+export type ItemSize = 'small' | 'medium' | 'large';
+
+export const SIZE_FACTORS: Readonly<Record<ItemSize, number>> = {
+  small: 0.5,
+  medium: 1,
+  large: 2,
+};
+
+export function sizeFactor(size?: ItemSize | null): number {
+  return SIZE_FACTORS[size ?? 'medium'] ?? 1;
+}
+
+/** Minimal scored input: label + repeat count + ratings (+ optional metadata). */
 export interface RatedItem {
   label: string;
   category?: string | null;
   count: number;
   ratings: ItemRatings;
+  /** Material family (drives overrides + titles). */
+  materialFamily?: MaterialFamily | null;
+  /** Relative size (drives the size-weighted household roll-up). */
+  size?: ItemSize | null;
   /** Free-form note preserved through dedupe (kept from the first copy). */
   justification?: string | null;
   /** Normalized bounding box preserved through dedupe (first copy wins). */
@@ -48,21 +107,25 @@ export function sanitizeCount(value: unknown): number {
 
 /**
  * Normalize a detected-object label so near-duplicates group together:
- * lowercase, collapse whitespace, drop leading articles and a trailing plural
- * "s" ("PET bottles" → "pet bottle"). English-only by design — the inventory
- * prompt instructs the model to emit plain English labels.
+ * lowercase, collapse whitespace, drop leading articles and simple English
+ * plurals ("PET bottles" → "pet bottle", "boxes" → "box"). English-only by
+ * design — the inventory prompt instructs the model to emit plain English
+ * labels.
  */
 export function normalizeLabel(label: string): string {
   let l = (label || '').trim().toLowerCase().replace(/\s+/g, ' ');
   l = l.replace(/^(a|an|the)\s+/, '');
-  if (l.length > 1 && l.endsWith('s') && !l.endsWith('ss')) l = l.slice(0, -1);
+  const esPlural = /(ch|sh|[sxz])es$/;
+  if (l.length > 2 && esPlural.test(l)) l = l.slice(0, -2);
+  else if (l.length > 2 && /[^s]s$/.test(l)) l = l.slice(0, -1);
   return l;
 }
 
 /**
  * Group detected items by normalized label. Counts merge; when a dimension is
  * rated differently across copies, the WORST rating wins (the audit keeps the
- * most incriminating copy on file).
+ * most incriminating copy on file). Sizes merge toward the LARGER factor; the
+ * first non-null material family wins.
  */
 export function dedupeItems(items: readonly RatedItem[]): RatedItem[] {
   const map = new Map<string, RatedItem>();
@@ -76,12 +139,16 @@ export function dedupeItems(items: readonly RatedItem[]): RatedItem[] {
         category: item.category ?? null,
         count: sanitizeCount(item.count),
         ratings: { ...item.ratings },
+        materialFamily: item.materialFamily ?? null,
+        size: item.size ?? null,
         justification: item.justification ?? null,
         bounds: item.bounds ?? null,
       });
       continue;
     }
     existing.count += sanitizeCount(item.count);
+    if (sizeFactor(item.size) > sizeFactor(existing.size)) existing.size = item.size ?? existing.size;
+    if (!existing.materialFamily && item.materialFamily) existing.materialFamily = item.materialFamily;
     for (const k of DIMENSION_KEYS) {
       const a = clampRating(existing.ratings[k]);
       const b = clampRating(item.ratings[k]);
@@ -122,24 +189,74 @@ export function roundSi(si: number): number {
   return Math.round(si * 10) / 10;
 }
 
-/** Step 4 — compliance status. Boundaries: ≥60 / ≥40 / <40. */
-export type ItemStatus = 'compliant' | 'borderline' | 'non-compliant';
+// ---------------------------------------------------------------------------
+// Step 5 — override rules. A single severe property must not be hidden by
+// good scores elsewhere, so these fire AFTER the SI status is computed.
+// ---------------------------------------------------------------------------
 
-export function itemStatus(si: number): ItemStatus {
+export type OverrideRuleId = 'single-use-plastic' | 'hazardous' | 'landfill-trap';
+
+/** Human labels for the override rules (shown on item cards / explain panel). */
+export const OVERRIDE_RULES: Readonly<Record<OverrideRuleId, string>> = {
+  'single-use-plastic': 'Single-use plastic',
+  hazardous: 'Hazardous material',
+  'landfill-trap': 'Landfill trap',
+};
+
+/**
+ * Evaluate the framework's override rules against an item:
+ *   1. single-use plastic  — L = 5 and the material family is plastic
+ *   2. hazardous           — T = 5 (cannot be Compliant; needs special disposal)
+ *   3. landfill trap       — R = 5 and D ≥ 4 and L ≥ 4
+ */
+export function evaluateOverrides(
+  ratings: ItemRatings,
+  materialFamily?: MaterialFamily | null
+): OverrideRuleId[] {
+  const rules: OverrideRuleId[] = [];
+  const r = (key: DimensionKey) => clampRating(ratings[key]);
+  if (r('l') === 5 && materialFamily === 'plastic') rules.push('single-use-plastic');
+  if (r('t') === 5) rules.push('hazardous');
+  if (r('r') === 5 && (r('d') ?? 0) >= 4 && (r('l') ?? 0) >= 4) rules.push('landfill-trap');
+  return rules;
+}
+
+/** Step 4 — compliance status (extended by the Step-5 overrides). */
+export type ItemStatus = 'compliant' | 'borderline' | 'non-compliant' | 'special-handling';
+
+/** Base status from the SI alone. Boundaries: ≥60 / ≥40 / <40. */
+export function baseItemStatus(si: number): Exclude<ItemStatus, 'special-handling'> {
   if (si >= 60) return 'compliant';
   if (si >= 40) return 'borderline';
   return 'non-compliant';
 }
 
-/** Stamp label per item status (from compliance_formula.md Step 4). */
+/**
+ * Status with overrides applied: forced non-compliance (single-use plastic /
+ * landfill trap) wins; hazardous items cannot be approved or held — they
+ * become Special Handling Required unless the SI already fails.
+ */
+export function itemStatus(si: number, overrides: readonly OverrideRuleId[] = []): ItemStatus {
+  const base = baseItemStatus(si);
+  if (overrides.includes('single-use-plastic') || overrides.includes('landfill-trap')) {
+    return 'non-compliant';
+  }
+  if (overrides.includes('hazardous')) {
+    return base === 'non-compliant' ? 'non-compliant' : 'special-handling';
+  }
+  return base;
+}
+
+/** Stamp label per item status (formula Step 4 + Step 5 overrides). */
 export const ITEM_STAMPS: Readonly<Record<ItemStatus, string>> = {
   compliant: 'APPROVED',
   borderline: 'PENDING REVIEW',
   'non-compliant': 'DENIED',
+  'special-handling': 'SPECIAL HANDLING',
 };
 
-export function itemStamp(si: number): string {
-  return ITEM_STAMPS[itemStatus(si)];
+export function itemStamp(si: number, overrides: readonly OverrideRuleId[] = []): string {
+  return ITEM_STAMPS[itemStatus(si, overrides)];
 }
 
 /** Full item → SI shortcut. */
@@ -147,21 +264,32 @@ export function itemSi(item: RatedItem): number {
   return siFromHarm(harmScore(item.ratings));
 }
 
+/** Item → Step-5 override list shortcut. */
+export function itemOverrides(item: RatedItem): OverrideRuleId[] {
+  return evaluateOverrides(item.ratings, item.materialFamily);
+}
+
+/** Roll-up weight of one item: quantity × size factor (framework §6). */
+export function itemWeight(item: RatedItem): number {
+  return sanitizeCount(item.count) * sizeFactor(item.size);
+}
+
 /**
- * Household Sustainability Index: count-weighted mean of every item's SI,
- * rounded to an integer percent (mirrors the integer `biocarbon_ratio`).
- * An empty audit is neutral (50) so the flow never divides by zero.
+ * Household Sustainability Index: size-and-quantity-weighted mean of every
+ * item's SI, rounded to an integer percent (mirrors the integer
+ * `biocarbon_ratio`). An empty audit is neutral (50) so the flow never
+ * divides by zero.
  */
 export function householdRatio(items: readonly RatedItem[]): number {
-  const total = items.reduce((sum, item) => sum + item.count, 0);
+  const total = items.reduce((sum, item) => sum + itemWeight(item), 0);
   if (total === 0) return 50;
-  const weighted = items.reduce((sum, item) => sum + item.count * itemSi(item), 0);
+  const weighted = items.reduce((sum, item) => sum + itemSi(item) * itemWeight(item), 0);
   return Math.round(weighted / total);
 }
 
-/** Items the audit flags as hard fails (SI < 40 → DENIED). */
+/** Items the audit flags as hard fails: hit by at least one override rule. */
 export function hardFailCount(items: readonly RatedItem[]): number {
-  return items.reduce((n, item) => (itemSi(item) < 40 ? n + 1 : n), 0);
+  return items.reduce((n, item) => (itemOverrides(item).length > 0 ? n + 1 : n), 0);
 }
 
 /** The single worst item (lowest SI; first occurrence wins ties). */
@@ -203,4 +331,25 @@ export function dominantDimension(items: readonly RatedItem[]): DimensionKey | n
     }
   }
   return bestKey;
+}
+
+/**
+ * The household's dominant material family (size-and-quantity-weighted
+ * majority). Drives the title driver for plastics / textiles / electronics.
+ */
+export function dominantMaterialFamily(items: readonly RatedItem[]): MaterialFamily | null {
+  const totals = new Map<MaterialFamily, number>();
+  for (const item of items) {
+    if (!item.materialFamily) continue;
+    totals.set(item.materialFamily, (totals.get(item.materialFamily) ?? 0) + itemWeight(item));
+  }
+  let best: MaterialFamily | null = null;
+  let bestWeight = -1;
+  for (const [family, weight] of totals) {
+    if (weight > bestWeight) {
+      best = family;
+      bestWeight = weight;
+    }
+  }
+  return best;
 }

@@ -11,8 +11,8 @@ export {
   FACTIONS,
   FACTION_IDS,
   HARM_DIMENSION_KEYS,
-  DIMENSION_TITLES,
-  dimensionTitle,
+  HOUSEHOLD_TITLES,
+  householdTitle,
   factionIndex,
   getFaction,
   findFactionByName,
@@ -27,6 +27,8 @@ export type {
   FactionPromptBlocks,
   FactionSimulated,
   HarmDimensionKey,
+  MaterialFamilyKey,
+  HouseholdTitleInput,
 } from './factions.js';
 export {
   factionRegistryBlock,

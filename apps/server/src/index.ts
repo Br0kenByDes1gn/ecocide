@@ -144,7 +144,7 @@ app.get('/api/health', (c) => {
 app.post('/api/oracle/scan', async (c) => {
   try {
     const body = await c.req.json<ScanRequest>();
-    const { image } = body;
+    const { image, category } = body;
     if (!image) {
       return c.json({ error: 'Missing audit photograph' }, 400);
     }
@@ -157,7 +157,7 @@ app.post('/api/oracle/scan', async (c) => {
 
     if (geminiConfigured()) {
       // PASS 1 — object inventory (vision + structured JSON).
-      inventory = await generateHouseholdInventory(image);
+      inventory = await generateHouseholdInventory(image, category);
       ratio = householdRatio(inventory.items);
       // Deterministic tier from the arithmetic (lore taxonomy).
       caste = getCasteFromScore(ratio);

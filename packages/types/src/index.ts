@@ -24,18 +24,34 @@ import {
   clampRating,
   itemSi,
   itemStamp,
+  itemStatus,
+  itemOverrides,
   dedupeItems,
   householdRatio,
   hardFailCount,
   topOffender,
   dominantDimension,
+  dominantMaterialFamily,
   type DimensionKey,
   type ItemRatings,
+  type ItemSize,
   type ItemStatus,
+  type MaterialFamily,
+  type OverrideRuleId,
   type RatedItem,
 } from '@ecocide/compliance';
 
 export { DimensionKey, ItemRatings, ItemStatus, clampRating, itemSi, itemStamp, householdRatio } from '@ecocide/compliance';
+export {
+  evaluateOverrides,
+  itemOverrides,
+  OVERRIDE_RULES,
+  SIZE_FACTORS,
+  sizeFactor,
+  dominantMaterialFamily,
+  MATERIAL_FAMILIES,
+} from '@ecocide/compliance';
+export type { ItemSize, MaterialFamily, OverrideRuleId } from '@ecocide/compliance';
 export { FACTIONS, getFaction, factionIndex } from '@ecocide/lore';
 export type { FactionDef, FactionColorConfig } from '@ecocide/lore';
 
@@ -88,9 +104,15 @@ export interface AuditItem {
   justification?: string | null;
   /** Normalized bounding box (0–1 relative to the photo), when localized. */
   bounds?: { x1: number; y1: number; x2: number; y2: number } | null;
+  /** Material family reported by the auditor (drives overrides + titles). */
+  materialFamily?: MaterialFamily | null;
+  /** Relative size (drives the size-weighted roll-up). */
+  size?: ItemSize | null;
+  /** Step-5 override rules that fired for this item. */
+  overrides?: OverrideRuleId[];
   /** Sustainability Index (0–100), computed server-side. */
   si?: number;
-  /** Compliance status derived from `si`. */
+  /** Compliance status derived from `si` + overrides. */
   status?: ItemStatus;
 }
 
@@ -155,6 +177,8 @@ export interface CitizenRecord {
 
 export interface ScanRequest {
   image: string; // Base64 JPEG data URL or base64 string (1024px household photo)
+  /** Optional audit-area hint from the scanner category chips (e.g. "fridge"). */
+  category?: string | null;
   /** Optional address to deliver the verdict to by email. Not persisted. */
   email?: string;
 }
@@ -264,6 +288,8 @@ function toAuditItem(item: SimItem): AuditItem {
     count: item.count,
     ratings,
     justification: item.justification,
+    materialFamily: item.materialFamily,
+    size: item.size,
     bounds: item.bounds
       ? {
           x1: Math.min(Math.max(item.bounds.x1, 0), 1),
@@ -275,18 +301,22 @@ function toAuditItem(item: SimItem): AuditItem {
   };
 }
 
-/** Score + enrich an audit item with its SI and compliance status. */
+/** Score + enrich an audit item with its SI, overrides and status. */
 function scoreItem(item: RatedItem): AuditItem {
   const si = Math.round(itemSi(item) * 10) / 10;
+  const overrides = itemOverrides(item);
   return {
     label: item.label,
     category: item.category ?? null,
     count: item.count,
     ratings: item.ratings,
     justification: item.justification ?? null,
+    materialFamily: item.materialFamily ?? null,
+    size: item.size ?? null,
+    overrides,
     bounds: item.bounds ?? null,
     si,
-    status: si >= 60 ? 'compliant' : si >= 40 ? 'borderline' : 'non-compliant',
+    status: itemStatus(si, overrides),
   };
 }
 

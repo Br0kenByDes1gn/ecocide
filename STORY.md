@@ -49,10 +49,14 @@ formula: **`compliance_formula.md`**.
 | `stylePrompt` | §10 badge art prompt (image-model use) |
 | `simulated` | offline verdict copy (title, paragraph2, paragraph3) |
 
-Also here: `DIMENSION_TITLES` — the deterministic **personalized titles by
-dominant harm dimension** (`dominant` from `@ecocide/compliance`), two per
-dimension (`minor` for Index ≥ 60, `major` below). Example: dominant material
-dimension + low Index → **"Petroleum Hoarder"** (art §7).
+Also here: `HOUSEHOLD_TITLES` + `householdTitle(...)` — the deterministic
+**personalized titles** driven by the dominant scoring dimension / material
+family (sustainability_scoring_framework.md §6): plastic → "Petroleum
+Hoarder", textiles → "Fast-Fashion Collector", electronics → "Gadget
+Graveyard Keeper", single-use lifespan → "Disposable Enthusiast", operating
+energy → "Watt Wizard", compliant households → "Model Citizen (grudgingly)",
+plus dimension fallbacks. The math picks the driver; the pack supplies the
+vocabulary.
 
 ### Mechanic consequences (read before changing)
 
@@ -64,8 +68,8 @@ dimension + low Index → **"Petroleum Hoarder"** (art §7).
   overflow/default is the last entry (unknown ids resolve to the worst tier).
 - **Exhibit rooms** (`SIMULATED_ROOMS` + `buildSimulatedRoom`) are hand-composed
   rooms per tier used by the dev bench and tests; tests assert each lands
-  *exactly* in its own band. If you change bands, archetype ratings or
-  `householdRatio`, re-check the six rooms (`pnpm vitest run
+  *exactly* in its own band. If you change bands, archetype ratings/sizes or
+  the roll-up weighting, re-check the six rooms (`pnpm vitest run
   apps/web/src/components/DebugBench.test.ts`).
 - The old percentile/quotas/life-stage/wealth machinery is **gone** — do not
   reintroduce "population %" or face-derived attributes. The census is live
@@ -78,9 +82,11 @@ Two prompt builders + their **plain JSON Schema** objects (wired into
 
 - **PASS 1 — `buildInventoryPrompt` + `INVENTORY_JSON_SCHEMA`**: audit
   objects only (never people), group+count identical items, ≤25 entries,
-  normalized bounding boxes (optional), one 1–5 rating per applicable
-  dimension (`null` when it doesn't apply, e.g. operating energy for a banana
-  peel). Ratings rubric is here (dimensionRubricBlock).
+  normalized bounding boxes (optional), a material family and relative size
+  per item, and one 1–5 rating per applicable dimension (`null` when it
+  doesn't apply, e.g. operating energy for a banana peel). The prompt also
+  states the Step-5 override rules so the model rates deliberately. An
+  optional room hint (the scanner's audit-area chip) is passed through.
 - **PASS 2 — `buildVerdictPrompt` + `VERDICT_JSON_SCHEMA`**: text-only; the
   tier and ratio are deterministic INPUTS, the model writes
   `headline`, `paragraph_1..3`, `suggestions[{text, target_label, pledge,
@@ -98,20 +104,39 @@ cost accounting, deterministic fallbacks (`simulate.ts`).
 ## 5. Simulation — `packages/lore/src/simulate.ts`
 
 - `ITEM_ARCHETYPES` — the catalog the simulated world draws from: label,
-  category, `countMax`, fixed 1–5 ratings, one dry bureaucratic
-  justification. The extreme archetypes (rags/seedlings high, waste sacks
-  low) are what make every tier band reachable deterministically.
+  category, `countMax`, fixed 1–5 ratings, material family, size and one dry
+  bureaucratic justification. The extreme archetypes (rags/seedlings high,
+  waste sacks low) are what make every tier band reachable deterministically.
 - `generateSimulatedInventory(seed)` — a deterministic random-ish room.
 - `SIMULATED_ROOMS` / `buildSimulatedRoom(id)` — the six curated **exhibit
-  rooms** (dev bench, tests).
+  rooms** (dev bench, tests), each verified to land in its tier band under the
+  size-weighted roll-up.
 - `generateSimulatedVerdictContent(...)` / `generateSimulatedSuggestions(...)` —
-  offline verdict copy + pledge suggestions.
+  offline verdict copy (including the title via `householdTitle`) + pledge
+  suggestions.
 - `generateSimulatedAppealRuling(...)` / `generateSimulatedReArbitrationCopy(...)` —
   hashed accept/reject rulings.
 
 The full offline pipeline (`simulateScanFromItems`, `simulateTierRoom`,
 `simulateHouseholdScan`) lives in `packages/types` and is shared by the
 server's offline mode and the web dev bench.
+
+## 5b. The scoring framework (Step 5 + roll-up)
+
+`sustainability_scoring_framework.md` (in `readme/`) extends the base formula
+with three rules implemented in `packages/compliance`:
+
+- **Step 5 override rules** — a single severe property cannot be hidden by a
+  good average: *single-use plastic* (L=5 + plastic material) and *landfill
+  traps* (R=5, D≥4, L≥4) force Non-Compliant; *hazardous* items (T=5) cannot
+  be approved or held — they become **Special Handling Required** until a
+  disposal pledge is made. Fired rules are stored per item and shown on the
+  dossier item cards.
+- **Size-weighted roll-up** — item weight = quantity × size factor
+  (0.5 small / 1 medium / 2 large); the Household Sustainability Index is the
+  weighted mean of item SIs, rounded to an integer percent.
+- **Hard fails** count items hit by at least one override rule (not merely
+  low-SI items).
 
 ## 6. Art — palettes, stamps, lenses, audio
 
@@ -121,7 +146,7 @@ server's offline mode and the web dev bench.
 | Per-tier colors | `factions.ts[].colors` | Tailwind literals + hex |
 | Audit lenses (4 canvas styles) | `apps/web/src/lib/audit-lenses.ts` | art §9: neon-outline (default), evidence-photo, inspection-hud, carbon-heat |
 | Tier stamp (SVG) | `apps/web/src/components/TierStamp.tsx` | art §10 flat-vector style; per-tier prompt in `stylePrompt` |
-| Intro quote deck | `apps/web/src/data/quotes.ts` | `REGISTRY_QUOTES` — structure is load-bearing: id/author/title/quote/date |
+| Landing page | `apps/web/src/components/HomePage.tsx` | terminal landing + paper dossier panel; CTA begins the audit |
 | App icon / favicon | `apps/web/public/favicon.svg` | art §11 mark (eye + recycling pupil) |
 | PWA manifest + `index.html` | `apps/web/vite.config.ts` + `index.html` | name/theme color point at the art tokens |
 | Sound design | `apps/web/src/lib/audio.ts` | fully procedural synth; event names map to flow moments |
@@ -139,15 +164,15 @@ World copy comes from the lore pack (tier names, stamps, verdict lines,
 titles, quotes, prompt text). Generic chrome (buttons, labels) lives inline
 in components — an optional future refactor hoists it into `lore/ui.ts`.
 
-Screens and files: intro (`AnimatedIntro.tsx` + `data/quotes.ts`) · app chrome
-(`App.tsx`) · scan (`components/ObjectScanner.tsx`) · dossier card
-(`HouseholdAuditCard.tsx` + `lib/audit-lenses.ts` + `components/TierStamp.tsx`) ·
-verdict (`ArbitrationDossier.tsx`, `DossierProphecy.tsx`,
-`lib/useArbitrationFlow.ts`, `lib/useAuditReveal.ts`) · claim/appeal
-(`ClaimScreen.tsx`, `AppealScreen.tsx`, `AppealRecordsScreen.tsx`,
-`AssetVaultPayment.tsx`) · dossier + download card (`CitizenDossier.tsx`,
-`lib/dossierCardPng.ts`) · vault (`VaultScreen.tsx`) · census
-(`CensusModal.tsx`) · dev bench (`DebugBench.tsx`).
+Screens and files: landing (`HomePage.tsx`) · app chrome (`App.tsx`) · scan
+(`ObjectScanner.tsx` + `ScannerHeader.tsx` + `UploadPanel.tsx` +
+`AnalysisPanel.tsx`) · dossier card (`HouseholdAuditCard.tsx` +
+`lib/audit-lenses.ts` + `TierStamp.tsx`) · verdict (`ArbitrationDossier.tsx`,
+`DossierProphecy.tsx`, `lib/useArbitrationFlow.ts`, `lib/useAuditReveal.ts`) ·
+claim/appeal (`ClaimScreen.tsx`, `AppealScreen.tsx`,
+`AppealRecordsScreen.tsx`, `AssetVaultPayment.tsx`) · dossier + download card
+(`CitizenDossier.tsx`, `lib/dossierCardPng.ts`) · vault (`VaultScreen.tsx`) ·
+census (`CensusModal.tsx`) · dev bench (`DebugBench.tsx`).
 
 ## 9. Zero-token workflow (no AI spend)
 
@@ -166,7 +191,8 @@ verdict (`ArbitrationDossier.tsx`, `DossierProphecy.tsx`,
       verdict lines, prompt blocks, simulated copy, stylePrompts, titles.
       Keep ids stable.
 - [ ] Rewrite `prompts.ts` voice + tone (keep the JSON schemas' contracts).
-- [ ] Replace `REGISTRY_QUOTES`; rework `AnimatedIntro`.
+- [ ] Replace the landing copy (`HomePage.tsx`) and the scanner chrome
+      (`ScannerHeader.tsx`, `UploadPanel.tsx`, `AnalysisPanel.tsx`).
 - [ ] Redesign palette (`art.ts` + `index.css`), favicon, PWA meta, lenses.
 - [ ] Re-tune the exhibit rooms to the new bands (DebugBench tests).
 - [ ] Run `pnpm build && pnpm test` + the grep gate (AGENTS.md §5).

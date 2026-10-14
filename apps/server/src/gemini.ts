@@ -8,24 +8,26 @@ import type {
   Prophecy,
   Suggestion,
 } from '@ecocide/types';
-import { enrichAuditItems } from '@ecocide/types';
+import { enrichAuditItems, MATERIAL_FAMILIES } from '@ecocide/types';
 import {
   buildAppealPrompt as buildLoreAppealPrompt,
   buildInventoryPrompt as buildLoreInventoryPrompt,
   buildReArbitrationPrompt as buildLoreReArbitrationPrompt,
   buildVerdictPrompt as buildLoreVerdictPrompt,
-  dimensionTitle,
   generateSimulatedAppealRuling,
   generateSimulatedReArbitrationCopy,
   getFaction,
+  householdTitle,
   INVENTORY_JSON_SCHEMA,
   VERDICT_JSON_SCHEMA,
 } from '@ecocide/lore';
-import type { ItemRatings, RatedItem } from '@ecocide/compliance';
+import type { ItemRatings, MaterialFamily, RatedItem } from '@ecocide/compliance';
 import {
   clampRating,
   dedupeItems,
   dominantDimension,
+  dominantMaterialFamily,
+  hardFailCount,
   sanitizeCount,
   topOffender,
 } from '@ecocide/compliance';
@@ -67,6 +69,12 @@ function toRatedItem(raw: any): RatedItem | null {
     if (clamped !== null) ratings[key] = clamped;
   }
 
+  const materialFamily =
+    typeof raw.material_family === 'string' && (MATERIAL_FAMILIES as readonly string[]).includes(raw.material_family)
+      ? (raw.material_family as MaterialFamily)
+      : null;
+  const size = raw.size === 'small' || raw.size === 'medium' || raw.size === 'large' ? raw.size : null;
+
   const b = raw.bounds;
   const bounds =
     b && typeof b === 'object'
@@ -83,6 +91,8 @@ function toRatedItem(raw: any): RatedItem | null {
     category: typeof raw.category === 'string' ? raw.category : null,
     count: sanitizeCount(raw.count),
     ratings,
+    materialFamily,
+    size,
     justification: typeof raw.justification === 'string' ? raw.justification.slice(0, 300) : null,
     ...(bounds && bounds.x2 > bounds.x1 && bounds.y2 > bounds.y1 ? { bounds } : {}),
   };
@@ -102,7 +112,10 @@ export function normalizeInventory(rawItems: unknown, rawRoomType: unknown): { i
 }
 
 /** Run PASS 1: vision model detects objects + ratings + boxes. */
-export async function generateHouseholdInventory(imageBase64: string): Promise<InventoryResult> {
+export async function generateHouseholdInventory(
+  imageBase64: string,
+  roomHint?: string | null
+): Promise<InventoryResult> {
   const startTime = performance.now();
   const ai = createGeminiClient();
   const model = getGeminiModel();
@@ -117,7 +130,7 @@ export async function generateHouseholdInventory(imageBase64: string): Promise<I
         role: 'user',
         parts: [
           { inlineData: { data: cleanBase64, mimeType } },
-          { text: buildLoreInventoryPrompt() },
+          { text: buildLoreInventoryPrompt(roomHint) },
         ],
       },
     ],
@@ -162,14 +175,27 @@ export interface VerdictInput {
 /** Per-item inventory summary lines fed to the classification prompt. */
 export function buildItemsSummary(items: AuditItem[]): string {
   return items
-    .map((item) => `- x${item.count} ${item.label} // SI ${item.si?.toFixed(1) ?? '?'} // ${(item.status ?? 'unknown').toUpperCase()}`)
+    .map((item) => {
+      const overrides = item.overrides?.length
+        ? ` // ${item.overrides.map((o) => o.toUpperCase()).join(' + ')}`
+        : '';
+      return `- x${item.count} ${item.label} // SI ${item.si?.toFixed(1) ?? '?'} // ${(item.status ?? 'unknown').toUpperCase()}${overrides}`;
+    })
     .join('\n');
+}
+
+/** Deterministic personalized title for a household (lore title driver table). */
+export function householdTitleFor(items: AuditItem[], ratio: number): string {
+  return householdTitle({
+    ratio,
+    dominant: dominantDimension(items),
+    dominantMaterial: dominantMaterialFamily(items),
+  });
 }
 
 export function buildVerdictPrompt(input: VerdictInput): string {
   const faction = getFaction(input.caste);
-  const dominant = dominantDimension(input.items);
-  const honorificTitle = dimensionTitle(dominant ?? 'm', input.ratio);
+  const honorificTitle = householdTitleFor(input.items, input.ratio);
   return buildLoreVerdictPrompt({
     factionId: input.caste,
     ratio: input.ratio,
@@ -226,8 +252,7 @@ export async function generateHouseholdVerdict(input: VerdictInput): Promise<Ver
   }
 
   const faction = getFaction(input.caste);
-  const dominant = dominantDimension(input.items);
-  const honorificTitle = dimensionTitle(dominant ?? 'm', input.ratio);
+  const honorificTitle = householdTitleFor(input.items, input.ratio);
   const worst = topOffender(input.items);
   const prophecy: Prophecy = {
     headline: parsed.headline || `HOUSEHOLD AUDIT COMPLETE: ${faction.name.toUpperCase()}`,
@@ -247,7 +272,7 @@ export async function generateHouseholdVerdict(input: VerdictInput): Promise<Ver
       roomType: input.roomType,
       items: input.items,
       ratio: input.ratio,
-      hardFails: input.items.filter((i) => (i.si ?? 0) < 40).length,
+      hardFails: hardFailCount(input.items),
       topOffenderLabel: worst?.label ?? null,
     },
     suggestions: sanitizeSuggestions(parsed.suggestions),

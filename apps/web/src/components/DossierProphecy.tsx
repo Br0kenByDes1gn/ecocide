@@ -32,8 +32,8 @@ interface DossierProphecyProps {
   fastForwardLabel?: string;
 }
 
-const CLAIM_ACCENTS = ['border-cyan-400', 'border-amber-400', 'border-emerald-400'];
-const ACCENT_TEXT = ['text-cyan-400', 'text-amber-400', 'text-emerald-400'];
+const CLAIM_ACCENTS = ['border-teal-400', 'border-amber-400', 'border-emerald-400'];
+const ACCENT_TEXT = ['text-teal-400', 'text-amber-400', 'text-emerald-400'];
 
 /**
  * The sarcastic prophecy section: headline + three progressively typed
@@ -76,7 +76,7 @@ export const DossierProphecy: React.FC<DossierProphecyProps> = ({
   };
 
   return (
-    <div className="bg-[#0f121d] rounded-2xl border border-gray-800 p-6 space-y-4 shadow-xl">
+    <div className="bg-[#121a14] rounded-2xl border border-gray-800 p-6 space-y-4 shadow-xl">
       <div className="flex items-center gap-2 border-b border-gray-800 pb-3">
         <Sparkles className="w-5 h-5 text-amber-400" />
         <h3 className="font-mono text-sm font-bold text-amber-400 tracking-wider uppercase">
