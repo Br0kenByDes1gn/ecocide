@@ -28,7 +28,7 @@ export const ScannerHeader: React.FC<ScannerHeaderProps> = ({
   onSkip,
 }) => {
   return (
-    <header className="w-full max-w-[1200px] mx-auto py-3 border-b border-lime-500/20 bg-[#080b08]">
+    <header className="w-full max-w-[1200px] mx-auto py-3 border-b border-lime-500/25 bg-[#080b08]">
       {/* Main header row */}
       <div className="flex items-center justify-between gap-3 sm:gap-4 mb-3">
         {/* Left: ECOCIDE Brand with Globe */}
@@ -37,15 +37,15 @@ export const ScannerHeader: React.FC<ScannerHeaderProps> = ({
           className="flex items-center gap-3 sm:gap-4 cursor-pointer group select-none min-w-0"
           title="Return to Home"
         >
-          <div className="p-2 rounded-none bg-lime-950/60 border border-lime-500/40 text-lime-400 group-hover:border-lime-400 group-hover:shadow-[0_0_15px_rgba(180,255,57,0.4)] transition-all flex-shrink-0">
-            <Globe className="w-7 h-7 sm:w-8 sm:h-8" />
+          <div className="p-2 rounded-lg bg-lime-950/60 border border-lime-500/40 text-lime-400 group-hover:border-lime-400 group-hover:shadow-[0_0_15px_rgba(180,255,57,0.3)] transition-all flex-shrink-0">
+            <Globe className="w-6 h-6" />
           </div>
           <div className="min-w-0">
-            <h1 className="text-xl sm:text-2xl font-bold font-mono text-lime-400 tracking-wider flex items-center gap-2 whitespace-nowrap">
+            <h1 className="text-lg sm:text-xl font-bold font-mono text-lime-400 tracking-wider flex items-center gap-2 whitespace-nowrap">
               {IDENTITY.appName}
               <span className="hidden sm:inline text-xs text-gray-500 font-normal">v{IDENTITY.appVersion}</span>
             </h1>
-            <p className="hidden sm:block text-[11px] font-mono text-gray-400 tracking-widest uppercase whitespace-nowrap">
+            <p className="hidden sm:block text-[11px] font-mono text-gray-400 tracking-widest whitespace-nowrap">
               {IDENTITY.tagline.toUpperCase()}
             </p>
           </div>
@@ -62,7 +62,7 @@ export const ScannerHeader: React.FC<ScannerHeaderProps> = ({
             >
               <Bug className="w-3.5 h-3.5 text-amber-400" />
               <span className="hidden md:inline">[DEV]</span>
-              <span className="hidden lg:inline">DEBUG</span>
+              <span className="hidden lg:inline">DEBUG BENCH</span>
             </button>
           )}
           {onGoRegistry && (
@@ -86,7 +86,7 @@ export const ScannerHeader: React.FC<ScannerHeaderProps> = ({
             {isMuted ? (
               <VolumeX className="w-5 h-5 text-red-400" />
             ) : (
-              <Volume2 className="w-5 h-5 text-emerald-400" />
+              <Volume2 className="w-5 h-5 text-lime-400" />
             )}
           </button>
         </div>

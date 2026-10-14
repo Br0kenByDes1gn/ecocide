@@ -13,7 +13,7 @@ export const IDENTITY = {
   /** Generic way to refer to the entity mid-sentence. */
   entityShortName: 'the Arbiter',
   /** Primary tagline (logo lockup / landing page). */
-  tagline: 'Carbon Excess Eliminator',
+  tagline: 'Biosphere Threat Convergence',
   /** Secondary line near the appeal button (art §1.2). */
   secondaryLine: 'Guilty until pledged.',
   /** Bureaucratic backronym (footer, About page, deck). */

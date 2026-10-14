@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { OraclePayload } from '@ecocide/types';
 import confetti from 'canvas-confetti';
-import { Bug, Terminal, Volume2, VolumeX, Wallet } from 'lucide-react';
+import { Bug, Globe, Volume2, VolumeX, Wallet } from 'lucide-react';
 import { HomePage } from './components/HomePage';
 import { AppealRecordsScreen } from './components/AppealRecordsScreen';
 import { AppealScreen } from './components/AppealScreen';
@@ -392,14 +392,14 @@ export function App() {
           title="Return to Intro (/)"
         >
           <div className="p-2 rounded-lg bg-lime-950/60 border border-lime-500/40 text-lime-400 group-hover:border-lime-400 group-hover:shadow-[0_0_15px_rgba(180,255,57,0.35)] transition-all">
-            <Terminal className="w-6 h-6" />
+            <Globe className="w-6 h-6" />
           </div>
           <div>
             <h1 className="text-lg sm:text-xl font-bold font-mono text-lime-400 tracking-wider flex items-center gap-2 group-hover:text-lime-300 transition-colors">
               {IDENTITY.appName} <span className="hidden sm:inline text-xs text-gray-500 font-normal">v{IDENTITY.appVersion}</span>
             </h1>
             <p className="hidden sm:block text-[11px] font-mono text-gray-400 tracking-widest">
-              {IDENTITY.entityName.toUpperCase()} // HOUSEHOLD AUDIT SYSTEM
+              {IDENTITY.tagline.toUpperCase()}
             </p>
           </div>
         </div>

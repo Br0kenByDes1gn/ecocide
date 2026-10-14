@@ -1,4 +1,14 @@
 @import "tailwindcss";
+
+/* --- ECOCIDE styling tokens & UI defaults --- */
+* {
+  /* Boxy edges everywhere: no fully rounded corners */
+  border-radius: 2px !important;
+}
+/* Lighter outer second border on all buttons */
+button, [role='button'] {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18) !important;
+}
 @source "../../../packages/compliance/src";
 @source "../../../packages/types/src";
 @source "../../../packages/lore/src";

@@ -9,7 +9,7 @@ import {
   type DimensionKey,
 } from '@ecocide/compliance';
 import { IDENTITY } from '@ecocide/lore';
-import { Gavel, ShieldCheck } from 'lucide-react';
+import { Gavel, Recycle, ShieldCheck } from 'lucide-react';
 import { ITEM_STATUS_LABELS } from '../lib/audit-lenses';
 
 interface ArbitrationDossierProps {
@@ -257,20 +257,9 @@ export const ArbitrationDossier: React.FC<ArbitrationDossierProps> = ({
           <dl className="mt-3 space-y-2.5 text-xs font-mono">
             <div>
               <dt className="text-[10px] text-gray-500 uppercase tracking-widest">
-                Household Name
-              </dt>
-              <dd className="mt-0.5 text-gray-300">
-                <Unavailable />{' '}
-                <span className="text-gray-600 text-[10px]">
-                  — no name recorded
-                </span>
-              </dd>
-            </div>
-            <div>
-              <dt className="text-[10px] text-gray-500 uppercase tracking-widest">
                 Case ID
               </dt>
-              <dd className="mt-0.5 text-gray-200 break-all">
+              <dd className="mt-0.5 text-gray-200 break-all text-lg font-black">
                 {caseId ? `#${caseId}` : <Unavailable />}
               </dd>
             </div>
@@ -292,34 +281,16 @@ export const ArbitrationDossier: React.FC<ArbitrationDossierProps> = ({
             </div>
           </dl>
 
-          {/* Compliance score — the existing backend value (biocarbon_ratio) */}
-          <div
-            className="mt-4 rounded-lg border border-gray-800 bg-black/40 p-3"
-            style={{
-              borderColor: `${faction.colors.hex}55`,
-              boxShadow: `0 0 24px ${faction.colors.hex}26`,
-            }}
-          >
+          {/* Sustainability Index — value only, no bar or box */}
+          <div className="mt-4">
             <div className="text-[10px] text-gray-500 uppercase tracking-widest">
               Sustainability Index
             </div>
-            <div className="mt-1 flex items-baseline gap-1.5">
-              <span
-                className="text-3xl font-black tracking-tight"
-                style={{ color: faction.colors.hex }}
-              >
-                {hasScore ? Math.round(score) : '—'}
-              </span>
-              <span className="text-[11px] text-gray-500">/ 100</span>
-            </div>
-            <div className="mt-2 h-1.5 rounded-full bg-gray-800/80 overflow-hidden">
-              <div
-                className="h-full rounded-full"
-                style={{
-                  width: hasScore ? `${Math.max(0, Math.min(100, score))}%` : '0%',
-                  backgroundColor: faction.colors.hex,
-                }}
-              />
+            <div
+              className="mt-1 text-4xl font-black tracking-tight"
+              style={{ color: faction.colors.hex }}
+            >
+              {hasScore ? Math.round(score) : '—'}
             </div>
           </div>
 
@@ -328,7 +299,10 @@ export const ArbitrationDossier: React.FC<ArbitrationDossierProps> = ({
             <div className="text-[10px] text-gray-500 uppercase tracking-widest">
               Verdict Category
             </div>
-            <div className="mt-1 text-sm font-bold" style={{ color: faction.colors.hex }}>
+            <div
+              className="mt-1 text-xl font-black uppercase"
+              style={{ color: faction.colors.hex }}
+            >
               {faction.name}
             </div>
             <span
@@ -361,23 +335,31 @@ export const ArbitrationDossier: React.FC<ArbitrationDossierProps> = ({
             style={{ backgroundImage: PAPER_NOISE }}
           />
 
-          <div className="relative flex flex-wrap items-start justify-between gap-2 border-b border-[#cfc4a8] pb-2">
-            <div>
-              <h2 className="text-sm font-black font-mono uppercase tracking-widest text-[#1f2a1f]">
-                Official Environmental Audit
-              </h2>
-              <p className="text-[9px] font-mono uppercase tracking-widest text-[#6b7263]">
-                {IDENTITY.entityName} // Domestic Resource Division
-              </p>
-            </div>
-            <div className="text-right">
-              <div className="text-[9px] font-mono uppercase tracking-widest text-[#6b7263]">
-                Case ID
-              </div>
-              <div className="text-xs font-mono font-bold text-[#1f2a1f] break-all">
-                {caseId ? `#${caseId}` : 'UNAVAILABLE'}
+          <div className="relative flex items-center justify-between gap-3 border-b border-[#cfc4a8] pb-2">
+            <div className="flex items-center gap-3 min-w-0">
+              <Recycle className="w-16 h-16 shrink-0" style={{ color: '#2f7d3a' }} />
+              <div className="flex flex-col justify-center h-8 min-w-0">
+                <div className="text-sm font-black uppercase tracking-widest text-[#1f2a1f] leading-tight">
+                  PLANETARY AUDIT BUREAU
+                </div>
+                <div className="text-[9px] font-mono uppercase tracking-widest text-[#6b7263] leading-tight">
+                  CONSUMER IMPACT DOSSIER
+                </div>
               </div>
             </div>
+            <span
+              className="shrink-0 px-2 py-1 rounded-sm border-2 text-[10px] font-black uppercase tracking-widest"
+              style={{
+                color: '#c2322b',
+                borderColor: '#c2322b',
+                backgroundColor: '#f5dede',
+              }}
+            >
+              {faction.name}
+            </span>
+          </div>
+          <div className="relative mt-1 text-[9px] font-mono uppercase tracking-widest text-[#6b7263]">
+            Case ID - {caseId ? `#${caseId}` : 'UNAVAILABLE'}
           </div>
 
           {/* Overall classification — the tier resolved from the audit score */}
