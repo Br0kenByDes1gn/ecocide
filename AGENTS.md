@@ -26,8 +26,9 @@ A photo of a room (upload or camera) goes through a **two-pass AI pipeline**:
 
 The dossier then offers CLAIM (mock paywall → dossier) and APPEAL (mock
 filing fee → archived ruling; accepted appeals re-arbitrate against the
-**stored item list**, no vision re-call). An **Asset Vault** (Better Auth
-email-OTP accounts, token wallet, ledger) backs the mock payments.
+**stored item list**, no vision re-call). A **Carbon Registry** (Better Auth
+email-OTP accounts) holds the citizen's pooled carbon standing, the archive of
+claimed assessments and the token wallet/ledger that backs the mock payments.
 
 **Without AI tokens everything still runs**: the server degrades to a seeded
 offline simulation (archetype catalog → deterministic room → deterministic
@@ -87,6 +88,10 @@ scripts/              # scan-cost audit
   trap), `householdRatio` (quantity × size-factor weighted mean, integer),
   `hardFailCount` (override hits), `topOffender`, `dominantDimension`,
   `dominantMaterialFamily`, `dedupeItems`, `clampRating`, `sanitizeCount`.
+- `registry.ts` — the cross-assessment roll-up: `pooledIndex` (item-weighted
+  mean across every archived assessment), `objectCount`, `registryStanding`
+  (index + record texture + the newest-audit `delta`). The tier bands stay in
+  lore; the registry never re-derives them.
 
 ### packages/lore
 
@@ -104,6 +109,10 @@ scripts/              # scan-cost audit
   `generateSimulatedInventory(seed)`, `SIMULATED_ROOMS` + `buildSimulatedRoom`
   (one curated exhibit room per tier), verdict copy, suggestions, appeal
   rulings, re-arbitration copy.
+- `surfaces.ts` — `REGISTRY_COPY` (+ `standingTrendLabel`): the Carbon
+  Registry page, its standing hero, the assessment archive, the token account
+  and the payment terminal copy. World strings only; mechanical chrome stays
+  inline in components.
 
 ### apps/server
 
@@ -115,7 +124,8 @@ scripts/              # scan-cost audit
 - `GET /api/census` — live audited-household counts per tier (display gate:
   only once ≥50 audits exist, art §7). `GET /api/evidence/:name`.
 - `GET /api/vault`, `POST /api/vault/link`, `POST /api/vault/charge`,
-  `GET /api/vault/ledger`, `/api/auth/*` (Better Auth email-OTP).
+  `GET /api/vault/ledger`, `/api/auth/*` (Better Auth email-OTP). These are the
+  Carbon Registry endpoints — the storage path keeps its `vault` name.
 - `GET /admin/queues` Bull Board (BullMQ mode + Basic auth only).
 - Prompt assembly is thin in `src/gemini.ts` (wraps lore builders, parses
   JSON, sanitizes model output); world copy comes from the pack.
@@ -126,7 +136,8 @@ scripts/              # scan-cost audit
 ### apps/web
 
 - SPA flow in `src/App.tsx` (`/`, `/scan`, `/citizen/:id`, `/arbitration/:id`,
-  `/claim/:id`, `/appeal/:id`, `/appeals/:id`, `/vault`, dev-only `/debug`).
+  `/claim/:id`, `/appeal/:id`, `/appeals/:id`, `/registry` with `/vault`
+  redirecting, dev-only `/debug`).
 - `src/components/HomePage.tsx` — the landing screen (terminal + paper
   dossier panel); the global app header hides on the scan screen.
 - `src/components/ObjectScanner.tsx` (+ `ScannerHeader`, `UploadPanel`,
@@ -139,6 +150,10 @@ scripts/              # scan-cost audit
 - `src/components/HouseholdAuditCard.tsx` — the dossier card: lens view, tier
   stamp, title, index + waste gauge, 2×2 stats, per-item cards (with Step-5
   override flags), barcode.
+- `src/components/CarbonRegistryScreen.tsx` (+ `RegistryUnlock`,
+  `RegistryPayment`) — `/registry`: the pooled carbon standing hero, the
+  assessment archive and the demoted token account. Payment terminals charge
+  via `lib/vault-api.ts` (API/storage names keep their `vault` spellings).
 - Copy: all world strings live in the lore pack; inline UI strings are
   generic chrome, not story.
 

@@ -98,7 +98,7 @@ export const verification = sqliteTable(
 );
 
 // ---------------------------------------------------------------------------
-// Asset Vault (wallet) — 1:1 with a Better Auth user
+// Carbon Registry (wallet) — 1:1 with a Better Auth user
 // ---------------------------------------------------------------------------
 
 export const wallets = sqliteTable(
@@ -156,7 +156,7 @@ export const dossiers = sqliteTable(
     suggestions_json: text('suggestions_json').notNull().default('[]'),
     /** Evidence photo file name on disk (apps/server/data/evidence). */
     evidence_filename: text('evidence_filename'),
-    /** Owning Asset Vault account (Better Auth user id); null while anonymous. */
+    /** Owning Carbon Registry account (Better Auth user id); null while anonymous. */
     user_id: text('user_id').references(() => user.id, { onDelete: 'set null' }),
   },
   (t) => [

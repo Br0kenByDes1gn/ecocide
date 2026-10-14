@@ -138,11 +138,25 @@ with three rules implemented in `packages/compliance`:
 - **Hard fails** count items hit by at least one override rule (not merely
   low-SI items).
 
+## 5c. The registry roll-up (cross-assessment)
+
+`packages/compliance/src/registry.ts` pools every assessment the citizen has
+claimed. Because the household index is itself an item-weighted mean, the
+**Carbon Neutrality Index** is the same quantity over every item ever audited:
+an item-weighted mean of the assessment indices, not a flat average, so a
+furnished room moves the record more than a single jar. `registryStanding` also
+reports the record's texture (objects audited, hard fails, worst offender,
+dominant material family) and `delta` — what the newest assessment did to the
+record against the pooled baseline that preceded it. The tier that labels the
+standing comes from `getFactionFromScore` (the bands in §3); the registry never
+re-derives them. World copy lives in `surfaces.ts` (`REGISTRY_COPY`).
+
 ## 6. Art — palettes, stamps, lenses, audio
 
 | Surface | Where | Notes |
 | --- | --- | --- |
 | Shared palette | `packages/lore/src/art.ts` (`PALETTE`) + `apps/web/src/index.css` `:root` | art §3 hexes; keep the two in sync |
+| Carbon Registry copy | `packages/lore/src/surfaces.ts` (`REGISTRY_COPY`) | world strings for the registry page, its standing hero and the payment terminal |
 | Per-tier colors | `factions.ts[].colors` | Tailwind literals + hex |
 | Audit lenses (4 canvas styles) | `apps/web/src/lib/audit-lenses.ts` | art §9: neon-outline (default), evidence-photo, inspection-hud, carbon-heat |
 | Tier stamp (SVG) | `apps/web/src/components/TierStamp.tsx` | art §10 flat-vector style; per-tier prompt in `stylePrompt` |
@@ -170,9 +184,11 @@ Screens and files: landing (`HomePage.tsx`) · app chrome (`App.tsx`) · scan
 `lib/audit-lenses.ts` + `TierStamp.tsx`) · verdict (`ArbitrationDossier.tsx`,
 `DossierProphecy.tsx`, `lib/useArbitrationFlow.ts`, `lib/useAuditReveal.ts`) ·
 claim/appeal (`ClaimScreen.tsx`, `AppealScreen.tsx`,
-`AppealRecordsScreen.tsx`, `AssetVaultPayment.tsx`) · dossier + download card
-(`CitizenDossier.tsx`, `lib/dossierCardPng.ts`) · vault (`VaultScreen.tsx`) ·
-census (`CensusModal.tsx`) · dev bench (`DebugBench.tsx`).
+`AppealRecordsScreen.tsx`, `RegistryPayment.tsx`) · dossier + download card
+(`CitizenDossier.tsx`, `lib/dossierCardPng.ts`) · carbon registry
+(`CarbonRegistryScreen.tsx` + `RegistryUnlock.tsx`; copy in
+`packages/lore/src/surfaces.ts` — `REGISTRY_COPY`) · census
+(`CensusModal.tsx`) · dev bench (`DebugBench.tsx`).
 
 ## 9. Zero-token workflow (no AI spend)
 
@@ -180,7 +196,7 @@ census (`CensusModal.tsx`) · dev bench (`DebugBench.tsx`).
    per tier), verdict previews, lens switcher.
 2. Upload a room photo; scan → the server runs the **simulated audit**
    (no `GEMINI_API_KEY`).
-3. Claim/appeal: the vault OTP prints to the **server console**; verdict/appeal
+3. Claim/appeal: the registry OTP prints to the **server console**; verdict/appeal
    emails are **logged** (jsonTransport, no SMTP).
 4. With a key + SMTP set, the same flow uses Gemini + real mails.
 
@@ -191,6 +207,8 @@ census (`CensusModal.tsx`) · dev bench (`DebugBench.tsx`).
       verdict lines, prompt blocks, simulated copy, stylePrompts, titles.
       Keep ids stable.
 - [ ] Rewrite `prompts.ts` voice + tone (keep the JSON schemas' contracts).
+- [ ] Rewrite `surfaces.ts` (`REGISTRY_COPY`): the Carbon Registry page, its
+      standing hero, the assessment archive and the payment terminal copy.
 - [ ] Replace the landing copy (`HomePage.tsx`) and the scanner chrome
       (`ScannerHeader.tsx`, `UploadPanel.tsx`, `AnalysisPanel.tsx`).
 - [ ] Redesign palette (`art.ts` + `index.css`), favicon, PWA meta, lenses.

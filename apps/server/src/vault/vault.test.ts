@@ -82,7 +82,7 @@ function makePayload(): OraclePayload {
     audit: {
       roomType: 'kitchen',
       items: [
-        { label: 'plastic bag', category: 'packaging', count: 9, ratings: { m: 5, p: 5 }, si: 6.3, status: 'non-compliant' },
+        { label: 'plastic bag', category: 'packaging', count: 9, ratings: { m: 5, p: 5 }, materialFamily: 'plastic', si: 6.3, status: 'non-compliant' },
       ],
       ratio: 15,
       hardFails: 1,
@@ -91,6 +91,40 @@ function makePayload(): OraclePayload {
     suggestions: [],
   };
 }
+
+/** A pristine small object (SI 100, roll-up weight 0.5) for standing tests. */
+function makeCleanPayload(): OraclePayload {
+  return {
+    user_profile: {
+      caste: 'carbon-neutral-legend',
+      biocarbon_ratio: 100,
+      honorific_title: 'Recycling Ascetic',
+    },
+    prophecy: { headline: 'H', paragraph_1: 'P1', paragraph_2: 'P2', paragraph_3: 'P3' },
+    audit: {
+      roomType: 'desk',
+      items: [
+        {
+          label: 'glass jar',
+          category: 'packaging',
+          count: 1,
+          ratings: { m: 1, r: 1, d: 1, c: 1, l: 1, t: 1, p: 1 },
+          materialFamily: 'glass',
+          size: 'small',
+          si: 100,
+          status: 'compliant',
+        },
+      ],
+      ratio: 100,
+      hardFails: 0,
+      topOffenderLabel: null,
+    },
+    suggestions: [],
+  };
+}
+
+/** `saveDossier` stamps ISO-ms timestamps; a tick keeps two saves ordered. */
+const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
 
 describe('vault routes', () => {
   it('rejects unauthenticated access', async () => {
@@ -120,6 +154,19 @@ describe('vault routes', () => {
       transactionCount: 1,
     });
     expect(state.dossiers).toEqual([]);
+    // An empty registry is neutral 50 and has nothing to compare against.
+    expect(state.standing).toMatchObject({
+      index: 50,
+      assessmentCount: 0,
+      objectCount: 0,
+      hardFailCount: 0,
+      topOffenderLabel: null,
+      dominantMaterialFamily: null,
+      baselineIndex: null,
+      delta: null,
+      firstAuditAt: null,
+      lastAuditAt: null,
+    });
   });
 
   it('links a dossier and charges the certification fee exactly once', async () => {
@@ -242,10 +289,57 @@ describe('vault routes', () => {
       transactionCount: 3,
     });
     expect(state.dossiers).toHaveLength(1);
-    // Summaries are lightweight: no heavy verdict/snapshot fields.
-    expect(state.dossiers[0]).toMatchObject({ id: dossierId, caste: 'disaster-zone' });
+    // Summaries carry the archive fields but no heavy verdict/items payload.
+    expect(state.dossiers[0]).toMatchObject({
+      id: dossierId,
+      caste: 'disaster-zone',
+      roomType: 'kitchen',
+      objectCount: 9,
+      hardFailCount: 0,
+    });
     expect(state.dossiers[0]).not.toHaveProperty('prophecy');
     expect(state.dossiers[0]).not.toHaveProperty('sourceSnapshot');
+    expect(state.dossiers[0]).not.toHaveProperty('items');
+  });
+
+  it('pools the standing across linked assessments, weighted by item weight', async () => {
+    const app = makeApp(USER_A);
+
+    // Older assessment: 9 heavy plastic bags, SI 0 → weight 9.
+    const fouled = await repositories.saveDossier(makePayload());
+    await app.request('/api/vault/link', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dossierId: fouled }),
+    });
+
+    await tick();
+
+    // Newer assessment: one small pristine jar, SI 100 → weight 0.5.
+    const clean = await repositories.saveDossier(makeCleanPayload());
+    await app.request('/api/vault/link', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dossierId: clean }),
+    });
+
+    const state = await (await app.request('/api/vault')).json();
+    expect(state.dossiers.map((d: { id: string }) => d.id)).toEqual([clean, fouled]); // newest first
+
+    // Pooled: 100 × 0.5 / 9.5 = 5.26 → 5 (NOT the equal-weight mean of 0 and 100).
+    expect(state.standing).toMatchObject({
+      index: 5,
+      assessmentCount: 2,
+      objectCount: 10,
+      hardFailCount: 0,
+      topOffenderLabel: 'plastic bag',
+      dominantMaterialFamily: 'plastic',
+      baselineIndex: 0, // the older assessment alone
+      delta: 5, // what the newest audit did to the record
+    });
+    expect(state.standing.firstAuditAt).toBeTruthy();
+    expect(state.standing.lastAuditAt).toBeTruthy();
+    expect(state.standing.firstAuditAt <= state.standing.lastAuditAt).toBe(true);
   });
 
   it('paginates the ledger and clamps limit/offset', async () => {

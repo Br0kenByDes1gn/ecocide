@@ -88,7 +88,7 @@ const jobSystem = await createJobSystem({
 });
 const jobs = jobSystem.dispatcher;
 
-// Better Auth: email-OTP identity + Asset Vault sessions.
+// Better Auth: email-OTP identity + Carbon Registry sessions.
 const authConfig = loadAuthConfig();
 const auth = createAuth({ db, jobs, config: authConfig });
 
@@ -116,7 +116,7 @@ app.use(
   })
 );
 
-// Asset Vault identity (Better Auth).
+// Carbon Registry identity (Better Auth).
 app.all('/api/auth/*', (c) => auth.handler(c.req.raw));
 app.route('/api/vault', createVaultRoutes({ repositories, auth }));
 

@@ -1,21 +1,23 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { CheckCircle2, CreditCard, Loader2, Lock, ShieldCheck } from 'lucide-react';
+import { REGISTRY_COPY } from '@ecocide/lore';
 import { useVault } from '../lib/useVault';
 import { chargeVault, linkDossierToVault } from '../lib/vault-api';
-import { VaultUnlock } from './VaultUnlock';
+import { RegistryUnlock } from './RegistryUnlock';
 
-interface AssetVaultPaymentProps {
+interface RegistryPaymentProps {
   /** Fee caption, e.g. "APPEAL FILING FEE". */
   feeLabel: string;
-  /** Credits drawn from the vault. */
+  /** Credits drawn from the registry account. */
   amount: number;
   /** Ledger reason for a plain charge, e.g. "appeal_fee". */
   reason: string;
   /** Ledger reference for a plain charge (e.g. the dossier id). */
   chargeRef?: string;
   /**
-   * When set, the payment binds this dossier to the vault and charges the
-   * certification fee (the claim flow). Otherwise a plain `reason` charge is made.
+   * When set, the payment binds this dossier to the registry account and
+   * charges the certification fee (the claim flow). Otherwise a plain `reason`
+   * charge is made.
    */
   bindDossierId?: string;
   /** Called once the payment succeeds. */
@@ -25,15 +27,15 @@ interface AssetVaultPaymentProps {
 type Stage = 'unlock' | 'confirm' | 'working' | 'done';
 
 /**
- * Shared Asset Vault payment terminal.
+ * Shared registry payment terminal.
  *
- * A locked vault first unlocks via {@link VaultUnlock} (email OTP); an already
- * unlocked wallet goes straight to the AUTHORIZE step. Authorization then either
- * binds the dossier (claim) or draws a fixed fee (appeal) from the wallet
- * ledger. Unlocking never charges — payment is always explicit. No real charge
- * is ever made.
+ * A locked account first unlocks via {@link RegistryUnlock} (email OTP); an
+ * already unlocked wallet goes straight to the AUTHORIZE step. Authorization
+ * then either binds the dossier (claim) or draws a fixed fee (appeal) from the
+ * wallet ledger. Unlocking never charges — payment is always explicit. No real
+ * charge is ever made.
  */
-export const AssetVaultPayment: React.FC<AssetVaultPaymentProps> = ({
+export const RegistryPayment: React.FC<RegistryPaymentProps> = ({
   feeLabel,
   amount,
   reason,
@@ -76,12 +78,12 @@ export const AssetVaultPayment: React.FC<AssetVaultPaymentProps> = ({
   return (
     <div className="w-full max-w-md mx-auto bg-[#0e1510] rounded-2xl border-2 border-cyan-500/40 p-6 shadow-2xl">
       <div className="flex items-center justify-between border-b border-gray-800 pb-3 mb-5">
-        <div className="flex items-center gap-2 text-cyan-300 font-mono text-xs font-bold tracking-widest">
+        <div className="flex items-center gap-2 text-cyan-300 font-mono text-xs font-bold tracking-widest uppercase">
           <Lock className="w-4 h-4" />
-          ASSET VAULT TERMINAL
+          {REGISTRY_COPY.terminal.title}
         </div>
         <span className="text-[10px] font-mono text-emerald-400 border border-emerald-500/40 rounded px-1.5 py-0.5">
-          SEC-CHANNEL // 9
+          {REGISTRY_COPY.terminal.secChannel}
         </span>
       </div>
 
@@ -91,24 +93,25 @@ export const AssetVaultPayment: React.FC<AssetVaultPaymentProps> = ({
           {amount.toLocaleString()}
           <span className="text-lg text-cyan-500"> CREDITS</span>
         </div>
-        <div className="text-[10px] font-mono text-gray-500 mt-1">
-          DRAWN FROM YOUR ASSET VAULT
+        <div className="text-[10px] font-mono text-gray-500 mt-1 uppercase">
+          {REGISTRY_COPY.terminal.drawnFrom}
         </div>
       </div>
 
-      {stage === 'unlock' && <VaultUnlock onUnlocked={() => setStage('confirm')} />}
+      {stage === 'unlock' && <RegistryUnlock onUnlocked={() => setStage('confirm')} />}
 
       {stage === 'confirm' && (
         <div className="space-y-3">
           <div className="flex items-center justify-between text-[10px] font-mono border border-emerald-500/30 bg-emerald-950/20 rounded-lg px-3 py-2">
             <span className="text-emerald-400 uppercase tracking-widest flex items-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5" /> VAULT UNLOCKED
+              <ShieldCheck className="w-3.5 h-3.5" /> {REGISTRY_COPY.terminal.unlocked}
             </span>
             <span className="text-gray-400 truncate max-w-[60%] text-right">{vault?.user.email}</span>
           </div>
           {vault && (
-            <p className="text-center font-mono text-[11px] text-gray-500">
-              BALANCE: <span className="text-cyan-300">{vault.wallet.credits.toLocaleString()}</span> CREDITS
+            <p className="text-center font-mono text-[11px] text-gray-500 uppercase">
+              {REGISTRY_COPY.terminal.balance}:{' '}
+              <span className="text-cyan-300">{vault.wallet.credits.toLocaleString()}</span> CREDITS
             </p>
           )}
           <button
@@ -116,7 +119,7 @@ export const AssetVaultPayment: React.FC<AssetVaultPaymentProps> = ({
             onClick={() => void pay()}
             className="w-full py-3.5 rounded-xl font-mono text-sm font-black tracking-widest uppercase flex items-center justify-center gap-2 transition-all cursor-pointer bg-cyan-500 hover:bg-cyan-400 text-black shadow-lg hover:shadow-cyan-500/30"
           >
-            <CreditCard className="w-4 h-4" /> AUTHORIZE PAYMENT
+            <CreditCard className="w-4 h-4" /> {REGISTRY_COPY.terminal.authorize}
           </button>
         </div>
       )}
@@ -125,7 +128,7 @@ export const AssetVaultPayment: React.FC<AssetVaultPaymentProps> = ({
         <div className="py-6 text-center space-y-3">
           <Loader2 className="w-8 h-8 animate-spin text-cyan-400 mx-auto" />
           <p className="font-mono text-xs text-cyan-300 tracking-widest uppercase">
-            {bindDossierId ? 'Binding dossier to vault...' : 'Debiting vault ledger...'}
+            {bindDossierId ? REGISTRY_COPY.terminal.binding : REGISTRY_COPY.terminal.debiting}
           </p>
         </div>
       )}
@@ -134,11 +137,12 @@ export const AssetVaultPayment: React.FC<AssetVaultPaymentProps> = ({
         <div className="py-6 text-center space-y-3">
           <CheckCircle2 className="w-9 h-9 text-emerald-400 mx-auto" />
           <p className="font-mono text-sm font-bold text-emerald-300 tracking-widest uppercase">
-            Payment Authorized
+            {REGISTRY_COPY.terminal.paid}
           </p>
           {vault && (
-            <p className="font-mono text-xs text-gray-400">
-              BALANCE: <span className="text-cyan-300">{vault.wallet.credits.toLocaleString()}</span> CREDITS
+            <p className="font-mono text-xs text-gray-400 uppercase">
+              {REGISTRY_COPY.terminal.balance}:{' '}
+              <span className="text-cyan-300">{vault.wallet.credits.toLocaleString()}</span> CREDITS
             </p>
           )}
         </div>
@@ -150,8 +154,8 @@ export const AssetVaultPayment: React.FC<AssetVaultPaymentProps> = ({
         </p>
       )}
 
-      <p className="text-center text-[10px] font-mono text-gray-600 mt-4">
-        SIMULATION TERMINAL // NO REAL CHARGE WILL BE MADE
+      <p className="text-center text-[10px] font-mono text-gray-600 mt-4 uppercase">
+        {REGISTRY_COPY.terminal.simulation}
       </p>
     </div>
   );

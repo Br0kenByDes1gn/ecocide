@@ -1,8 +1,10 @@
 import { Hono } from 'hono';
+import { registryStanding } from '@ecocide/compliance';
 import {
   VAULT_ALLOWANCE,
   VAULT_CLAIM_FEE,
   type VaultChargeResult,
+  type VaultDossierSummary,
   type VaultLedgerPage,
   type VaultLinkResult,
   type VaultState,
@@ -27,11 +29,12 @@ function clampInt(raw: string | undefined, fallback: number, min: number, max: n
 }
 
 /**
- * Asset Vault endpoints, mounted at `/api/vault`. Every route requires a valid
+ * Carbon Registry endpoints, mounted at `/api/vault`. Every route requires a valid
  * session (cookie on web, bearer token on native).
  *
- *  - `GET  /`        → the signed-in citizen's vault: wallet, stats, dossier
- *                      summaries and the most recent ledger page.
+ *  - `GET  /`        → the signed-in citizen's vault: wallet, stats, the pooled
+ *                      carbon standing, the archived assessment summaries and
+ *                      the most recent ledger page.
  *  - `GET  /ledger`  → a paginated slice of the wallet ledger (`limit`/`offset`).
  *  - `POST /link`    → attach a freshly-scanned anonymous dossier to the vault and
  *                      charge the certification fee (idempotent per dossier).
@@ -48,16 +51,34 @@ export function createVaultRoutes(deps: VaultRouteDeps) {
       (await deps.repositories.getWalletByUser(user.id)) ??
       (await deps.repositories.createWalletForUser(user.id, VAULT_ALLOWANCE));
 
-    const [stats, dossiers, page] = await Promise.all([
+    const [stats, rows, page] = await Promise.all([
       deps.repositories.getWalletStats(user.id),
-      deps.repositories.getVaultDossierSummaries(user.id),
+      deps.repositories.getVaultAssessmentRows(user.id),
       deps.repositories.getWalletLedgerPage(user.id, { limit: LEDGER_PAGE_SIZE, offset: 0 }),
     ]);
+
+    // The pooled standing comes from the archived items; the client only ever
+    // sees the derived summary, never the raw item lists.
+    const standing = registryStanding(
+      rows.map((row) => ({ createdAt: row.createdAt, items: row.items }))
+    );
+    const dossiers: VaultDossierSummary[] = rows.map((row) => ({
+      id: row.id,
+      caste: row.caste,
+      honorificTitle: row.honorificTitle,
+      biocarbonRatio: row.biocarbonRatio,
+      roomType: row.roomType,
+      objectCount: row.objectCount,
+      hardFailCount: row.hardFailCount,
+      createdAt: row.createdAt,
+      evidenceUrl: row.evidenceUrl,
+    }));
 
     const state: VaultState = {
       user: { id: user.id, email: user.email, name: user.name },
       wallet,
       stats,
+      standing,
       dossiers,
       ledger: page.entries,
     };
@@ -89,7 +110,7 @@ export function createVaultRoutes(deps: VaultRouteDeps) {
       return c.json({ error: 'Subject dossier not found in the registry archives' }, 404);
     }
     if (dossier.ownerId && dossier.ownerId !== user.id) {
-      return c.json({ error: 'Dossier is already bound to another Asset Vault' }, 409);
+      return c.json({ error: 'Dossier is already bound to another Carbon Registry' }, 409);
     }
 
     // Provision the vault (with its token allowance) on first use.

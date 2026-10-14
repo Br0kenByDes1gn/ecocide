@@ -11,8 +11,8 @@ import type { ItemCategory } from './components/UploadPanel';
 import { CitizenDossier } from './components/CitizenDossier';
 import { ClaimScreen } from './components/ClaimScreen';
 import { DebugBench } from './components/DebugBench';
-import { VaultScreen } from './components/VaultScreen';
-import { IDENTITY, CONFETTI_COLORS } from '@ecocide/lore';
+import { CarbonRegistryScreen } from './components/CarbonRegistryScreen';
+import { IDENTITY, REGISTRY_COPY, CONFETTI_COLORS } from '@ecocide/lore';
 import { soundFx } from './lib/audio';
 
 const IS_DEV = import.meta.env.DEV;
@@ -25,7 +25,7 @@ type ViewState =
   | 'claim'
   | 'appeal'
   | 'appeals'
-  | 'vault'
+  | 'registry'
   | 'debug';
 
 function parseCitizenIdFromUrl(): string | null {
@@ -63,11 +63,19 @@ function parseAppealsIdFromUrl(): string | null {
   return searchParams.get('appeals');
 }
 
+/**
+ * True on the registry route. `/vault` is the pre-rename URL: it is kept
+ * working and rewritten to `/registry` by the deep-link loader.
+ */
+function isRegistryPath(path: string): boolean {
+  return path === '/registry' || path === '/vault';
+}
+
 export function App() {
   const [viewState, setViewState] = useState<ViewState>(() => {
     if (typeof window === 'undefined') return 'intro';
     if (IS_DEV && window.location.pathname === '/debug') return 'debug';
-    if (window.location.pathname === '/vault') return 'vault';
+    if (isRegistryPath(window.location.pathname)) return 'registry';
     if (parseClaimIdFromUrl()) return 'claim';
     if (parseAppealsIdFromUrl()) return 'appeals';
     if (parseAppealIdFromUrl()) return 'appeal';
@@ -104,8 +112,10 @@ export function App() {
         return;
       }
 
-      if (path === '/vault') {
-        setViewState('vault');
+      if (isRegistryPath(path)) {
+        // Pre-rename links keep working: normalize `/vault` to `/registry`.
+        if (path !== '/registry') window.history.replaceState({}, '', '/registry');
+        setViewState('registry');
         setOracleData(null);
         setPermalinkId(null);
         setEvidenceUrl(undefined);
@@ -259,12 +269,12 @@ export function App() {
     window.history.pushState({}, '', `/citizen/${permalinkId}`);
   };
 
-  const goVault = () => {
-    setViewState('vault');
-    window.history.pushState({}, '', '/vault');
+  const goRegistry = () => {
+    setViewState('registry');
+    window.history.pushState({}, '', '/registry');
   };
 
-  /** Open any dossier by id (used by the vault's transaction/designation links). */
+  /** Open any dossier by id (used by the registry's archive/ledger links). */
   const handleOpenDossier = async (id: string) => {
     setIsLoading(true);
     try {
@@ -364,7 +374,7 @@ export function App() {
         onProceedToScan={handleProceedToScan}
         isMuted={isMuted}
         onToggleMute={() => setIsMuted(soundFx.toggleMute())}
-        onGoVault={goVault}
+        onGoRegistry={goRegistry}
         onOpenDebug={IS_DEV ? handleOpenDebug : undefined}
         isDev={IS_DEV}
       />
@@ -410,12 +420,12 @@ export function App() {
 
           <button
             type="button"
-            onClick={goVault}
+            onClick={goRegistry}
             className="text-xs font-mono text-lime-400 hover:text-lime-300 border border-lime-500/50 hover:border-lime-400 bg-lime-950/40 hover:bg-lime-900/40 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
-            title="Open your Asset Vault (/vault)"
+            title={`Open your ${REGISTRY_COPY.name} (/registry)`}
           >
             <Wallet className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">VAULT</span>
+            <span className="hidden sm:inline">{REGISTRY_COPY.navLabel.toUpperCase()}</span>
           </button>
 
           <button
@@ -463,7 +473,7 @@ export function App() {
             onLockIn={handleLockIn}
             isLoading={isLoading}
             onNavigateHome={handleNavigateHome}
-            onGoVault={goVault}
+            onGoRegistry={goRegistry}
             onToggleMute={() => setIsMuted(soundFx.toggleMute())}
             isMuted={isMuted}
             onOpenDebug={IS_DEV ? handleOpenDebug : undefined}
@@ -512,7 +522,12 @@ export function App() {
           />
         )}
 
-        {viewState === 'vault' && <VaultScreen onOpenDossier={handleOpenDossier} />}
+        {viewState === 'registry' && (
+          <CarbonRegistryScreen
+            onOpenDossier={handleOpenDossier}
+            onBeginAudit={handleProceedToScan}
+          />
+        )}
       </main>
 
       {/* Footer System Status (hidden on the scan screen — the scanner header carries its own) */}

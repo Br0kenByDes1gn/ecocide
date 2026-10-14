@@ -20,7 +20,7 @@ import type {
   WalletLedgerReason,
 } from '@ecocide/types';
 import { CASTE_ORDER } from '@ecocide/types';
-import { hardFailCount, topOffender } from '@ecocide/compliance';
+import { hardFailCount, objectCount, topOffender } from '@ecocide/compliance';
 import { evidenceUrlFor } from '../evidence.js';
 import type { DbConnection } from './client.js';
 import { appeals, dossiers, scanApiLogs, walletLedger, wallets } from './schema.js';
@@ -62,6 +62,15 @@ export interface SaveAppealEntry {
   scripture?: [string, string, string];
   casteBefore: Caste;
   casteAfter?: Caste;
+}
+
+/**
+ * One archived assessment of a vault account: the summary row the registry
+ * renders, plus its parsed items (used server-side for the pooled standing —
+ * never sent to the client as part of the summary).
+ */
+export interface VaultAssessmentRow extends VaultDossierSummary {
+  items: AuditItem[];
 }
 
 type DossierRow = typeof dossiers.$inferSelect;
@@ -368,7 +377,7 @@ export function createRepositories(db: DbConnection['db']) {
     },
 
     // ------------------------------------------------------------------
-    // Asset Vault (wallet)
+    // Carbon Registry (wallet)
     // ------------------------------------------------------------------
 
     /** Returns the wallet for a user, or null when the vault has no wallet yet. */
@@ -550,30 +559,43 @@ export function createRepositories(db: DbConnection['db']) {
       await db.update(dossiers).set({ user_id: userId }).where(eq(dossiers.id, dossierId)).run();
     },
 
-    /** Lightweight summaries of a vault's dossiers, newest first. */
-    async getVaultDossierSummaries(userId: string): Promise<VaultDossierSummary[]> {
+    /**
+     * The vault account's archived assessments, NEWEST first: the summary the
+     * carbon registry renders plus the parsed items that feed the pooled
+     * standing (the route derives it, items never reach the client).
+     */
+    async getVaultAssessmentRows(userId: string): Promise<VaultAssessmentRow[]> {
       const rows = db
         .select({
           id: dossiers.id,
           caste: dossiers.caste,
           honorific_title: dossiers.honorific_title,
           biocarbon_ratio: dossiers.biocarbon_ratio,
+          room_type: dossiers.room_type,
           created_at: dossiers.created_at,
           evidence_filename: dossiers.evidence_filename,
+          items_json: dossiers.items_json,
         })
         .from(dossiers)
         .where(eq(dossiers.user_id, userId))
         .orderBy(desc(dossiers.created_at))
         .all();
 
-      return rows.map((row) => ({
-        id: row.id,
-        caste: row.caste as Caste,
-        honorificTitle: row.honorific_title,
-        biocarbonRatio: row.biocarbon_ratio,
-        createdAt: row.created_at,
-        evidenceUrl: row.evidence_filename ? evidenceUrlFor(row.evidence_filename) : undefined,
-      }));
+      return rows.map((row) => {
+        const items = parseJson<AuditItem[]>(row.items_json, []);
+        return {
+          id: row.id,
+          caste: row.caste as Caste,
+          honorificTitle: row.honorific_title,
+          biocarbonRatio: row.biocarbon_ratio,
+          roomType: row.room_type ?? null,
+          objectCount: objectCount(items),
+          hardFailCount: hardFailCount(items),
+          createdAt: row.created_at,
+          evidenceUrl: row.evidence_filename ? evidenceUrlFor(row.evidence_filename) : undefined,
+          items,
+        };
+      });
     },
   };
 }

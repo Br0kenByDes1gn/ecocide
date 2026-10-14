@@ -251,8 +251,14 @@ adorn with the caste implants from §3.
    per-paragraph accents: **cyan `#22d3ee`**, **amber `#f59e0b`**, **emerald `#10b981`**.
 4. **Verdict Actions** — CLAIM = solid cyan pill (black text), APPEAL = solid purple pill
    (white text), under a pulsing `VERDICT DELIVERED` status line.
-5. **Asset Vault** — banking-terminal-meets-cyberdeck: big cyan credit numerals, ledger
-   table with emerald (credited) / red (spent) amounts, `rounded-2xl` dark panels.
+5. **Carbon Registry** — dossier-bank-meets-cyberdeck: one big pooled
+   **carbon neutrality index** in ledger teal under the citizen's tier stamp,
+   a trend chip against the prior record, a stat strip (assessments, objects
+   audited, hard fails, dominant material), then the archived assessments as
+   case-file rows (thumbnail, tier name, room, index %, objects, fails, date).
+   The token account — balance, allowance bar, ledger table with emerald
+   (credited) / red (spent) amounts — collapses beneath the record.
+   `rounded-2xl` dark panels throughout.
 6. **Census Modal** — the caste pyramid as an irrecoverable government matrix:
    `CENSUS MANDATE 2026.4 // CLASSIFICATIONS ARE IRREVOCABLE`.
 

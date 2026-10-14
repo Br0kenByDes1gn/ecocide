@@ -6,11 +6,16 @@ import type {
 } from '@ecocide/types';
 import { authFetch } from './auth-client';
 
-/** Fetch the signed-in citizen's vault: wallet, stats, dossiers and ledger. */
+/**
+ * Registry API client (endpoints keep their `/api/vault` names):
+ * wallet, standing, archived assessments and the ledger.
+ */
+
+/** Fetch the signed-in citizen's registry: wallet, standing, dossiers and ledger. */
 export async function fetchVault(): Promise<VaultState> {
   const res = await authFetch('/api/vault');
   if (!res.ok) {
-    throw new Error(res.status === 401 ? 'VAULT LOCKED' : `VAULT QUERY FAILED (${res.status})`);
+    throw new Error(res.status === 401 ? 'REGISTRY LOCKED' : `REGISTRY QUERY FAILED (${res.status})`);
   }
   return res.json();
 }
@@ -19,7 +24,7 @@ export async function fetchVault(): Promise<VaultState> {
 export async function fetchVaultLedger(limit: number, offset: number): Promise<VaultLedgerPage> {
   const res = await authFetch(`/api/vault/ledger?limit=${limit}&offset=${offset}`);
   if (!res.ok) {
-    throw new Error(res.status === 401 ? 'VAULT LOCKED' : `LEDGER QUERY FAILED (${res.status})`);
+    throw new Error(res.status === 401 ? 'REGISTRY LOCKED' : `LEDGER QUERY FAILED (${res.status})`);
   }
   return res.json();
 }
@@ -33,7 +38,7 @@ export async function linkDossierToVault(dossierId: string): Promise<VaultLinkRe
   });
   if (!res.ok) {
     const payload = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(payload.error || `VAULT LINK FAILED (${res.status})`);
+    throw new Error(payload.error || `REGISTRY LINK FAILED (${res.status})`);
   }
   return res.json();
 }
@@ -51,7 +56,7 @@ export async function chargeVault(
   });
   if (!res.ok) {
     const payload = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(payload.error || `VAULT CHARGE FAILED (${res.status})`);
+    throw new Error(payload.error || `REGISTRY CHARGE FAILED (${res.status})`);
   }
   return res.json();
 }

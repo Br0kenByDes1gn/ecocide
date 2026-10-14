@@ -59,3 +59,6 @@ export type {
   MaterialFamily,
   OverrideRuleId,
 } from './math.js';
+
+export { objectCount, pooledIndex, registryStanding } from './registry.js';
+export type { RegistryAssessment, RegistryStanding } from './registry.js';

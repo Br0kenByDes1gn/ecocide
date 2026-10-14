@@ -1,18 +1,19 @@
 import React, { useState } from 'react';
 import { KeyRound, Loader2, Mail, ShieldCheck } from 'lucide-react';
+import { REGISTRY_COPY } from '@ecocide/lore';
 import { useVault } from '../lib/useVault';
 
-interface VaultUnlockProps {
-  /** Called after a successful OTP verification (the vault is now unlocked). */
+interface RegistryUnlockProps {
+  /** Called after a successful OTP verification (the registry account is unlocked). */
   onUnlocked: () => void;
 }
 
 /**
- * Email-OTP unlock form — the identity half of the Asset Vault. Renders the
- * form only (no card chrome); callers supply the surrounding terminal panel.
- * Unlocking never charges anything; payment is a separate, explicit step.
+ * Email-OTP unlock form — the identity half of the registry account. Renders
+ * the form only (no card chrome); callers supply the surrounding terminal
+ * panel. Unlocking never charges anything; payment is a separate, explicit step.
  */
-export const VaultUnlock: React.FC<VaultUnlockProps> = ({ onUnlocked }) => {
+export const RegistryUnlock: React.FC<RegistryUnlockProps> = ({ onUnlocked }) => {
   const { isPending, status, error, requestOtp, verifyOtp, refresh } = useVault();
   const [stage, setStage] = useState<'email' | 'otp'>('email');
   const [email, setEmail] = useState('');
@@ -40,7 +41,7 @@ export const VaultUnlock: React.FC<VaultUnlockProps> = ({ onUnlocked }) => {
       <div className="py-6 text-center space-y-3">
         <Loader2 className="w-8 h-8 animate-spin text-cyan-400 mx-auto" />
         <p className="font-mono text-xs text-cyan-300 tracking-widest uppercase">
-          Checking vault status...
+          {REGISTRY_COPY.status.loading}
         </p>
       </div>
     );
@@ -51,7 +52,7 @@ export const VaultUnlock: React.FC<VaultUnlockProps> = ({ onUnlocked }) => {
       {stage === 'email' && (
         <form onSubmit={submitEmail} className="space-y-3">
           <label className="block text-[10px] font-mono text-gray-500 uppercase tracking-widest">
-            Vault Identity — Email
+            {REGISTRY_COPY.unlock.emailLabel}
           </label>
           <div className="flex items-center gap-2 bg-black/50 border border-gray-700 rounded-lg px-3 focus-within:border-cyan-500">
             <Mail className="w-4 h-4 text-gray-500 shrink-0" />
@@ -60,28 +61,28 @@ export const VaultUnlock: React.FC<VaultUnlockProps> = ({ onUnlocked }) => {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="citizen@sector-9.net"
+              placeholder={REGISTRY_COPY.unlock.emailPlaceholder}
               className="flex-1 bg-transparent py-2.5 font-mono text-sm text-gray-200 focus:outline-none"
-              aria-label="Vault email address"
+              aria-label="Registry email address"
             />
           </div>
           <button
             type="submit"
             disabled={busy}
-            className="w-full py-3.5 rounded-xl font-mono text-sm font-black tracking-widest uppercase flex items-center justify-center gap-2 transition-all cursor-pointer bg-cyan-500 hover:bg-cyan-400 text-black shadow-lg hover:shadow-cyan-500/30 disabled:opacity-60"
+            className="w-full py-3.5 rounded-xl font-mono text-sm font-black tracking-widest uppercase flex items-center justify-center gap-2 transition-all cursor-pointer bg-cyan-400 hover:bg-cyan-300 text-black shadow-lg hover:shadow-cyan-500/30 disabled:opacity-60"
           >
             {status === 'sending' ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" /> TRANSMITTING CODE...
+                <Loader2 className="w-4 h-4 animate-spin" /> {REGISTRY_COPY.unlock.sendingCode}
               </>
             ) : (
               <>
-                <ShieldCheck className="w-4 h-4" /> UNLOCK ASSET VAULT
+                <ShieldCheck className="w-4 h-4" /> {REGISTRY_COPY.unlock.sendCode}
               </>
             )}
           </button>
-          <p className="text-center text-[10px] font-mono text-gray-600">
-            A ONE-TIME ACCESS CODE WILL BE SENT TO THIS ADDRESS.
+          <p className="text-center text-[10px] font-mono text-gray-600 uppercase">
+            {REGISTRY_COPY.unlock.codeHint}
           </p>
         </form>
       )}
@@ -89,7 +90,7 @@ export const VaultUnlock: React.FC<VaultUnlockProps> = ({ onUnlocked }) => {
       {stage === 'otp' && (
         <form onSubmit={submitOtp} className="space-y-3">
           <label className="block text-[10px] font-mono text-gray-500 uppercase tracking-widest">
-            Access Code — Sent to {email}
+            {REGISTRY_COPY.unlock.accessCodeLabel} {email}
           </label>
           <div className="flex items-center gap-2 bg-black/50 border border-gray-700 rounded-lg px-3 focus-within:border-cyan-500">
             <KeyRound className="w-4 h-4 text-gray-500 shrink-0" />
@@ -108,15 +109,15 @@ export const VaultUnlock: React.FC<VaultUnlockProps> = ({ onUnlocked }) => {
           <button
             type="submit"
             disabled={busy || otp.trim().length < 4}
-            className="w-full py-3.5 rounded-xl font-mono text-sm font-black tracking-widest uppercase flex items-center justify-center gap-2 transition-all cursor-pointer bg-cyan-500 hover:bg-cyan-400 text-black shadow-lg hover:shadow-cyan-500/30 disabled:opacity-60"
+            className="w-full py-3.5 rounded-xl font-mono text-sm font-black tracking-widest uppercase flex items-center justify-center gap-2 transition-all cursor-pointer bg-cyan-400 hover:bg-cyan-300 text-black shadow-lg hover:shadow-cyan-500/30 disabled:opacity-60"
           >
             {status === 'verifying' ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" /> VERIFYING...
+                <Loader2 className="w-4 h-4 animate-spin" /> {REGISTRY_COPY.unlock.verifying}
               </>
             ) : (
               <>
-                <ShieldCheck className="w-4 h-4" /> UNLOCK VAULT
+                <ShieldCheck className="w-4 h-4" /> {REGISTRY_COPY.unlock.verifyCode}
               </>
             )}
           </button>
