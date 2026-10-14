@@ -33,13 +33,13 @@ const CASTE_ACCENT_COLORS: Record<Caste, string> = Object.fromEntries(
 ) as Record<Caste, string>;
 
 const SWATCH_COLORS = [
-  { name: 'Cyan', hex: '#00f3ff' },
-  { name: 'Sky', hex: '#38bdf8' },
-  { name: 'Neon Green', hex: '#00ff66' },
-  { name: 'Amber', hex: '#fbbf24' },
-  { name: 'Crimson', hex: '#ef4444' },
-  { name: 'Magenta', hex: '#e879f9' },
-  { name: 'Purple', hex: '#a855f7' },
+  { name: 'Toxic Lime', hex: '#b4ff39' },
+  { name: 'Ledger Teal', hex: '#2dd4bf' },
+  { name: 'Pledge Green', hex: '#22c55e' },
+  { name: 'Verdict Amber', hex: '#ffb703' },
+  { name: 'Hazard Yellow', hex: '#facc15' },
+  { name: 'Rust Orange', hex: '#f97316' },
+  { name: 'Critical Crimson', hex: '#ff0055' },
 ];
 
 export const BiometricPortraitLab: React.FC<BiometricPortraitLabProps> = ({
@@ -48,7 +48,7 @@ export const BiometricPortraitLab: React.FC<BiometricPortraitLabProps> = ({
 }) => {
   const [selectedStyle, setSelectedStyle] = useState<PolygonPortraitStyle>('neon-hologram');
   const [syncCasteColor, setSyncCasteColor] = useState<boolean>(true);
-  const [customColor, setCustomColor] = useState<string>('#00f3ff');
+  const [customColor, setCustomColor] = useState<string>('#b4ff39');
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [statusMessage, setStatusMessage] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
@@ -69,7 +69,7 @@ export const BiometricPortraitLab: React.FC<BiometricPortraitLabProps> = ({
   const webcamVideoRef = useRef<HTMLVideoElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const activeColor = syncCasteColor ? CASTE_ACCENT_COLORS[currentCaste] || '#00f3ff' : customColor;
+  const activeColor = syncCasteColor ? CASTE_ACCENT_COLORS[currentCaste] || '#b4ff39' : customColor;
 
   // Cleanup webcam stream on unmount
   useEffect(() => {
@@ -81,7 +81,7 @@ export const BiometricPortraitLab: React.FC<BiometricPortraitLabProps> = ({
   // When caste changes and sync is enabled, re-render if we have cached landmarks
   useEffect(() => {
     if (syncCasteColor && cachedLandmarks && loadedSourceImage) {
-      rerenderWithCached(selectedStyle, CASTE_ACCENT_COLORS[currentCaste] || '#00f3ff');
+      rerenderWithCached(selectedStyle, CASTE_ACCENT_COLORS[currentCaste] || '#b4ff39');
     }
   }, [currentCaste, syncCasteColor]);
 
@@ -480,7 +480,7 @@ export const BiometricPortraitLab: React.FC<BiometricPortraitLabProps> = ({
                 onClick={() => handleSelectStyle(style.id)}
                 className={`p-2 rounded border text-left transition-all ${
                   isSelected
-                    ? 'bg-cyan-950/80 border-cyan-400 text-cyan-200 shadow-[0_0_10px_rgba(0,243,255,0.2)]'
+                    ? 'bg-cyan-950/80 border-cyan-400 text-cyan-200 shadow-[0_0_10px_rgba(180,255,57,0.2)]'
                     : 'bg-gray-950 border-gray-800 hover:border-gray-700 text-gray-400 hover:text-gray-200'
                 }`}
               >
@@ -515,7 +515,7 @@ export const BiometricPortraitLab: React.FC<BiometricPortraitLabProps> = ({
                 const checked = e.target.checked;
                 setSyncCasteColor(checked);
                 if (checked && cachedLandmarks && loadedSourceImage) {
-                  rerenderWithCached(selectedStyle, CASTE_ACCENT_COLORS[currentCaste] || '#00f3ff');
+                  rerenderWithCached(selectedStyle, CASTE_ACCENT_COLORS[currentCaste] || '#b4ff39');
                 }
               }}
               className="rounded bg-gray-950 border-gray-700 text-cyan-500 focus:ring-0"
@@ -592,7 +592,7 @@ export const BiometricPortraitLab: React.FC<BiometricPortraitLabProps> = ({
                   onClick={() => handleSelectStyle(style.id)}
                   className={`relative rounded overflow-hidden border p-1 text-left group transition-all ${
                     isSelected
-                      ? 'border-cyan-400 bg-cyan-950/40 shadow-[0_0_8px_rgba(0,243,255,0.3)]'
+                      ? 'border-cyan-400 bg-cyan-950/40 shadow-[0_0_8px_rgba(180,255,57,0.3)]'
                       : 'border-gray-800 bg-black/60 hover:border-gray-600'
                   }`}
                 >

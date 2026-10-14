@@ -190,12 +190,11 @@ export interface MeshSpot {
 
 /**
  * Neutral mesh color for the pre-lock-in scan preview ("unclassified" feed).
- * Intentionally NOT assigned to any caste — see the canonical CASTE_COLORS
- * hexes in @ecocide/types (amber #fbbf24, slate #94a3b8, khaki #c29f53,
- * blue #3b82f6, emerald #10b981, red #ef4444) nor the debug accent set
- * (#00f3ff, #00ff66, #38bdf8, #e879f9).
+ * Pale leaf white (art_directions.md §3.3) — deliberately NOT one of the
+ * per-tier CASTE_COLORS hexes (lime/green/yellow/amber/orange/red) nor the
+ * debug accent set (#b4ff39, #22c55e, #2dd4bf, #ffb703).
  */
-export const SCAN_MESH_COLOR_UNCLASSIFIED = '#e2e8f0';
+export const SCAN_MESH_COLOR_UNCLASSIFIED = '#e6efe3';
 
 /**
  * Computes a slow Lissajous-wandering spotlight over the face in normalized
@@ -236,7 +235,7 @@ export function getFaceSpotNormalized(timeMs: number, landmarks: Landmark3D[]): 
 export function drawCyberpunkMesh(
   canvas: HTMLCanvasElement,
   landmarks: Landmark3D[],
-  color: string = '#00ff66',
+  color: string = '#22c55e',
   spot?: MeshSpot
 ) {
   const ctx = canvas.getContext('2d');

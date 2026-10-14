@@ -64,7 +64,7 @@ export const VaultScreen: React.FC<VaultScreenProps> = ({ onOpenDossier }) => {
 
   if (isPending) {
     return (
-      <div className="w-full max-w-3xl mx-auto bg-[#0f121d] rounded-2xl border border-gray-800 p-10 flex flex-col items-center gap-4 shadow-xl">
+      <div className="w-full max-w-3xl mx-auto bg-[#121a14] rounded-2xl border border-gray-800 p-10 flex flex-col items-center gap-4 shadow-xl">
         <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
         <div className="font-mono text-xs text-gray-300 tracking-widest animate-pulse">
           CONSULTING THE ASSET VAULT...
@@ -76,7 +76,7 @@ export const VaultScreen: React.FC<VaultScreenProps> = ({ onOpenDossier }) => {
   // Locked → unlock inline.
   if (!session && !vault) {
     return (
-      <div className="w-full max-w-md mx-auto bg-[#0c0e17] rounded-2xl border-2 border-cyan-500/40 p-6 shadow-2xl">
+      <div className="w-full max-w-md mx-auto bg-[#0e1510] rounded-2xl border-2 border-cyan-500/40 p-6 shadow-2xl">
         <div className="flex items-center gap-2 border-b border-gray-800 pb-3 mb-5 text-cyan-300 font-mono text-xs font-bold tracking-widest">
           <Wallet className="w-4 h-4" />
           ACCESS ASSET VAULT
@@ -88,7 +88,7 @@ export const VaultScreen: React.FC<VaultScreenProps> = ({ onOpenDossier }) => {
 
   if (!vault) {
     return (
-      <div className="w-full max-w-3xl mx-auto bg-[#0f121d] rounded-2xl border border-gray-800 p-10 flex flex-col items-center gap-4 shadow-xl">
+      <div className="w-full max-w-3xl mx-auto bg-[#121a14] rounded-2xl border border-gray-800 p-10 flex flex-col items-center gap-4 shadow-xl">
         <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
         <div className="font-mono text-xs text-gray-300 tracking-widest animate-pulse">
           OPENING VAULT RECORDS...
@@ -114,7 +114,7 @@ export const VaultScreen: React.FC<VaultScreenProps> = ({ onOpenDossier }) => {
       </div>
 
       {/* Balance + stats */}
-      <div className="bg-[#0f121d] rounded-2xl border-2 border-cyan-500/40 p-6 shadow-2xl space-y-4">
+      <div className="bg-[#121a14] rounded-2xl border-2 border-cyan-500/40 p-6 shadow-2xl space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
           <div>
             <div className="text-[10px] font-mono text-gray-500 uppercase tracking-widest">
@@ -172,7 +172,7 @@ export const VaultScreen: React.FC<VaultScreenProps> = ({ onOpenDossier }) => {
       </div>
 
       {/* Transactions */}
-      <div className="bg-[#0f121d] rounded-2xl border border-gray-800 shadow-xl overflow-hidden">
+      <div className="bg-[#121a14] rounded-2xl border border-gray-800 shadow-xl overflow-hidden">
         <div className="flex items-center gap-2 px-5 py-3.5 border-b border-gray-800 text-gray-300 font-mono text-xs tracking-widest uppercase">
           <History className="w-4 h-4 text-gray-500" />
           Transaction Ledger
@@ -262,7 +262,7 @@ export const VaultScreen: React.FC<VaultScreenProps> = ({ onOpenDossier }) => {
       </div>
 
       {/* Claimed designations */}
-      <div className="bg-[#0f121d] rounded-2xl border border-gray-800 shadow-xl overflow-hidden">
+      <div className="bg-[#121a14] rounded-2xl border border-gray-800 shadow-xl overflow-hidden">
         <div className="flex items-center gap-2 px-5 py-3.5 border-b border-gray-800 text-gray-300 font-mono text-xs tracking-widest uppercase">
           <ShieldCheck className="w-4 h-4 text-gray-500" />
           Claimed Designations ({dossiers.length})

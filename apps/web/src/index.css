@@ -2,77 +2,361 @@
 @source "../../../packages/types/src";
 @source "../../../packages/lore/src";
 
+/*
+ * ECOCIDE theme — single source of truth derived from art_directions.md §3.
+ * The JS mirror of this palette lives in packages/lore/src/art.ts.
+ *
+ * To avoid rewriting every screen at once, the legacy utility names that the
+ * components already use (cyan / gray / purple / emerald / rose …) are remapped
+ * onto the ECOCIDE palette here, so the whole app re-skins from this one block.
+ */
 @theme {
-  --color-khaki-400: #d4b170;
-  --color-khaki-500: #c29f53;
-  --color-khaki-600: #a68138;
+  /* --- System signal colors (§3.3) — name → where it is used --- */
+  --color-toxic-lime: #b4ff39;
+  /* PRIMARY: HUD, scanner beam, grid, Arbiter text, buttons */
+  --color-verdict-amber: #ffb703;
+  /* verdicts, infractions, warnings, "estimate" labels */
+  --color-hazard-yellow: #facc15;
+  /* hazard stripes, special-handling flags */
+  --color-alert-red: #ef4444;
+  /* errors, non-compliance, injection-attempt warnings */
+  --color-critical-crimson: #ff0055;
+  /* highest-severity alerts, worst planet-meter state */
+  --color-pledge-green: #22c55e;
+  /* accepted pledges, score improvements, success states */
+  --color-ledger-teal: #2dd4bf;
+  /* secondary data accent: charts, carbon totals, links */
+  --color-rust-orange: #f97316;
+  /* decay and corrosion accents, Heavy Waster tier */
+
+  /* Semantic role aliases so a component can name what a color *means* (§3.3). */
+  --color-primary: #b4ff39;
+  --color-verdict: #ffb703;
+  --color-hazard: #facc15;
+  --color-alert: #ef4444;
+  --color-critical: #ff0055;
+  --color-success: #22c55e;
+  --color-data: #2dd4bf;
+  --color-decay: #f97316;
+
+  /* --- Environment surfaces (§3.1) --- */
+  --color-moss-void: #080b08;
+  --color-moss-dark: #0c110d;
+  --color-panel-surface: #121a14;
+  --color-panel-alt: #17221a;
+  --color-modal-surface: #0e1510;
+  --color-canvas-void: #070a08;
+  --color-landfill-black: #0b0a06;
+  --color-leaf-white: #e6efe3;
+  --color-ink-secondary: #a9b8aa;
+  --color-ink-muted: #7c8b7e;
+
+  /* --- Paper layer (§3.2) --- */
+  --color-form-paper: #f1ead6;
+  --color-paper-shadow: #e0d6bb;
+  --color-typewriter-ink: #1f2a1f;
+  --color-stamp-red: #c2322b;
+  --color-stamp-green: #2f7d3a;
+  --color-stamp-amber: #b45309;
+  --color-compost-brown: #8b5a2b;
+
+  /* --- Compliance tier colors (§3.4) — badge, planet meter, tier banner, glow ---
+   * Always paired with the stamp text + meter position so color is never the only
+   * signal. Glow recipes: .text-glow-* / .border-glow-* / .ambient-glow-* below. */
+  --color-tier-eco-elite: #84cc16;
+  /* 90–100 · EXEMPLARY */
+  --color-tier-green-citizen: #22c55e;
+  /* 75–89  · APPROVED */
+  --color-tier-trying: #facc15;
+  /* 60–74  · APPROVED (GRUDGINGLY) */
+  --color-tier-careless: #f59e0b;
+  /* 40–59  · PENDING REVIEW */
+  --color-tier-heavy-waster: #f97316;
+  /* 20–39  · DENIED */
+  --color-tier-planet-threat: #ef4444;
+  /* 0–19   · FINAL NOTICE */
+
+  /* ===================================================================== */
+  /* Legacy scale remaps                                                  */
+  /* ===================================================================== */
+
+  /* Primary accent — former "cyan" scale now paints Toxic Lime (§3.3) */
+  --color-cyan-100: #eaffce;
+  --color-cyan-200: #d8ff8a;
+  --color-cyan-300: #c6ff66;
+  --color-cyan-400: #b4ff39;
+  --color-cyan-500: #b4ff39;
+  --color-cyan-600: #93e618;
+  --color-cyan-700: #77c112;
+  --color-cyan-800: #4f820e;
+  --color-cyan-900: #17240c;
+  --color-cyan-950: #0f1a08;
+
+  /* Neutrals — former gray/slate scales now a moss-tinted ramp (§3.1) */
+  --color-gray-50: #f4f8f2;
+  --color-gray-100: #e6efe3;
+  --color-gray-200: #d5e0d2;
+  --color-gray-300: #bccbb9;
+  --color-gray-400: #a9b8aa;
+  --color-gray-500: #7c8b7e;
+  --color-gray-600: #5f6f61;
+  --color-gray-700: #3f4f44;
+  --color-gray-800: #223026;
+  --color-gray-900: #121a14;
+  --color-gray-950: #080b08;
+
+  --color-slate-50: #f4f8f2;
+  --color-slate-100: #e6efe3;
+  --color-slate-200: #d5e0d2;
+  --color-slate-300: #bccbb9;
+  --color-slate-400: #a9b8aa;
+  --color-slate-500: #7c8b7e;
+  --color-slate-600: #5f6f61;
+  --color-slate-700: #3f4f44;
+  --color-slate-800: #223026;
+  --color-slate-900: #121a14;
+  --color-slate-950: #080b08;
+
+  /* Bureaucratic / appeal accent — former purple/violet scale → Verdict Amber */
+  --color-purple-300: #ffd166;
+  --color-purple-400: #ffb703;
+  --color-purple-500: #ffb703;
+  --color-purple-600: #b45309;
+  --color-purple-700: #92400e;
+  --color-purple-900: #3a2a06;
+  --color-purple-950: #241a04;
+
+  /* Success — former emerald scale → Pledge Green (§3.3) */
+  --color-emerald-200: #bbf7d0;
+  --color-emerald-300: #86efac;
+  --color-emerald-400: #22c55e;
+  --color-emerald-500: #16a34a;
+  --color-emerald-600: #15803d;
+  --color-emerald-900: #052e16;
+  --color-emerald-950: #052e16;
+
+  /* Errors — former rose/pink scales → Alert Red (§3.3) */
+  --color-rose-200: #fecaca;
+  --color-rose-300: #fca5a5;
+  --color-rose-400: #f87171;
+  --color-rose-500: #ef4444;
+  --color-rose-900: #450a0a;
+  --color-rose-950: #450a0a;
+  --color-pink-500: #ef4444;
+
+  /* Khaki accents → Hazard Yellow */
+  --color-khaki-400: #fde047;
+  --color-khaki-500: #facc15;
+  --color-khaki-600: #ca8a04;
 }
 
 @layer base {
   :root {
-    /* Palette tokens — JS-consumed hexes live in packages/lore/src/art.ts
-       (PALETTE). Keep the two in sync or read from art.ts (see STORY.md). */
-    --neon-green: #00ff66;
-    --neon-cyan: #00f3ff;
-    --neon-magenta: #ff007f;
-    --neon-amber: #ffb703;
-    --cyber-dark: #0a0b10;
-    --cyber-panel: #11141e;
+    --toxic-lime: #b4ff39;
+    --pledge-green: #22c55e;
+    --verdict-amber: #ffb703;
+    --critical-crimson: #ff0055;
+    --moss-void: #080b08;
+    --panel-surface: #121a14;
+    color-scheme: dark;
   }
 
   body {
-    background-color: var(--cyber-dark);
-    color: #e2e8f0;
+    background-color: #080b08;
+    color: #e6efe3;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     overflow-x: hidden;
   }
 }
 
-/* CRT Scanline & Glitch Overlays */
+/* Compliance-tier theme hooks (§3.4): add the tier class, then read
+ * var(--tier-color) / var(--tier-glow). Always pair with the stamp + meter. */
+.tier-elite {
+  --tier-color: #84cc16;
+  --tier-glow: rgba(132, 204, 22, 0.4);
+}
+
+.tier-green {
+  --tier-color: #22c55e;
+  --tier-glow: rgba(34, 197, 94, 0.4);
+}
+
+.tier-average {
+  --tier-color: #facc15;
+  --tier-glow: rgba(250, 204, 21, 0.4);
+}
+
+.tier-borderline {
+  --tier-color: #f59e0b;
+  --tier-glow: rgba(245, 158, 11, 0.4);
+}
+
+.tier-heavy {
+  --tier-color: #f97316;
+  --tier-glow: rgba(249, 115, 22, 0.4);
+}
+
+.tier-threat {
+  --tier-color: #ef4444;
+  --tier-glow: rgba(239, 68, 68, 0.6);
+}
+
+.tier-glow {
+  box-shadow: 0 0 20px var(--tier-glow, rgba(180, 255, 57, 0.25));
+}
+
+/* CRT Scanline & Glitch Overlays (Section 3.1 & 8) */
 .scanlines {
-  background: linear-gradient(
-    rgba(18, 16, 16, 0) 50%, 
-    rgba(0, 0, 0, 0.4) 50%
-  ), linear-gradient(
-    90deg,
-    rgba(255, 0, 0, 0.03),
-    rgba(0, 255, 0, 0.01),
-    rgba(0, 0, 255, 0.03)
-  );
+  background: linear-gradient(rgba(8, 11, 8, 0) 50%,
+      rgba(0, 0, 0, 0.4) 50%), linear-gradient(90deg,
+      rgba(255, 0, 0, 0.03),
+      rgba(0, 255, 0, 0.01),
+      rgba(0, 0, 255, 0.03));
   background-size: 100% 4px, 6px 100%;
   pointer-events: none;
 }
 
+/* Audit Grid: faint lime 32px graph-paper grid over moss-black (Section 8.2) */
 .cyber-grid {
-  background-image: 
-    linear-gradient(to right, rgba(0, 243, 255, 0.05) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(0, 243, 255, 0.05) 1px, transparent 1px);
+  background-image:
+    linear-gradient(to right, rgba(180, 255, 57, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(180, 255, 57, 0.05) 1px, transparent 1px);
   background-size: 32px 32px;
 }
 
+/* Glow Recipes (Section 3.5)
+ * text glow:    0 0 8px <color>@0.8, 0 0 20px <color>@0.4
+ * border glow:  0 0 15px <color>@0.3, inset 0 0 10px <color>@0.1
+ * CTA button:   lime 0 0 30px @0.5 → hover 0 0 45px @0.8
+ * tier ambient: 0 0 20px <tier-color>@0.25 (Planet Threat: 0.6)
+ */
+.text-glow-lime,
 .text-glow-cyan {
-  text-shadow: 0 0 8px rgba(0, 243, 255, 0.8), 0 0 20px rgba(0, 243, 255, 0.4);
+  text-shadow: 0 0 8px rgba(180, 255, 57, 0.8), 0 0 20px rgba(180, 255, 57, 0.4);
 }
 
 .text-glow-green {
-  text-shadow: 0 0 8px rgba(0, 255, 102, 0.8), 0 0 20px rgba(0, 255, 102, 0.4);
+  text-shadow: 0 0 8px rgba(34, 197, 94, 0.8), 0 0 20px rgba(34, 197, 94, 0.4);
 }
 
+.text-glow-amber {
+  text-shadow: 0 0 8px rgba(255, 183, 3, 0.8), 0 0 20px rgba(255, 183, 3, 0.4);
+}
+
+.text-glow-yellow {
+  text-shadow: 0 0 8px rgba(250, 204, 21, 0.8), 0 0 20px rgba(250, 204, 21, 0.4);
+}
+
+.text-glow-orange {
+  text-shadow: 0 0 8px rgba(249, 115, 22, 0.8), 0 0 20px rgba(249, 115, 22, 0.4);
+}
+
+.text-glow-red {
+  text-shadow: 0 0 8px rgba(239, 68, 68, 0.8), 0 0 20px rgba(239, 68, 68, 0.4);
+}
+
+.text-glow-teal {
+  text-shadow: 0 0 8px rgba(45, 212, 191, 0.8), 0 0 20px rgba(45, 212, 191, 0.4);
+}
+
+.text-glow-crimson,
 .text-glow-magenta {
-  text-shadow: 0 0 8px rgba(255, 0, 127, 0.8), 0 0 20px rgba(255, 0, 127, 0.4);
+  text-shadow: 0 0 8px rgba(255, 0, 85, 0.8), 0 0 20px rgba(255, 0, 85, 0.4);
 }
 
+.border-glow-lime,
 .border-glow-cyan {
-  box-shadow: 0 0 15px rgba(0, 243, 255, 0.3), inset 0 0 10px rgba(0, 243, 255, 0.1);
+  box-shadow: 0 0 15px rgba(180, 255, 57, 0.3), inset 0 0 10px rgba(180, 255, 57, 0.1);
 }
 
 .border-glow-green {
-  box-shadow: 0 0 15px rgba(0, 255, 102, 0.3), inset 0 0 10px rgba(0, 255, 102, 0.1);
+  box-shadow: 0 0 15px rgba(34, 197, 94, 0.3), inset 0 0 10px rgba(34, 197, 94, 0.1);
+}
+
+.border-glow-amber {
+  box-shadow: 0 0 15px rgba(255, 183, 3, 0.3), inset 0 0 10px rgba(255, 183, 3, 0.1);
+}
+
+.border-glow-orange {
+  box-shadow: 0 0 15px rgba(249, 115, 22, 0.3), inset 0 0 10px rgba(249, 115, 22, 0.1);
+}
+
+.border-glow-red {
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.3), inset 0 0 10px rgba(239, 68, 68, 0.1);
+}
+
+.border-glow-teal {
+  box-shadow: 0 0 15px rgba(45, 212, 191, 0.3), inset 0 0 10px rgba(45, 212, 191, 0.1);
+}
+
+.btn-glow-lime {
+  box-shadow: 0 0 30px rgba(180, 255, 57, 0.5);
+}
+
+.btn-glow-lime:hover {
+  box-shadow: 0 0 45px rgba(180, 255, 57, 0.8);
+}
+
+/* Tier ambient glow (§3.4 / §3.5) — paired with the tier stamp + meter. */
+.ambient-glow-eco-elite {
+  box-shadow: 0 0 20px rgba(132, 204, 22, 0.25);
+}
+
+.ambient-glow-green-citizen {
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.25);
+}
+
+.ambient-glow-trying {
+  box-shadow: 0 0 20px rgba(250, 204, 21, 0.25);
+}
+
+.ambient-glow-careless {
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.25);
+}
+
+.ambient-glow-heavy-waster {
+  box-shadow: 0 0 20px rgba(249, 115, 22, 0.25);
+}
+
+.ambient-glow-planet-threat {
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.6);
+}
+
+/* Paper Layer (Section 2 & 3.2) */
+.paper-layer {
+  background-color: #f1ead6;
+  color: #1f2a1f;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.stamp-approved,
+.stamp-exemplary {
+  border: 2px solid #2f7d3a;
+  color: #2f7d3a;
+}
+
+.stamp-denied,
+.stamp-final-notice {
+  border: 2px solid #c2322b;
+  color: #c2322b;
+}
+
+.stamp-pending,
+.stamp-grudging {
+  border: 2px solid #b45309;
+  color: #b45309;
 }
 
 @keyframes pulse-slow {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
 }
 
 .animate-pulse-slow {
@@ -81,54 +365,184 @@
 
 /* Cryptic Telemetry Equalizer Keyframes */
 @keyframes eq-high {
-  0%, 100% { height: 15%; opacity: 0.7; }
-  25% { height: 95%; opacity: 1; }
-  50% { height: 40%; opacity: 0.85; }
-  75% { height: 100%; opacity: 1; }
+
+  0%,
+  100% {
+    height: 15%;
+    opacity: 0.7;
+  }
+
+  25% {
+    height: 95%;
+    opacity: 1;
+  }
+
+  50% {
+    height: 40%;
+    opacity: 0.85;
+  }
+
+  75% {
+    height: 100%;
+    opacity: 1;
+  }
 }
 
 @keyframes eq-tactical {
-  0%, 100% { height: 20%; }
-  20% { height: 90%; }
-  40% { height: 30%; }
-  60% { height: 85%; }
-  80% { height: 40%; }
+
+  0%,
+  100% {
+    height: 20%;
+  }
+
+  20% {
+    height: 90%;
+  }
+
+  40% {
+    height: 30%;
+  }
+
+  60% {
+    height: 85%;
+  }
+
+  80% {
+    height: 40%;
+  }
 }
 
 @keyframes eq-rhythm {
-  0%, 100% { height: 25%; }
-  50% { height: 80%; }
+
+  0%,
+  100% {
+    height: 25%;
+  }
+
+  50% {
+    height: 80%;
+  }
 }
 
 @keyframes eq-glitch {
-  0%, 100% { height: 10%; }
-  12% { height: 95%; }
-  25% { height: 20%; }
-  40% { height: 80%; }
-  65% { height: 15%; }
-  80% { height: 90%; }
-  90% { height: 35%; }
+
+  0%,
+  100% {
+    height: 10%;
+  }
+
+  12% {
+    height: 95%;
+  }
+
+  25% {
+    height: 20%;
+  }
+
+  40% {
+    height: 80%;
+  }
+
+  65% {
+    height: 15%;
+  }
+
+  80% {
+    height: 90%;
+  }
+
+  90% {
+    height: 35%;
+  }
 }
 
 @keyframes eq-organic {
-  0%, 100% { height: 20%; }
-  35% { height: 65%; }
-  65% { height: 85%; }
-  85% { height: 45%; }
+
+  0%,
+  100% {
+    height: 20%;
+  }
+
+  35% {
+    height: 65%;
+  }
+
+  65% {
+    height: 85%;
+  }
+
+  85% {
+    height: 45%;
+  }
 }
 
 @keyframes eq-heartbeat {
-  0%, 100% { height: 10%; opacity: 0.4; }
-  15% { height: 100%; opacity: 1; }
-  25% { height: 15%; opacity: 0.5; }
-  35% { height: 75%; opacity: 0.9; }
-  50% { height: 10%; opacity: 0.4; }
-  85% { height: 10%; opacity: 0.4; }
+
+  0%,
+  100% {
+    height: 10%;
+    opacity: 0.4;
+  }
+
+  15% {
+    height: 100%;
+    opacity: 1;
+  }
+
+  25% {
+    height: 15%;
+    opacity: 0.5;
+  }
+
+  35% {
+    height: 75%;
+    opacity: 0.9;
+  }
+
+  50% {
+    height: 10%;
+    opacity: 0.4;
+  }
+
+  85% {
+    height: 10%;
+    opacity: 0.4;
+  }
 }
 
 @keyframes reticle-wobble {
-  0%, 100% { transform: rotate(0deg) scale(1); }
-  25% { transform: rotate(90deg) scale(1.04); }
-  50% { transform: rotate(180deg) scale(0.96); }
-  75% { transform: rotate(270deg) scale(1.02); }
+
+  0%,
+  100% {
+    transform: rotate(0deg) scale(1);
+  }
+
+  25% {
+    transform: rotate(90deg) scale(1.04);
+  }
+
+  50% {
+    transform: rotate(180deg) scale(0.96);
+  }
+
+  75% {
+    transform: rotate(270deg) scale(1.02);
+  }
+}
+
+/* Reduced motion (art_directions.md §3.6 / §13): keep static equivalents. */
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .scanlines {
+    background-image: none;
+  }
 }

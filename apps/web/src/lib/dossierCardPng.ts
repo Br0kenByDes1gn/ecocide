@@ -25,7 +25,7 @@ export interface DossierPngSource {
 
 // Paragraph accent colors (cyan-400 / amber-400 / emerald-400) used for the
 // topic icons in the downloaded badge, matching the live dossier paragraphs.
-const PARA_ACCENT_HEX: readonly [string, string, string] = ['#22d3ee', '#fbbf24', '#34d399'];
+const PARA_ACCENT_HEX: readonly [string, string, string] = ['#b4ff39', '#ffb703', '#22c55e'];
 
 /** Serializes a topic icon into an SVG <img>-loadable data URL. */
 function topicIconSvg(icon: ParagraphTopic['Icon'], color: string, size = 20): string {
@@ -167,7 +167,7 @@ export async function downloadCitizenDossierPng(source: DossierPngSource): Promi
   if (!ctx) return;
 
   // Background
-  ctx.fillStyle = '#0a0c14';
+  ctx.fillStyle = '#070a08';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   // Subtle scanlines
@@ -187,17 +187,17 @@ export async function downloadCitizenDossierPng(source: DossierPngSource): Promi
   ctx.strokeRect(24, 24, canvas.width - 48, canvas.height - 48);
 
   // Header Bar
-  ctx.fillStyle = '#00f3ff';
+  ctx.fillStyle = '#b4ff39';
   ctx.font = 'bold 18px monospace';
   ctx.fillText(`${IDENTITY.appName} // SUBJECT DOSSIER`, 45, 65);
 
-  ctx.fillStyle = '#64748b';
+  ctx.fillStyle = '#7c8b7e';
   ctx.font = '12px monospace';
   ctx.fillText(`${IDENTITY.entityName.toUpperCase()} // REGISTRY IDENTIFICATION`, 45, 88);
 
   // Right side of Header Bar: Status / ID
   const headerStatusText = permalinkId ? `SUBJECT ID: #${permalinkId}` : 'CLASSIFIED RECORD';
-  ctx.fillStyle = '#64748b';
+  ctx.fillStyle = '#7c8b7e';
   ctx.font = 'bold 12px monospace';
   ctx.textAlign = 'right';
   ctx.fillText(headerStatusText, canvas.width - 45, 75);
@@ -223,14 +223,14 @@ export async function downloadCitizenDossierPng(source: DossierPngSource): Promi
     ctx.drawImage(img, avatarX, avatarY, avatarSize, avatarSize);
 
     // Border around avatar
-    ctx.strokeStyle = activeView === 'avatar' ? '#c084fc' : castePrimaryColor;
+    ctx.strokeStyle = activeView === 'avatar' ? '#ffb703' : castePrimaryColor;
     ctx.lineWidth = 2;
     ctx.strokeRect(avatarX, avatarY, avatarSize, avatarSize);
 
     // "BIOMETRICS SECURED" or "HOLOGRAPHIC AVATAR" tag
     ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
     ctx.fillRect(avatarX + 10, avatarY + avatarSize - 26, avatarSize - 20, 20);
-    ctx.fillStyle = activeView === 'avatar' ? '#d8b4fe' : '#00f3ff';
+    ctx.fillStyle = activeView === 'avatar' ? '#ffb703' : '#b4ff39';
     ctx.font = 'bold 9px monospace';
     ctx.textAlign = 'center';
     ctx.fillText(
@@ -242,12 +242,12 @@ export async function downloadCitizenDossierPng(source: DossierPngSource): Promi
 
     // Compliance Ratio card below avatar
     const scoreCardY = avatarY + avatarSize + 12;
-    ctx.fillStyle = '#0f1322';
+    ctx.fillStyle = '#0e1510';
     ctx.fillRect(avatarX, scoreCardY, avatarSize, 68);
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
     ctx.strokeRect(avatarX, scoreCardY, avatarSize, 68);
 
-    ctx.fillStyle = '#94a3b8';
+    ctx.fillStyle = '#a9b8aa';
     ctx.font = '10px monospace';
     ctx.fillText('COMPLIANCE RATIO', avatarX + 12, scoreCardY + 22);
 
@@ -288,7 +288,7 @@ export async function downloadCitizenDossierPng(source: DossierPngSource): Promi
     // On the same line: Caste Census size text
     const censusText = `Unit ${unitId.toLocaleString()} of ${population.toLocaleString()}`;
     ctx.font = '12px monospace';
-    ctx.fillStyle = '#94a3b8';
+    ctx.fillStyle = '#a9b8aa';
     ctx.textAlign = 'right';
     ctx.fillText(censusText, statsX + statsWidth, curStatsY + 17);
     ctx.textAlign = 'left';
@@ -296,12 +296,12 @@ export async function downloadCitizenDossierPng(source: DossierPngSource): Promi
     curStatsY += 34;
 
     // Official Honorific Title Card
-    ctx.fillStyle = '#0f1322';
+    ctx.fillStyle = '#0e1510';
     ctx.fillRect(statsX, curStatsY, statsWidth, titleBoxHeight);
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
     ctx.strokeRect(statsX, curStatsY, statsWidth, titleBoxHeight);
 
-    ctx.fillStyle = '#94a3b8';
+    ctx.fillStyle = '#a9b8aa';
     ctx.font = '10px monospace';
     ctx.fillText('OFFICIAL HONORIFIC TITLE', statsX + 14, curStatsY + 20);
 
@@ -319,16 +319,16 @@ export async function downloadCitizenDossierPng(source: DossierPngSource): Promi
     // Helper to draw an attribute card
     const drawAttrCard = (x: number, y: number, label: string, valLines: string[]) => {
       const h = Math.max(cardH, 28 + valLines.length * 16);
-      ctx.fillStyle = 'rgba(15, 19, 34, 0.7)';
+      ctx.fillStyle = 'rgba(14, 21, 16, 0.7)';
       ctx.fillRect(x, y, cardW, h);
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
       ctx.strokeRect(x, y, cardW, h);
 
-      ctx.fillStyle = '#64748b';
+      ctx.fillStyle = '#7c8b7e';
       ctx.font = '10px monospace';
       ctx.fillText(label, x + 10, y + 18);
 
-      ctx.fillStyle = '#e2e8f0';
+      ctx.fillStyle = '#e6efe3';
       ctx.font = 'bold 12px monospace';
       for (let j = 0; j < valLines.length; j++) {
         ctx.fillText(valLines[j], x + 10, y + 36 + j * 16);
@@ -351,7 +351,7 @@ export async function downloadCitizenDossierPng(source: DossierPngSource): Promi
 
     // Barcode & Integrity Strip
     const barcodeY = row2Y + hRow2 + 12;
-    ctx.fillStyle = '#64748b';
+    ctx.fillStyle = '#7c8b7e';
     ctx.font = '10px monospace';
     ctx.fillText(`HEX: 0x${userProfile.biocarbon_ratio.toString(16).toUpperCase()}FF`, statsX + 4, barcodeY + 12);
     ctx.font = 'bold 13px monospace';
@@ -371,12 +371,12 @@ export async function downloadCitizenDossierPng(source: DossierPngSource): Promi
     let propY = sectionDividerY + 20;
 
     // Headline Bar
-    ctx.fillStyle = '#141726';
+    ctx.fillStyle = '#17221a';
     ctx.fillRect(45, propY, contentWidth, headlineBoxHeight);
     ctx.strokeStyle = 'rgba(245, 158, 11, 0.4)';
     ctx.strokeRect(45, propY, contentWidth, headlineBoxHeight);
 
-    ctx.fillStyle = '#fbbf24';
+    ctx.fillStyle = '#ffb703';
     ctx.font = 'bold 15px monospace';
     for (let i = 0; i < headlineLines.length; i++) {
       ctx.fillText(headlineLines[i], 60, propY + 26 + i * 22);
@@ -392,7 +392,7 @@ export async function downloadCitizenDossierPng(source: DossierPngSource): Promi
       boxH: number,
       iconImg: HTMLImageElement
     ) => {
-      ctx.fillStyle = '#0b0e18';
+      ctx.fillStyle = '#0e1510';
       ctx.fillRect(45, yPos, contentWidth, boxH);
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
       ctx.strokeRect(45, yPos, contentWidth, boxH);
@@ -405,7 +405,7 @@ export async function downloadCitizenDossierPng(source: DossierPngSource): Promi
       ctx.drawImage(iconImg, 59, yPos + (boxH - 20) / 2, 20, 20);
 
       // Paragraph text
-      ctx.fillStyle = '#cbd5e1';
+      ctx.fillStyle = '#d5e0d2';
       ctx.font = '14px monospace';
       for (let i = 0; i < lines.length; i++) {
         ctx.fillText(lines[i], 89, yPos + 22 + i * lineHeight);
@@ -413,7 +413,7 @@ export async function downloadCitizenDossierPng(source: DossierPngSource): Promi
     };
 
     // Paragraph 1
-    drawParagraphBox(p1Lines, '#00f3ff', propY, p1BoxHeight, iconImages[0]);
+    drawParagraphBox(p1Lines, '#b4ff39', propY, p1BoxHeight, iconImages[0]);
     propY += p1BoxHeight + 14;
 
     // Paragraph 2
@@ -421,7 +421,7 @@ export async function downloadCitizenDossierPng(source: DossierPngSource): Promi
     propY += p2BoxHeight + 14;
 
     // Paragraph 3
-    drawParagraphBox(p3Lines, '#10b981', propY, p3BoxHeight, iconImages[2]);
+    drawParagraphBox(p3Lines, '#22c55e', propY, p3BoxHeight, iconImages[2]);
     propY += p3BoxHeight + 20;
 
     // Footer
@@ -431,7 +431,7 @@ export async function downloadCitizenDossierPng(source: DossierPngSource): Promi
     ctx.lineTo(canvas.width - 45, propY);
     ctx.stroke();
 
-    ctx.fillStyle = '#475569';
+    ctx.fillStyle = '#5f6f61';
     ctx.font = '11px monospace';
     ctx.fillText(`AUTHENTICATED BY ${IDENTITY.entityName.toUpperCase()} // PROTOCOL-1`, 45, propY + 20);
     ctx.textAlign = 'right';

@@ -17,27 +17,27 @@ export interface PolygonStyleOption {
 export const POLYGON_PORTRAIT_STYLES: readonly PolygonStyleOption[] = [
   {
     id: 'faceted-poly',
-    label: 'FACETED 3D',
-    subtitle: '3D LOW-POLY FACETS',
-    description: '852 color-sampled geometric facets with directional lighting normals',
+    label: 'INSPECTION HUD',
+    subtitle: 'CRT TELEMETRY WASH',
+    description: 'Cold CRT wash with status-colored bounding facets and telemetry',
   },
   {
     id: 'surveillance-wireframe',
-    label: 'SURVEILLANCE',
-    subtitle: 'PHOTO + WIREFRAME HUD',
-    description: 'Cinematic dystopian snapshot overlaid with glowing polygonal mesh',
+    label: 'EVIDENCE PHOTO',
+    subtitle: 'CASE-FILE SNAPSHOT',
+    description: 'Warm evidence grade with inspection tags and audit telemetry',
   },
   {
     id: 'neon-hologram',
-    label: 'NEON HOLO',
-    subtitle: '100% VECTOR HOLOGRAM',
-    description: 'Pure 3D geometric wireframe bust with depth-based neon gradients',
+    label: 'NEON OUTLINE',
+    subtitle: 'TOXIC LIME AUDIT MESH',
+    description: 'Darkened void with glowing Toxic Lime (#b4ff39) inspection contours',
   },
   {
     id: 'thermal-scan',
-    label: 'THERMAL FLIR',
-    subtitle: 'INFRARED BIO-SCAN',
-    description: 'Thermodynamic false-color polygon heat signature evaluation',
+    label: 'CARBON HEAT MAP',
+    subtitle: '5-STOP IMPACT MAP',
+    description: 'False-color environmental harm gradient from negligible to severe',
   },
 ] as const;
 
@@ -93,38 +93,39 @@ export function calculateTriangleNormal(
 }
 
 /**
- * Maps a normalized scalar t (0..1) to a 5-stop FLIR thermal false-color RGB string.
+ * Maps a normalized scalar t (0..1) to the Carbon Heat Map 5-stop gradient
+ * (art_directions.md §9.4): negligible -> low -> moderate -> high -> severe.
  */
 export function getThermalColor(t: number): string {
   const clamped = Math.max(0, Math.min(1, t));
-  // 5 stops:
-  // 0.00: [16, 0, 43]    (Deep violet / cryogenic)
-  // 0.25: [0, 119, 182]  (Electric blue)
-  // 0.50: [0, 243, 255]  (Cyan / nominal)
-  // 0.75: [255, 183, 3]  (Warm amber)
-  // 1.00: [255, 0, 85]   (White-hot crimson)
+  // 5 stops (§9.4):
+  // 0.00: [5, 46, 22]    (#052e16 deep green-black / negligible)
+  // 0.25: [34, 197, 94]  (#22c55e green / low)
+  // 0.50: [250, 204, 21] (#facc15 yellow / moderate)
+  // 0.75: [249, 115, 22] (#f97316 orange / high)
+  // 1.00: [255, 0, 85]   (#ff0055 crimson / severe)
   let r = 0, g = 0, b = 0;
 
   if (clamped < 0.25) {
     const s = clamped / 0.25;
-    r = Math.round(16 + (0 - 16) * s);
-    g = Math.round(0 + (119 - 0) * s);
-    b = Math.round(43 + (182 - 43) * s);
+    r = Math.round(5 + (34 - 5) * s);
+    g = Math.round(46 + (197 - 46) * s);
+    b = Math.round(22 + (94 - 22) * s);
   } else if (clamped < 0.5) {
     const s = (clamped - 0.25) / 0.25;
-    r = 0;
-    g = Math.round(119 + (243 - 119) * s);
-    b = Math.round(182 + (255 - 182) * s);
+    r = Math.round(34 + (250 - 34) * s);
+    g = Math.round(197 + (204 - 197) * s);
+    b = Math.round(94 + (21 - 94) * s);
   } else if (clamped < 0.75) {
     const s = (clamped - 0.5) / 0.25;
-    r = Math.round(0 + (255 - 0) * s);
-    g = Math.round(243 + (183 - 243) * s);
-    b = Math.round(255 + (3 - 255) * s);
+    r = Math.round(250 + (249 - 250) * s);
+    g = Math.round(204 + (115 - 204) * s);
+    b = Math.round(21 + (22 - 21) * s);
   } else {
     const s = (clamped - 0.75) / 0.25;
-    r = 255;
-    g = Math.round(183 + (0 - 183) * s);
-    b = Math.round(3 + (85 - 3) * s);
+    r = Math.round(249 + (255 - 249) * s);
+    g = Math.round(115 + (0 - 115) * s);
+    b = Math.round(22 + (85 - 22) * s);
   }
 
   return `rgb(${r}, ${g}, ${b})`;
@@ -142,15 +143,15 @@ const LIGHT_DIR = (() => {
 /**
  * Draws a futuristic cyberpunk background grid with subtle vignettes.
  */
-function drawCyberGrid(ctx: CanvasRenderingContext2D, w: number, h: number, tintColor: string = '#00f3ff') {
+function drawCyberGrid(ctx: CanvasRenderingContext2D, w: number, h: number, tintColor: string = '#b4ff39') {
   // Dark void fill
-  ctx.fillStyle = '#060813';
+  ctx.fillStyle = '#070a08';
   ctx.fillRect(0, 0, w, h);
 
   // Radial backlight gradient behind head
   const radGrad = ctx.createRadialGradient(w / 2, h / 2, 20, w / 2, h / 2, w * 0.7);
-  radGrad.addColorStop(0, 'rgba(12, 28, 48, 0.65)');
-  radGrad.addColorStop(1, 'rgba(4, 6, 12, 0.95)');
+  radGrad.addColorStop(0, 'rgba(12, 26, 20, 0.65)');
+  radGrad.addColorStop(1, 'rgba(7, 10, 8, 0.95)');
   ctx.fillStyle = radGrad;
   ctx.fillRect(0, 0, w, h);
 
@@ -539,7 +540,7 @@ export function drawFaceFrame(
     }
 
     // Apply CRT surveillance grade
-    ctx.fillStyle = 'rgba(4, 18, 24, 0.35)';
+    ctx.fillStyle = 'rgba(8, 16, 12, 0.35)';
     ctx.fillRect(0, 0, w, h);
 
     // 2. Draw 852 glowing neon polygon wireframe lines; edges under the spot glow brighter
@@ -669,7 +670,7 @@ export function drawFaceFrame(
     // STYLE 4: THERMAL FLIR BIOMETRIC HEATMAP
     // ===========================================
     // Dark thermal chamber background
-    ctx.fillStyle = '#0a0015';
+    ctx.fillStyle = '#0b0a06';
     ctx.fillRect(0, 0, w, h);
 
     // Thermal facets
@@ -713,26 +714,26 @@ export function drawFaceFrame(
     const barW = 10;
     const grad = ctx.createLinearGradient(barX, barY, barX, barY + barH);
     grad.addColorStop(0, '#ff0055');
-    grad.addColorStop(0.25, '#ffb703');
-    grad.addColorStop(0.5, '#00f3ff');
-    grad.addColorStop(0.75, '#0077b6');
-    grad.addColorStop(1, '#10002b');
+    grad.addColorStop(0.25, '#f97316');
+    grad.addColorStop(0.5, '#facc15');
+    grad.addColorStop(0.75, '#22c55e');
+    grad.addColorStop(1, '#052e16');
     ctx.fillStyle = grad;
     ctx.fillRect(barX, barY, barW, barH);
-    ctx.strokeStyle = '#64748b';
+    ctx.strokeStyle = '#7c8b7e';
     ctx.lineWidth = 1;
     ctx.strokeRect(barX, barY, barW, barH);
 
     ctx.font = '8px monospace';
     ctx.fillStyle = '#ff0055';
-    ctx.fillText('38.2°C', barX - 32, barY + 8);
-    ctx.fillStyle = '#00f3ff';
-    ctx.fillText('36.6°C', barX - 32, barY + barH / 2);
-    ctx.fillStyle = '#7c3aed';
-    ctx.fillText('34.8°C', barX - 32, barY + barH);
+    ctx.fillText('SEVERE', barX - 34, barY + 8);
+    ctx.fillStyle = '#facc15';
+    ctx.fillText('MODERATE', barX - 46, barY + barH / 2);
+    ctx.fillStyle = '#22c55e';
+    ctx.fillText('LOW IMPACT', barX - 48, barY + barH);
 
     drawScanlines(ctx, w, h, 0.2);
-    drawSurveillanceHUD(ctx, w, h, '#ffb703', 'THERMAL FLIR');
+    drawSurveillanceHUD(ctx, w, h, '#ffb703', 'CARBON HEAT MAP');
   }
 }
 
@@ -744,7 +745,7 @@ export function renderPolygonPortrait(
   source: HTMLCanvasElement | HTMLVideoElement | HTMLImageElement,
   landmarks: Landmark3D[],
   style: PolygonPortraitStyle = 'neon-hologram',
-  casteColor: string = '#00f3ff'
+  casteColor: string = '#b4ff39'
 ): string {
   const w = 480;
   const h = 480;

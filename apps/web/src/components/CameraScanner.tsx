@@ -1,152 +1,45 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { BiometricTelemetry, Caste } from '@ecocide/types';
 import { CASTE_COLORS, CASTE_ORDER } from '@ecocide/types';
-import { Activity, AlertTriangle, RefreshCw, Upload, Zap } from 'lucide-react';
+import {
+  AlertTriangle,
+  Camera,
+  CheckCircle,
+  Circle,
+  House,
+  Leaf,
+  Loader2,
+  RefreshCw,
+  Upload,
+  Zap,
+} from 'lucide-react';
+import { ScannerHeader } from './ScannerHeader';
 import { soundFx } from '../lib/audio';
 import {
   detectFaceFromImage,
   detectFaceFromVideo,
-  drawCyberpunkMesh,
-  getFaceSpotNormalized,
   getVideoLandmarker,
   initFaceLandmarker,
-  SCAN_MESH_COLOR_UNCLASSIFIED,
 } from '../lib/mediapipe-service';
 import type { Landmark3D } from '../lib/face-geometry';
 import { renderPolygonPortrait } from '../lib/polygon-portrait';
 import type { FaceLandmarker } from '@mediapipe/tasks-vision';
 
-type ReticleVariant = 'v1' | 'v2' | 'v3' | 'v4' | 'v5' | 'v6' | 'default';
-
-interface CrypticSignature {
-  code: string;
-  subcode: string;
-  color: string;
-  glowColor: string;
-  barColor: string;
-  barShadow: string;
-  eqAnimation: string;
-  reticleSpeed: string;
-  statusBadge: string;
-  badgeStyle: string;
-  reticleType: ReticleVariant;
-}
-
-/** Provisional channel labels (TODO-LORE: replace with the real vocabulary). */
-const SIGNATURE_CODES = ['SIG-01', 'SIG-02', 'SIG-03', 'SIG-04', 'SIG-05', 'SIG-06'];
-const SIGNATURE_SUBCODES = [
-  'PROVISIONAL // A',
-  'PROVISIONAL // B',
-  'PROVISIONAL // C',
-  'PROVISIONAL // D',
-  'PROVISIONAL // E',
-  'PROVISIONAL // F',
-];
-const SIGNATURE_BADGES = [
-  '◆ LOCK ACQUIRED',
-  '⌖ CHANNEL LOCKED',
-  '● SIGNAL STABLE',
-  '✦ SIGNATURE FOUND',
-  '◈ SPECTRUM FLAT',
-  '⚠ ANOMALY PROFILE',
-];
-const SIGNATURE_EQ = ['eq-high', 'eq-tactical', 'eq-rhythm', 'eq-glitch', 'eq-organic', 'eq-heartbeat'];
-const SIGNATURE_SPEEDS = ['2s', '3s', '4.5s', '5s', '6s', '2.4s'];
-const RETICLE_VARIANTS: ReticleVariant[] = ['v1', 'v2', 'v3', 'v4', 'v5', 'v6'];
-
 /**
- * Post-lock scan signature: per-faction accent colors from the lore pack over
- * neutral registry channel codes (placeholders).
+ * Accent color for the finalized dossier portrait: per-faction hex from
+ * the lore pack (the reveal happens after lock-in, never during the
+ * scan preview). Unclassified scans keep the neutral registry accent.
  */
-function getCrypticSignature(caste?: Caste): CrypticSignature {
+function getPortraitColor(caste?: Caste): string {
   if (!caste || CASTE_ORDER.indexOf(caste) < 0) {
-    return {
-      code: 'ACQUIRING NEURAL CARRIER...',
-      subcode: 'ALIGNING 3D MESH MATRIX',
-      color: '#00f3ff',
-      glowColor: 'rgba(0, 243, 255, 0.3)',
-      barColor: 'bg-cyan-400/50',
-      barShadow: 'shadow-[0_0_6px_rgba(0,243,255,0.3)]',
-      eqAnimation: 'eq-rhythm',
-      reticleSpeed: '6s',
-      statusBadge: '○ SCANNING...',
-      badgeStyle: 'border-cyan-500/40 text-cyan-400 bg-black/60',
-      reticleType: 'default',
-    };
+    return '#00f3ff';
   }
-
-  const idx = Math.max(CASTE_ORDER.indexOf(caste), 0);
-  const c = CASTE_COLORS[caste];
-  return {
-    code: `${SIGNATURE_CODES[idx % SIGNATURE_CODES.length]} // REGISTRY FREQUENCY`,
-    subcode: SIGNATURE_SUBCODES[idx % SIGNATURE_SUBCODES.length],
-    color: c.hex,
-    glowColor: c.glowHex,
-    barColor: c.barColor,
-    barShadow: 'shadow-[0_0_8px_rgba(0,243,255,0.45)]',
-    eqAnimation: SIGNATURE_EQ[idx % SIGNATURE_EQ.length],
-    reticleSpeed: SIGNATURE_SPEEDS[idx % SIGNATURE_SPEEDS.length],
-    statusBadge: SIGNATURE_BADGES[idx % SIGNATURE_BADGES.length],
-    badgeStyle: `${c.border} ${c.text} bg-black/60`,
-    reticleType: RETICLE_VARIANTS[idx % RETICLE_VARIANTS.length],
-  };
+  return CASTE_COLORS[caste].hex;
 }
 
-/**
- * Fully neutral (unclassified) scan signature used for the entire pre-lock HUD
- * so the detected caste is never revealed during scanning. All accents are
- * ice-white (#e2e8f0) — the same neutral as the face mesh itself.
- */
-const NEUTRAL_SCAN_SIGNATURE: CrypticSignature = {
-  code: 'SCAN-LIVE // UNCLASSIFIED',
-  subcode: 'GRID-PROTOCOL: AWAITING CLASSIFICATION',
-  color: SCAN_MESH_COLOR_UNCLASSIFIED,
-  glowColor: 'rgba(226, 232, 240, 0.35)',
-  barColor: 'bg-slate-200',
-  barShadow: 'shadow-[0_0_6px_rgba(226,232,240,0.6)]',
-  eqAnimation: 'eq-high',
-  reticleSpeed: '3s',
-  statusBadge: '◆ BIOMETRIC SCAN ACTIVE',
-  badgeStyle: 'border-slate-500/40 text-slate-200 bg-gray-900/70',
-  reticleType: 'default',
-};
-
-type CrypticTextSet = Pick<
-  CrypticSignature,
-  'code' | 'subcode' | 'statusBadge' | 'eqAnimation' | 'reticleSpeed'
->;
-
-/**
- * Pool of cryptic codes/symbols gathered from every caste signature (plus the
- * default). Displayed in the pre-lock HUD with the neutral color, rotated one
- * entry at a time on a randomized 1–6s cadence, so the scan feels alive without
- * ever suggesting which caste was detected.
- */
-const CRYPTIC_TEXT_POOL: CrypticTextSet[] = (() => {
-  const castes: Caste[] = [...CASTE_ORDER];
-  const extract = (caste?: Caste): CrypticTextSet => {
-    const s = getCrypticSignature(caste);
-    return {
-      code: s.code,
-      subcode: s.subcode,
-      statusBadge: s.statusBadge,
-      eqAnimation: s.eqAnimation,
-      reticleSpeed: s.reticleSpeed,
-    };
-  };
-  const pool = [...castes.map((c) => extract(c)), extract(undefined)];
-
-  // One-time Fisher–Yates shuffle so the rotation is random-looking but stable
-  // and never repeats a message back-to-back during a session.
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
-  }
-  return pool;
-})();
-
-const CRYPTIC_SWAP_MIN_MS = 1000;
-const CRYPTIC_SWAP_MAX_MS = 6000;
+/** Household categories shown in the upload panel. Display-only for now:
+ *  category selection is not yet wired into the scan flow or API payload. */
+const CATEGORY_LABELS = ['FRIDGE', 'WARDROBE', 'BIN', 'DESK', 'KITCHEN', 'OTHER'];
 
 interface CameraScannerProps {
   onLockIn: (data: {
@@ -159,13 +52,29 @@ interface CameraScannerProps {
     portraitColor?: string;
   }) => void;
   isLoading: boolean;
+  onNavigateHome: () => void;
+  onGoVault: () => void;
+  onToggleMute: () => void;
+  isMuted: boolean;
+  onOpenDebug?: () => void;
+  IS_DEV?: boolean;
 }
 
-export const CameraScanner: React.FC<CameraScannerProps> = ({ onLockIn, isLoading }) => {
+export const CameraScanner: React.FC<CameraScannerProps> = ({
+  onLockIn,
+  isLoading,
+  onNavigateHome,
+  onGoVault,
+  onToggleMute,
+  isMuted,
+  onOpenDebug,
+  IS_DEV,
+}) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const hiddenCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const capturedCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const capturedLandmarksRef = useRef<Landmark3D[] | null>(null);
 
   const [landmarker, setLandmarker] = useState<FaceLandmarker | null>(() => getVideoLandmarker());
   const [isInitializing, setIsInitializing] = useState(() => !getVideoLandmarker());
@@ -174,36 +83,30 @@ export const CameraScanner: React.FC<CameraScannerProps> = ({ onLockIn, isLoadin
   const [telemetry, setTelemetry] = useState<BiometricTelemetry | null>(null);
   const defaultAvatarEngine = 'gemini-text-svg';
   const [scanStatus, setScanStatus] = useState<string>(() =>
-    getVideoLandmarker() ? 'READY. CONNECTING CAMERA...' : 'INITIALIZING BIOMETRIC SCANNER...'
+    getVideoLandmarker() ? 'READY. CONNECTING CAMERA...' : 'INITIALIZING SCANNER...'
   );
   const [isAnalyzingFile, setIsAnalyzingFile] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [captureError, setCaptureError] = useState<string | null>(null);
+  const [dragActive, setDragActive] = useState(false);
 
-  const [crypticIndex, setCrypticIndex] = useState(0);
-  const cryptic = CRYPTIC_TEXT_POOL[crypticIndex % CRYPTIC_TEXT_POOL.length];
-  const scanSignature: CrypticSignature = {
-    ...NEUTRAL_SCAN_SIGNATURE,
-    code: cryptic.code,
-    subcode: cryptic.subcode,
-    statusBadge: cryptic.statusBadge,
-    eqAnimation: cryptic.eqAnimation,
-    reticleSpeed: cryptic.reticleSpeed,
-  };
-
-  // Rotate the neutral cryptic codes/symbols on a randomized 1–6s cadence
-  useEffect(() => {
-    let timeout: ReturnType<typeof setTimeout> | undefined;
-    const swap = () => {
-      setCrypticIndex((i) => (i + 1) % CRYPTIC_TEXT_POOL.length);
-      const delay =
-        CRYPTIC_SWAP_MIN_MS + Math.random() * (CRYPTIC_SWAP_MAX_MS - CRYPTIC_SWAP_MIN_MS);
-      timeout = setTimeout(swap, delay);
-    };
-    const delay =
-      CRYPTIC_SWAP_MIN_MS + Math.random() * (CRYPTIC_SWAP_MAX_MS - CRYPTIC_SWAP_MIN_MS);
-    timeout = setTimeout(swap, delay);
-    return () => clearTimeout(timeout);
-  }, []);
+  // Analysis pipeline stages. Only object detection runs on this page;
+  // classification, footprint and insights happen after submission, so
+  // those stages stay pending instead of appearing complete.
+  const analysisStages: { label: string; status: 'pending' | 'active' | 'complete' }[] = [
+    {
+      label: 'Detecting objects',
+      status: telemetry
+        ? 'complete'
+        : (cameraActive && !capturedImage) || isAnalyzingFile
+          ? 'active'
+          : 'pending',
+    },
+    { label: 'Classifying categories', status: 'pending' },
+    { label: 'Calculating footprint', status: 'pending' },
+    { label: 'Generating insights', status: 'pending' },
+  ];
 
   const requestRef = useRef<number | null>(null);
   const lastChirpTime = useRef<number>(0);
@@ -268,7 +171,7 @@ export const CameraScanner: React.FC<CameraScannerProps> = ({ onLockIn, isLoadin
             }
             if (active) {
               setCameraActive(true);
-              setScanStatus('TARGET ACQUIRED: SCANNING FACIAL GEOMETRY');
+              setScanStatus('SCANNING YOUR ITEMS');
               soundFx.startAmbientDrone();
             }
           };
@@ -305,9 +208,9 @@ export const CameraScanner: React.FC<CameraScannerProps> = ({ onLockIn, isLoadin
     };
   }, [landmarker, facingMode]);
 
-  // Video processing & render loop
+  // Video processing & telemetry loop (face detection only — mesh rendering removed)
   useEffect(() => {
-    if (!landmarker || !cameraActive) return;
+    if (!landmarker || !cameraActive || capturedImage) return;
 
     let isRunning = true;
     let lastRenderVideoTime = -1;
@@ -317,29 +220,14 @@ export const CameraScanner: React.FC<CameraScannerProps> = ({ onLockIn, isLoadin
 
       try {
         const video = videoRef.current;
-        const canvas = canvasRef.current;
 
-        if (video && canvas && video.readyState >= 2 && video.videoWidth > 0 && !video.paused) {
+        if (video && video.readyState >= 2 && video.videoWidth > 0 && !video.paused) {
           if (video.currentTime !== lastRenderVideoTime) {
             lastRenderVideoTime = video.currentTime;
-
-            if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
-              canvas.width = video.videoWidth || 640;
-              canvas.height = video.videoHeight || 640;
-            }
 
             const { result, telemetry: newTelemetry, landmarks3D } = detectFaceFromVideo(landmarker, video);
 
             if (result.faceLandmarks && result.faceLandmarks[0] && landmarks3D.length > 0) {
-              // Render the pre-lock wireframe mesh in a neutral, unassigned color
-              // (caste colors are only applied once biometrics are locked in)
-              drawCyberpunkMesh(
-                canvas,
-                landmarks3D,
-                SCAN_MESH_COLOR_UNCLASSIFIED,
-                getFaceSpotNormalized(performance.now(), landmarks3D)
-              );
-
               if (newTelemetry) {
                 setTelemetry(newTelemetry);
 
@@ -350,10 +238,6 @@ export const CameraScanner: React.FC<CameraScannerProps> = ({ onLockIn, isLoadin
                   lastChirpTime.current = now;
                 }
               }
-            } else {
-              // Clear canvas if no face detected
-              const ctx = canvas.getContext('2d');
-              ctx?.clearRect(0, 0, canvas.width, canvas.height);
             }
           }
         }
@@ -375,16 +259,19 @@ export const CameraScanner: React.FC<CameraScannerProps> = ({ onLockIn, isLoadin
         requestRef.current = null;
       }
     };
-  }, [landmarker, cameraActive]);
+  }, [landmarker, cameraActive, capturedImage]);
 
-  // Handle Photo File Upload
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // Process an image file through the existing upload pipeline
+  const processImageFile = async (file: File) => {
+    // Clear any captured photo so the live workflow stays consistent
+    capturedCanvasRef.current = null;
+    capturedLandmarksRef.current = null;
+    setCapturedImage(null);
+    setCaptureError(null);
 
     setIsAnalyzingFile(true);
     setUploadError(null);
-    setScanStatus('INGESTING FILE... EXTRACTING BIOMETRICS');
+    setScanStatus('INGESTING FILE... SCANNING YOUR ITEMS');
 
     try {
       const dataUrl = await new Promise<string>((resolve, reject) => {
@@ -428,18 +315,6 @@ export const CameraScanner: React.FC<CameraScannerProps> = ({ onLockIn, isLoadin
       if (extractedTelemetry && landmarks3D.length > 0) {
         setTelemetry(extractedTelemetry);
 
-        // Draw preview mesh on viewfinder canvas in the neutral unassigned color
-        if (canvasRef.current) {
-          canvasRef.current.width = targetWidth;
-          canvasRef.current.height = targetHeight;
-          drawCyberpunkMesh(
-            canvasRef.current,
-            landmarks3D,
-            SCAN_MESH_COLOR_UNCLASSIFIED,
-            getFaceSpotNormalized(performance.now(), landmarks3D)
-          );
-        }
-
         const rawImage = normCanvas.toDataURL('image/jpeg', 0.88);
         const stylizedPortrait = createStylizedPortrait(normCanvas, landmarks3D);
 
@@ -456,15 +331,15 @@ export const CameraScanner: React.FC<CameraScannerProps> = ({ onLockIn, isLoadin
           avatarEngine: defaultAvatarEngine,
           landmarks: landmarks3D,
           portraitStyle: 'neon-hologram',
-          portraitColor: getCrypticSignature(extractedTelemetry.caste).color,
+          portraitColor: getPortraitColor(extractedTelemetry.caste),
         });
       } else {
-        setUploadError('NO FACIAL COORDINATES DETECTED IN IMAGE. PLEASE UPLOAD A CLEAR, FORWARD-FACING PHOTO.');
-        setScanStatus('BIOMETRIC EXTRACTION FAILED: RETRY WITH CLEAR PHOTO');
+        setUploadError('NO ITEMS DETECTED IN IMAGE. PLEASE UPLOAD A CLEAR PHOTO OF YOUR STUFF.');
+        setScanStatus('ITEM SCAN FAILED: RETRY WITH CLEAR PHOTO');
       }
     } catch (err) {
       console.error('[Upload] Error processing image file:', err);
-      setUploadError('ERROR INGESTING IMAGE ARTIFACT. PLEASE TRY ANOTHER FILE.');
+      setUploadError('ERROR UPLOADING IMAGE. PLEASE TRY ANOTHER FILE.');
       setScanStatus('SCAN ERROR: TRY ANOTHER FILE');
     } finally {
       setIsAnalyzingFile(false);
@@ -474,48 +349,175 @@ export const CameraScanner: React.FC<CameraScannerProps> = ({ onLockIn, isLoadin
     }
   };
 
-  // Generate Stylized Cyberpunk Portrait
+  // Handle Photo File Upload (hidden file input)
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await processImageFile(file);
+  };
+
+  // Open the file picker (guarded while a scan is in flight)
+  const openFilePicker = () => {
+    if (isAnalyzingFile || isLoading) return;
+    fileInputRef.current?.click();
+  };
+
+  // Drag & drop handlers for the upload zone
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (isAnalyzingFile || isLoading) return;
+    const file = Array.from(e.dataTransfer.files).find((f) => f.type.startsWith('image/'));
+    if (file) {
+      processImageFile(file);
+    }
+  };
+
+  // Capture the current live frame as a still photo (does NOT lock in)
+  const handleTakePhoto = async () => {
+    const video = videoRef.current;
+    if (!video || !cameraActive || video.readyState < 2 || video.videoWidth <= 0) {
+      setCaptureError('CAMERA NOT READY — WAIT FOR THE FEED OR UPLOAD A PHOTO.');
+      return;
+    }
+
+    try {
+      // Capture at the video's actual resolution
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Unable to allocate canvas rendering context');
+
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+
+      capturedCanvasRef.current = canvas;
+      capturedLandmarksRef.current = null;
+      setCapturedImage(dataUrl);
+      setCaptureError(null);
+      setScanStatus('PHOTO CAPTURED — SCANNING YOUR ITEMS');
+
+      // Extract biometrics from the still frame; the explicit LOCK IN
+      // button remains the only way to submit.
+      try {
+        const { telemetry: capturedTelemetry, landmarks3D } = await detectFaceFromImage(canvas);
+        if (capturedTelemetry && landmarks3D.length > 0) {
+          capturedLandmarksRef.current = landmarks3D;
+          setTelemetry(capturedTelemetry);
+          setScanStatus('PHOTO CAPTURED — READY TO ANALYZE');
+        } else {
+          setTelemetry(null);
+          setCaptureError('NO ITEMS DETECTED IN PHOTO — RETAKE OR UPLOAD A CLEAR PHOTO.');
+          setScanStatus('PHOTO CAPTURED — NO ITEMS DETECTED');
+        }
+      } catch (detectErr) {
+        console.warn('[Capture] Biometric extraction failed:', detectErr);
+        setTelemetry(null);
+        setScanStatus('PHOTO CAPTURED — ITEM SCAN FAILED');
+      }
+    } catch (err) {
+      console.error('[Capture] Frame capture failed:', err);
+      setCaptureError('CAPTURE FAILED — PLEASE TRY AGAIN.');
+      setScanStatus('CAMERA RESTRICTED: UPLOAD IMAGE TO SCAN');
+    }
+  };
+
+  // Discard the captured photo and return to the live camera feed
+  const handleRetakePhoto = () => {
+    capturedCanvasRef.current = null;
+    capturedLandmarksRef.current = null;
+    setCapturedImage(null);
+    setCaptureError(null);
+    setScanStatus(
+      cameraActive
+        ? 'SCANNING YOUR ITEMS'
+        : 'CAMERA RESTRICTED: UPLOAD IMAGE TO SCAN'
+    );
+  };
+
+  // Generate the stylized dossier portrait
   const createStylizedPortrait = (
     source: HTMLVideoElement | HTMLImageElement | HTMLCanvasElement,
     landmarks: Landmark3D[]
   ): string => {
     // The FINALIZED dossier portrait keeps its caste color (the reveal happens
     // after lock-in — never during the scan preview)
-    const sig = getCrypticSignature(telemetry?.caste);
     return renderPolygonPortrait(
       source,
       landmarks,
       'neon-hologram',
-      sig.color
+      getPortraitColor(telemetry?.caste)
     );
   };
 
-  // Lock In Biometrics Handler
+  // Analyze Items (submit the scan)
   const handleLockIn = () => {
-    if (!telemetry || !videoRef.current || isLoading) return;
+    if (!telemetry || isLoading) return;
+
+    const video = videoRef.current;
+    const captured = capturedCanvasRef.current;
+    const capturedLandmarks = capturedLandmarksRef.current;
+    if (!video && !captured) return;
 
     soundFx.playLockIn();
 
-    const video = videoRef.current;
     const canvas = hiddenCanvasRef.current || document.createElement('canvas');
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 640;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const rawImage = canvas.toDataURL('image/jpeg', 0.85);
-
-    // Get current landmarks from landmarker
-    let stylized = rawImage;
+    let rawImage = '';
+    let stylized = '';
     let lockedLandmarks: Landmark3D[] | undefined;
-    if (landmarker) {
-      const { landmarks3D } = detectFaceFromVideo(landmarker, video);
-      if (landmarks3D.length > 0) {
-        lockedLandmarks = landmarks3D;
-        stylized = createStylizedPortrait(video, landmarks3D);
+
+    if (captured) {
+      // Lock in from the captured still photo
+      canvas.width = captured.width || 640;
+      canvas.height = captured.height || 640;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      ctx.drawImage(captured, 0, 0, canvas.width, canvas.height);
+      rawImage = canvas.toDataURL('image/jpeg', 0.85);
+
+      if (capturedLandmarks && capturedLandmarks.length > 0) {
+        lockedLandmarks = capturedLandmarks;
+        stylized = createStylizedPortrait(captured, capturedLandmarks);
+      } else {
+        stylized = rawImage;
+      }
+    } else if (video) {
+      // Lock in from the live camera frame (existing behavior)
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 640;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      rawImage = canvas.toDataURL('image/jpeg', 0.85);
+
+      // Get current landmarks from landmarker
+      stylized = rawImage;
+      if (landmarker) {
+        const { landmarks3D } = detectFaceFromVideo(landmarker, video);
+        if (landmarks3D.length > 0) {
+          lockedLandmarks = landmarks3D;
+          stylized = createStylizedPortrait(video, landmarks3D);
+        }
       }
     }
+
+    if (!rawImage) return;
 
     onLockIn({
       rawImage,
@@ -524,259 +526,312 @@ export const CameraScanner: React.FC<CameraScannerProps> = ({ onLockIn, isLoadin
       avatarEngine: defaultAvatarEngine,
       landmarks: lockedLandmarks,
       portraitStyle: 'neon-hologram',
-      portraitColor: getCrypticSignature(telemetry.caste).color,
+      portraitColor: getPortraitColor(telemetry.caste),
     });
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto flex flex-col items-center">
-      {/* HUD Scanner Box */}
-      <div className="relative w-full aspect-square max-w-[540px] bg-[#0c0e17] rounded-xl border border-cyan-500/40 border-glow-cyan overflow-hidden shadow-2xl">
-        {/* CRT Scanline effect */}
-        <div className="absolute inset-0 scanlines z-10 pointer-events-none" />
-
-        {/* Video feed */}
-        <video
-          ref={videoRef}
-          playsInline
-          muted
-          autoPlay
-          className={`w-full h-full object-cover transform ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`}
-        />
-
-        {/* Neon Wireframe Mesh Canvas */}
-        <canvas
-          ref={canvasRef}
-          className={`absolute inset-0 w-full h-full object-cover z-20 pointer-events-none transform ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`}
-        />
-
-        {/* Hidden Canvas for snapshot extraction */}
-        <canvas ref={hiddenCanvasRef} className="hidden" />
-
-        {/* Upload Analysis In-Flight Overlay */}
-        {isAnalyzingFile && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center z-30 bg-black/80 backdrop-blur-sm">
-            <div className="w-12 h-12 rounded-full border-2 border-cyan-400 border-t-transparent animate-spin mb-3 shadow-[0_0_15px_rgba(0,243,255,0.4)]" />
-            <div className="font-mono text-xs text-cyan-300 tracking-widest animate-pulse font-bold">
-              INGESTING FILE ARTIFACT...
+    <>
+      <ScannerHeader
+        onNavigateHome={onNavigateHome}
+        onGoVault={onGoVault}
+        onToggleMute={onToggleMute}
+        isMuted={isMuted}
+        onOpenDebug={onOpenDebug}
+        IS_DEV={IS_DEV}
+      />
+      <div className="w-full max-w-[1200px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+        {/* Left Panel: Upload */}
+        <section className="rounded-xl border border-gray-800 bg-[#111422] p-4 flex flex-col gap-3">
+          {/* Panel heading */}
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <Camera className="w-4 h-4 text-lime-400" />
+              <h2 className="text-sm font-bold font-mono text-lime-400 tracking-wider uppercase">
+                UPLOAD YOUR STUFF
+              </h2>
             </div>
-            <div className="font-mono text-[11px] text-gray-400 mt-1">
-              Extracting 3D facial topology & bilateral symmetry
-            </div>
-          </div>
-        )}
-
-        {/* HUD Targeting Reticle & Crosshairs */}
-        <div className="absolute inset-0 z-20 pointer-events-none flex flex-col justify-between p-4">
-          <div className="flex justify-between items-start text-xs text-cyan-400 font-mono tracking-widest">
-            <div className="bg-black/60 px-2.5 py-1 rounded border border-cyan-500/40">
-              SYS//BIOMETRIC_SCAN
-            </div>
-            <div className="bg-black/60 px-2.5 py-1 rounded border border-cyan-500/40 animate-pulse">
-              {scanStatus}
-            </div>
-          </div>
-
-          {/* Subtle Framing Reticle with Caste Accent (Non-Intrusive, Open Center) */}
-          <div
-            className="self-center my-auto w-56 h-56 flex items-center justify-center relative transition-all duration-700 pointer-events-none opacity-40"
-            style={{ filter: `drop-shadow(0 0 5px ${scanSignature.glowColor})` }}
-          >
-            {/* Delicate Outer Ring */}
-            <div
-              className="absolute inset-0 rounded-full border border-dashed animate-spin transition-colors duration-700"
-              style={{
-                borderColor: scanSignature.color,
-                animationDuration: scanSignature.reticleSpeed,
-              }}
-            />
-
-            {/* V1: Subtle accent ring, slow elegant spin */}
-            {scanSignature.reticleType === 'v1' && (
-              <div
-                className="absolute inset-3 rounded-full border border-t-amber-400/80 border-b-amber-400/80 border-l-transparent border-r-transparent animate-spin"
-                style={{ animationDuration: '4s', animationDirection: 'reverse' }}
-              />
-            )}
-
-            {/* V2: Subtle corner tick brackets framing the face */}
-            {scanSignature.reticleType === 'v2' && (
-              <>
-                <div className="absolute top-0 left-0 border-t border-l border-orange-500/80 w-4 h-4" />
-                <div className="absolute top-0 right-0 border-t border-r border-orange-500/80 w-4 h-4" />
-                <div className="absolute bottom-0 left-0 border-b border-l border-orange-500/80 w-4 h-4" />
-                <div className="absolute bottom-0 right-0 border-b border-r border-orange-500/80 w-4 h-4" />
-              </>
-            )}
-
-            {/* V3: Subtle cyan quadrant notches */}
-            {scanSignature.reticleType === 'v3' && (
-              <div
-                className="absolute inset-4 rounded-full border border-cyan-400/40 animate-spin"
-                style={{ animationDuration: '6s' }}
-              />
-            )}
-
-            {/* V4: Faint violet dashed ring with gentle wobble */}
-            {scanSignature.reticleType === 'v4' && (
-              <div
-                className="absolute inset-3 rounded-full border border-dotted border-purple-400/60"
-                style={{ animation: 'reticle-wobble 4s linear infinite' }}
-              />
-            )}
-
-            {/* V5: Delicate emerald breathing ring */}
-            {scanSignature.reticleType === 'v5' && (
-              <div
-                className="absolute inset-3 rounded-full border border-emerald-400/60 animate-spin"
-                style={{ animationDuration: '10s', animationDirection: 'reverse' }}
-              />
-            )}
-
-            {/* V6: Subtle crimson hazard border, completely open center (no warning icon) */}
-            {scanSignature.reticleType === 'v6' && (
-              <div
-                className="absolute inset-2 rounded-full border border-red-500/60 animate-pulse"
-                style={{ animationDuration: '2s' }}
-              />
-            )}
-
-            {/* Default: Subtle cyan framing */}
-            {scanSignature.reticleType === 'default' && (
-              <div
-                className="absolute inset-0 border-t border-b border-slate-300/60 animate-spin"
-                style={{ animationDuration: '8s' }}
-              />
-            )}
-          </div>
-
-          {/* Bottom Live Telemetry HUD Bar (Cryptic Resonance & Quantum Monitor) */}
-          <div className="bg-black/85 backdrop-blur-md p-3 rounded-lg border border-cyan-500/30 flex justify-between items-center text-xs font-mono">
-            {/* Cryptic Frequency & Dynamic Equalizer Bars */}
-            <div className="flex items-center gap-3">
-              <div className="flex items-end gap-1 h-6 w-16">
-                {[...Array(8)].map((_, i) => (
-                  <div
-                    key={i}
-                    className={`w-1 rounded-sm ${scanSignature.barColor} ${scanSignature.barShadow}`}
-                    style={{
-                      animation: telemetry
-                        ? `${scanSignature.eqAnimation} ${0.6 + (i % 4) * 0.25}s ease-in-out infinite alternate`
-                        : 'none',
-                      animationDelay: `${i * 0.08}s`,
-                      height: telemetry ? undefined : '20%',
-                    }}
-                  />
-                ))}
-              </div>
-
-              <div>
-                <div className="text-[10px] text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <Activity className="w-3 h-3 text-slate-300" />
-                  <span>RESONANCE FLUX</span>
-                </div>
-                <div className="font-bold text-xs tracking-wider" style={{ color: scanSignature.color }}>
-                  {scanSignature.code}
-                </div>
-              </div>
-            </div>
-
-            {/* Cryptic Quantum Signature & Status Badge */}
-            <div className="text-right">
-              <div className="text-[10px] text-gray-400 tracking-wider">
-                QUANTUM SIGNATURE
-              </div>
-              <div className="flex items-center gap-2 justify-end">
-                <span className="text-gray-300 font-bold text-xs tracking-widest font-mono">
-                  {telemetry
-                    ? `0x${Math.abs(Math.sin(telemetry.facialAspectRatio * 1000) * 0xffff | 0).toString(16).toUpperCase().padStart(4, '0')}·${Math.abs(Math.cos(telemetry.jawTaperRatio * 1000) * 0xff | 0).toString(16).toUpperCase().padStart(2, '0')}`
-                    : '0x----·--'}
-                </span>
-                <span className={`text-[10px] px-1.5 py-0.5 rounded border font-semibold ${scanSignature.badgeStyle}`}>
-                  {scanSignature.statusBadge}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Loading Overlay */}
-        {(isInitializing || isLoading) && (
-          <div className="absolute inset-0 z-30 bg-black/85 flex flex-col items-center justify-center p-6 text-center">
-            <div className="w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mb-4" />
-            <p className="text-cyan-400 font-mono text-sm tracking-widest animate-pulse">
-              {isLoading ? 'ARBITER DELIBERATION IN PROGRESS...' : 'INITIALIZING MEDIAPIPE NEON CORE...'}
+            <p className="text-[10px] font-mono text-gray-500 leading-relaxed">
+              Snap or upload a photo of your everyday items.
             </p>
           </div>
-        )}
-      </div>
 
-      {/* Control Panel */}
-      <div className="w-full mt-4 bg-[#111422] p-4 rounded-xl border border-gray-800 space-y-4">
-
-        {/* Biometric Upload Error Alert Banner */}
-        {uploadError && (
-          <div className="p-3 bg-red-950/70 border border-red-500/60 rounded-lg flex items-center justify-between gap-3 text-red-200 font-mono text-xs">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0" />
-              <span>{uploadError}</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setUploadError(null)}
-              className="text-red-400 hover:text-white font-bold px-2 py-0.5 rounded border border-red-500/40 text-[10px]"
-            >
-              DISMISS
-            </button>
+          {/* Household Categories (display-only until selection is wired into the scan flow) */}
+          <div className="grid grid-cols-3 gap-2">
+            {CATEGORY_LABELS.map((label) => (
+              <div
+                key={label}
+                className="px-2 py-2 rounded-lg border border-gray-700 bg-gray-900/40 text-center text-[10px] font-mono text-gray-300"
+              >
+                {label}
+              </div>
+            ))}
           </div>
-        )}
 
+          {/* Drag & Drop Upload Area */}
+          <div
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onClick={openFilePicker}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                openFilePicker();
+              }
+            }}
+            role="button"
+            tabIndex={0}
+            aria-label="Drop zone for image uploads"
+            className={`relative rounded-xl border-2 border-dashed p-5 text-center transition-all cursor-pointer ${dragActive
+              ? 'border-lime-400 bg-lime-500/5'
+              : 'border-gray-700 hover:border-lime-500/50 hover:bg-gray-900/30'
+            }`}
+          >
+            <Upload className={`w-8 h-8 mx-auto mb-2 text-gray-500 transition-colors ${dragActive ? 'text-lime-400' : ''}`} />
+            <p className="text-sm font-mono text-gray-400 mb-0.5">
+              {dragActive ? 'DROP IMAGE HERE' : 'CLICK OR DRAG IMAGE TO UPLOAD'}
+            </p>
+            <p className="text-[9px] font-mono text-gray-600 mt-0.5">
+              PNG, JPG, WEBP
+            </p>
+          </div>
 
-        {/* Action Buttons */}
-        <div className="flex flex-col gap-2 pt-1">
+          {/* Upload Error Alert Banner */}
+          {uploadError && (
+            <div className="p-3 bg-red-950/70 border border-red-500/60 rounded-lg flex items-center justify-between gap-3 text-red-200 font-mono text-xs">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                <span>{uploadError}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setUploadError(null)}
+                className="text-red-400 hover:text-white font-bold px-2 py-0.5 rounded border border-red-500/40 text-[10px]"
+              >
+                DISMISS
+              </button>
+            </div>
+          )}
+
+          {/* Capture Error Alert Banner */}
+          {captureError && (
+            <div className="p-3 bg-red-950/70 border border-red-500/60 rounded-lg flex items-center justify-between gap-3 text-red-200 font-mono text-xs">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                <span>{captureError}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCaptureError(null)}
+                className="text-red-400 hover:text-white font-bold px-2 py-0.5 rounded border border-red-500/40 text-[10px]"
+              >
+                DISMISS
+              </button>
+            </div>
+          )}
+
+          {/* Upload Photo */}
           <button
             type="button"
-            disabled={!telemetry || isLoading || isAnalyzingFile}
-            onClick={handleLockIn}
-            className="w-full py-3.5 px-4 bg-emerald-500 hover:bg-emerald-400 text-black font-bold font-mono tracking-wider rounded-lg flex items-center justify-center gap-2 shadow-lg hover:shadow-emerald-500/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+            disabled={isAnalyzingFile || isLoading}
+            onClick={openFilePicker}
+            className="py-2.5 px-4 bg-gray-900 hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed text-gray-200 border border-gray-700 font-mono text-xs rounded-lg flex items-center justify-center gap-2 transition-colors cursor-pointer"
           >
-            <Zap className="w-5 h-5 fill-current" />
-            LOCK IN BIOMETRICS
+            <Upload className={`w-4 h-4 text-cyan-400 ${isAnalyzingFile ? 'animate-bounce' : ''}`} />
+            {isAnalyzingFile ? 'ANALYZING...' : 'UPLOAD PHOTO'}
           </button>
 
+          {/* Use Camera / Flip Camera */}
           <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              disabled={isAnalyzingFile || isLoading}
-              onClick={() => fileInputRef.current?.click()}
-              className="py-3 px-4 bg-gray-900 hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed text-gray-200 border border-gray-700 font-mono text-xs rounded-lg flex items-center justify-center gap-2 transition-colors cursor-pointer"
-            >
-              <Upload className={`w-4 h-4 text-cyan-400 ${isAnalyzingFile ? 'animate-bounce' : ''}`} />
-              {isAnalyzingFile ? 'ANALYZING...' : 'UPLOAD FILE'}
-            </button>
+            {capturedImage ? (
+              <button
+                type="button"
+                onClick={handleRetakePhoto}
+                className="py-2.5 px-4 bg-gray-900 hover:bg-gray-800 text-gray-200 border border-gray-700 font-mono text-xs rounded-lg flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                title="Discard this photo and return to the live camera"
+              >
+                <RefreshCw className="w-4 h-4 text-lime-400" />
+                <span>RETAKE PHOTO</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleTakePhoto}
+                disabled={!cameraActive || isAnalyzingFile || isLoading}
+                className="py-2.5 px-4 bg-lime-500/90 hover:bg-lime-400 disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold font-mono text-xs tracking-wider rounded-lg flex items-center justify-center gap-2 transition-all cursor-pointer"
+                title="Capture the current frame as a still photo"
+              >
+                <Camera className="w-4 h-4" />
+                <span>USE CAMERA</span>
+              </button>
+            )}
 
             <button
               type="button"
               onClick={() =>
                 setFacingMode((prev) => (prev === 'user' ? 'environment' : 'user'))
               }
-              className="py-3 px-4 bg-gray-900 hover:bg-gray-800 text-gray-200 border border-gray-700 font-mono text-xs rounded-lg flex items-center justify-center gap-2 transition-colors cursor-pointer"
+              className="py-2.5 px-4 bg-gray-900 hover:bg-gray-800 text-gray-200 border border-gray-700 font-mono text-xs rounded-lg flex items-center justify-center gap-2 transition-colors cursor-pointer"
               title="Switch Camera (Front / Back)"
             >
               <RefreshCw className="w-4 h-4 text-cyan-400" />
               <span>FLIP CAM</span>
             </button>
           </div>
-        </div>
 
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={handleFileUpload}
-        />
-      </div>
+          {/* Manual Item Listing — not yet implemented */}
+          <button
+            type="button"
+            disabled
+            className="py-2.5 px-4 bg-gray-900 text-gray-500 border border-gray-800 font-mono text-xs rounded-lg flex items-center justify-center gap-2 cursor-not-allowed"
+          >
+            <span>LIST YOUR ITEMS MANUALLY</span>
+            <span className="px-1.5 py-0.5 text-[8px] font-mono border border-gray-700 rounded text-gray-500">SOON</span>
+          </button>
+
+          {/* Analyze Items (submits the scan) */}
+          <button
+            type="button"
+            disabled={!telemetry || isLoading || isAnalyzingFile}
+            onClick={handleLockIn}
+            className="w-full py-3 px-4 bg-emerald-500 hover:bg-emerald-400 text-black font-bold font-mono tracking-wider rounded-lg flex items-center justify-center gap-2 shadow-lg hover:shadow-emerald-500/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+          >
+            <Zap className="w-4 h-4 fill-current" />
+            ANALYZE ITEMS
+          </button>
+
+          {/* Privacy Note */}
+          <p className="text-center text-[9px] font-mono text-gray-600 leading-relaxed pt-1">
+            PRIVACY: Photos are processed on-device; we don't save your images.
+          </p>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleFileUpload}
+          />
+        </section>
+
+        {/* Right Panel: Preview & Analysis */}
+        <section className="rounded-xl border border-gray-800 bg-[#111422] p-4 flex flex-col gap-3">
+          {/* Camera preview */}
+          <div className="relative w-full aspect-square bg-[#0c0e17] rounded-lg border border-lime-500/20 overflow-hidden">
+            {/* Video feed */}
+            <video
+              ref={videoRef}
+              playsInline
+              muted
+              autoPlay
+              className={`w-full h-full object-cover transform ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`}
+            />
+
+            {/* Captured photo preview (replaces the live feed until retaken) */}
+            {capturedImage && (
+              <img
+                src={capturedImage}
+                alt="Captured photo"
+                className={`absolute inset-0 w-full h-full object-cover z-10 ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`}
+              />
+            )}
+
+            {/* Hidden Canvas for snapshot extraction */}
+            <canvas ref={hiddenCanvasRef} className="hidden" />
+
+            {/* Upload Analysis In-Flight Overlay */}
+            {isAnalyzingFile && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center z-30 bg-black/80 backdrop-blur-sm">
+                <div className="w-12 h-12 rounded-full border-2 border-lime-400 border-t-transparent animate-spin mb-3" />
+                <div className="font-mono text-xs text-lime-300 tracking-widest animate-pulse font-bold">
+                  INGESTING FILE...
+                </div>
+                <div className="font-mono text-[11px] text-gray-400 mt-1">
+                  Estimating materials & embodied carbon
+                </div>
+              </div>
+            )}
+
+            {/* Loading Overlay */}
+            {(isInitializing || isLoading) && (
+              <div className="absolute inset-0 z-30 bg-black/85 flex flex-col items-center justify-center p-6 text-center">
+                <div className="w-12 h-12 border-4 border-lime-500 border-t-transparent rounded-full animate-spin mb-4" />
+                <p className="text-lime-400 font-mono text-sm tracking-widest animate-pulse">
+                  {isLoading ? 'ARBITER DELIBERATION IN PROGRESS...' : 'INITIALIZING SCANNER...'}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Analysis (separated from the preview) */}
+          <div className="flex flex-col gap-3 pt-3 border-t border-gray-800">
+            {/* Compact header */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5">
+              <h2 className="text-sm font-bold font-mono text-lime-400 tracking-wider uppercase">
+                SCANNING YOUR ITEMS<span className="animate-pulse">...</span>
+              </h2>
+              <span className="text-[9px] font-mono text-gray-400 tracking-wider">
+                {scanStatus}
+              </span>
+            </div>
+
+            {/* Circular scanning illustration */}
+            <div className="relative w-40 h-40 mx-auto my-1 rounded-full border border-lime-500/30 flex items-center justify-center">
+              <House className="w-10 h-10 text-lime-400" />
+              {/* Green scan line */}
+              <div className="absolute inset-x-2 top-1/2 h-px bg-lime-400/70 animate-pulse" />
+            </div>
+
+            {/* Status heading */}
+            <h3 className="text-center text-xs font-mono text-gray-300 tracking-wider">
+              Estimating embodied carbon...
+            </h3>
+
+            {/* Analysis progress */}
+            <ul className="flex flex-col gap-1.5">
+              {analysisStages.map((stage) => (
+                <li
+                  key={stage.label}
+                  className="flex items-center justify-between gap-2 px-2.5 py-2 rounded-lg border border-gray-800 bg-gray-900/40"
+                >
+                  <span className="flex items-center gap-2 text-[11px] font-mono text-gray-300">
+                    {stage.status === 'complete' && (
+                      <CheckCircle className="w-3.5 h-3.5 text-lime-400 flex-shrink-0" />
+                    )}
+                    {stage.status === 'active' && (
+                      <Loader2 className="w-3.5 h-3.5 text-lime-400 animate-spin flex-shrink-0" />
+                    )}
+                    {stage.status === 'pending' && (
+                      <Circle className="w-3.5 h-3.5 text-gray-600 flex-shrink-0" />
+                    )}
+                    {stage.label}
+                  </span>
+                  <span
+                    className={`text-[8px] font-mono tracking-widest px-1.5 py-0.5 rounded border ${
+                      stage.status === 'complete'
+                        ? 'border-lime-500/40 text-lime-400'
+                        : stage.status === 'active'
+                          ? 'border-lime-500/40 text-lime-400/80'
+                          : 'border-gray-700 text-gray-500'
+                    }`}
+                  >
+                    {stage.status.toUpperCase()}
+                  </span>
+                </li>
+              ))}
+            </ul>
+
+            {/* Bottom info strip */}
+            <div className="flex items-center gap-2.5 p-2.5 rounded-lg bg-[#0c110d] border border-lime-500/20">
+              <Leaf className="w-4 h-4 text-lime-400 flex-shrink-0" />
+              <p className="text-[10px] font-mono text-gray-400 leading-relaxed">
+                Small changes make a big difference.
+              </p>
+            </div>
+          </div>
+        </section>
     </div>
+    </>
   );
 };

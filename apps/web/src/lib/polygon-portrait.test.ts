@@ -74,25 +74,25 @@ describe('polygon-portrait engine', () => {
     expect(Number.isFinite(normal.nz)).toBe(true);
   });
 
-  it('computes thermal FLIR colors across entire spectrum and clamps bounds', () => {
-    const cold = getThermalColor(0.0);
-    expect(cold).toBe('rgb(16, 0, 43)');
+  it('computes carbon heat-map colors across entire spectrum and clamps bounds', () => {
+    const negligible = getThermalColor(0.0);
+    expect(negligible).toBe('rgb(5, 46, 22)');
 
-    const blue = getThermalColor(0.25);
-    expect(blue).toBe('rgb(0, 119, 182)');
+    const low = getThermalColor(0.25);
+    expect(low).toBe('rgb(34, 197, 94)');
 
-    const cyan = getThermalColor(0.5);
-    expect(cyan).toBe('rgb(0, 243, 255)');
+    const moderate = getThermalColor(0.5);
+    expect(moderate).toBe('rgb(250, 204, 21)');
 
-    const amber = getThermalColor(0.75);
-    expect(amber).toBe('rgb(255, 183, 3)');
+    const high = getThermalColor(0.75);
+    expect(high).toBe('rgb(249, 115, 22)');
 
-    const hot = getThermalColor(1.0);
-    expect(hot).toBe('rgb(255, 0, 85)');
+    const severe = getThermalColor(1.0);
+    expect(severe).toBe('rgb(255, 0, 85)');
 
     // Clamps out-of-range inputs
-    expect(getThermalColor(-0.5)).toBe(cold);
-    expect(getThermalColor(1.5)).toBe(hot);
+    expect(getThermalColor(-0.5)).toBe(negligible);
+    expect(getThermalColor(1.5)).toBe(severe);
   });
 
   it('centers an off-center face to exact middle of the canvas and scales to fill frame', () => {

@@ -91,13 +91,13 @@ export const AnimatedIntro: React.FC<AnimatedIntroProps> = ({
   const stageTheme = useMemo(() => {
     if (currentIndex <= 1) {
       return {
-        badge: 'text-cyan-400 bg-cyan-950/50 border-cyan-500/40',
-        cardBorder: 'border-cyan-500/40 shadow-cyan-950/40',
-        quoteText: 'text-cyan-100',
-        authorText: 'text-cyan-400',
-        progressColor: 'bg-cyan-400',
-        progressGlow: 'shadow-[0_0_6px_rgba(34,211,238,0.5)]',
-        phase: 'REGISTRY PROTOCOL // STAGE 01',
+        badge: 'text-lime-400 bg-lime-950/50 border-lime-500/40',
+        cardBorder: 'border-lime-500/40 shadow-lime-950/40',
+        quoteText: 'text-lime-100',
+        authorText: 'text-lime-400',
+        progressColor: 'bg-lime-400',
+        progressGlow: 'shadow-[0_0_6px_rgba(180,255,57,0.5)]',
+        phase: 'AUDIT PROTOCOL // STAGE 01',
       };
     }
     if (currentIndex <= 3) {
@@ -187,20 +187,19 @@ export const AnimatedIntro: React.FC<AnimatedIntroProps> = ({
             {/* Warning Header */}
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-950/80 border border-red-500/70 text-red-400 text-xs font-mono tracking-widest uppercase mb-4 shadow-sm shadow-red-950">
               <AlertTriangle className="w-3.5 h-3.5 animate-pulse" />
-              <span>TERMINAL REGISTRATION PROTOCOL</span>
+              <span>DOMESTIC AUDIT PROTOCOL // ECOCIDE</span>
             </div>
 
             {/* Dramatic Climax Headline */}
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-black font-mono tracking-tight text-white mb-4 leading-tight">
-              Registration is coming!
+              YOUR HOUSEHOLD HAS BEEN
               <span className="block text-2xl sm:text-3xl md:text-4xl text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-rose-400 to-amber-400 font-extrabold mt-1">
-                Your file has been opened.
+                CHARGED WITH ECOCIDE.
               </span>
             </h2>
 
             <p className="max-w-md text-sm sm:text-base font-mono text-gray-400 mb-8 leading-relaxed">
-              The registry is finalizing its protocols. Step forward to submit your
-              biometrics to the Carbon Minded AI.
+              The Carbon Minded AI is reviewing your domestic excess. Step forward to submit your household objects for audit.
             </p>
 
             {/* Big Action Button */}
@@ -210,9 +209,9 @@ export const AnimatedIntro: React.FC<AnimatedIntroProps> = ({
                 soundFx.playScannerBeep();
                 onProceedToScan();
               }}
-              className="group relative inline-flex items-center justify-center gap-3 px-8 py-4 sm:px-10 sm:py-5 rounded-xl font-mono text-base sm:text-lg font-bold text-black uppercase tracking-wider bg-gradient-to-r from-cyan-400 via-teal-300 to-cyan-300 hover:from-cyan-300 hover:to-teal-200 shadow-[0_0_30px_rgba(6,182,212,0.6)] hover:shadow-[0_0_45px_rgba(6,182,212,0.9)] hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
+              className="group relative inline-flex items-center justify-center gap-3 px-8 py-4 sm:px-10 sm:py-5 rounded-xl font-mono text-base sm:text-lg font-bold text-black uppercase tracking-wider bg-gradient-to-r from-lime-400 via-lime-300 to-lime-400 hover:from-lime-300 hover:to-lime-200 shadow-[0_0_30px_rgba(180,255,57,0.6)] hover:shadow-[0_0_45px_rgba(180,255,57,0.9)] hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
             >
-              <span>INITIATE REGISTRATION</span>
+              <span>INITIATE DOMESTIC AUDIT</span>
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1.5 transition-transform" />
             </button>
 
@@ -220,10 +219,10 @@ export const AnimatedIntro: React.FC<AnimatedIntroProps> = ({
             <button
               type="button"
               onClick={handleReplay}
-              className="mt-8 inline-flex items-center gap-1.5 text-xs font-mono text-gray-500 hover:text-cyan-400 transition-colors cursor-pointer"
+              className="mt-8 inline-flex items-center gap-1.5 text-xs font-mono text-gray-500 hover:text-lime-400 transition-colors cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              <span>Replay Registry Transmissions</span>
+              <span>Replay Bureau Transmissions</span>
             </button>
           </div>
         ) : (
@@ -254,10 +253,10 @@ export const AnimatedIntro: React.FC<AnimatedIntroProps> = ({
               }`}
             >
               {/* Decorative Corner Accents */}
-              <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-cyan-500/60" />
-              <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-cyan-500/60" />
-              <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-cyan-500/60" />
-              <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-cyan-500/60" />
+              <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-lime-500/60" />
+              <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-lime-500/60" />
+              <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-lime-500/60" />
+              <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-lime-500/60" />
 
               {/* Quote Glyph */}
               <div className="text-4xl sm:text-5xl font-serif text-gray-600 font-bold select-none mb-2">

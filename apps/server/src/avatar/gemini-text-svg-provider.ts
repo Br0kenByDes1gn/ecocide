@@ -42,7 +42,7 @@ ${casteLore}
 CRITICAL SVG SPECIFICATIONS:
 1. Root element MUST BE: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${targetSize} ${targetSize}" width="100%" height="100%">
 2. Include <defs> with linear/radial gradients and neon glow filters (feGaussianBlur).
-3. Draw a dark cyberpunk hexagonal or tech-bracket background frame (#06080d to #0d131f).
+3. Draw a dark cyberpunk hexagonal or tech-bracket background frame (#080b08 to #17221a).
 4. Draw the citizen portrait inside:
    - Approximate facial silhouette, hair cut/parting, and gaze expression observed in the reference photo.
    - Adorn with visible cybernetic implants: ocular HUD lenses, circuit traces, neon neck collar, tech brackets.

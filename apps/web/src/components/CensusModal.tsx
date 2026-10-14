@@ -115,7 +115,7 @@ export const CensusModal: React.FC<CensusModalProps> = ({
     >
       {/* Modal Dialog Window */}
       <div
-        className="relative w-full max-w-3xl max-h-[92vh] bg-[#090b14] border-2 border-cyan-500/50 rounded-2xl shadow-[0_0_50px_rgba(6,182,212,0.25)] flex flex-col overflow-hidden"
+        className="relative w-full max-w-3xl max-h-[92vh] bg-[#0e1510] border-2 border-cyan-500/50 rounded-2xl shadow-[0_0_50px_rgba(180,255,57,0.25)] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="absolute inset-0 scanlines pointer-events-none opacity-25" />
@@ -235,7 +235,7 @@ export const CensusModal: React.FC<CensusModalProps> = ({
                     className={`relative px-2 py-2 rounded-lg text-xs font-bold transition-all border flex flex-col items-center justify-center gap-0.5 cursor-pointer text-center ${
                       isSelected
                         ? `${config.border} ${config.bg} ${config.text} ${config.glow} ring-1 ring-cyan-400/80`
-                        : 'bg-[#0c0f1a] border-gray-800/80 text-gray-400 hover:text-gray-200 hover:border-gray-700'
+                        : 'bg-[#121a14] border-gray-800/80 text-gray-400 hover:text-gray-200 hover:border-gray-700'
                     }`}
                   >
                     {isUserCaste && (

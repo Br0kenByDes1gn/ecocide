@@ -262,7 +262,7 @@ describe('sqlite database dossier repository', () => {
       landmarks,
       telemetry,
       portraitStyle: 'faceted-poly',
-      portraitColor: '#fbbf24',
+      portraitColor: '#ffb703',
       sourceSnapshot: 'data:image/jpeg;base64,downscaledSnapshot',
     });
 
@@ -271,7 +271,7 @@ describe('sqlite database dossier repository', () => {
     expect(retrieved?.telemetry?.caste).toBe('class-i');
     expect(retrieved?.telemetry?.castePercentile).toBe(99.2);
     expect(retrieved?.portraitStyle).toBe('faceted-poly');
-    expect(retrieved?.portraitColor).toBe('#fbbf24');
+    expect(retrieved?.portraitColor).toBe('#ffb703');
     expect(retrieved?.sourceSnapshot).toBe('data:image/jpeg;base64,downscaledSnapshot');
   });
 

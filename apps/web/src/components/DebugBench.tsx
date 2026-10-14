@@ -264,7 +264,7 @@ export const DebugBench: React.FC<DebugBenchProps> = ({ onExit }) => {
   };
 
   return (
-    <div className="w-full min-h-screen bg-[#06080e] text-gray-200 flex flex-col font-mono text-sm pb-16">
+    <div className="w-full min-h-screen bg-[#080b08] text-gray-200 flex flex-col font-mono text-sm pb-16">
       {/* Dev Bar Notice */}
       <div className="w-full bg-gradient-to-r from-amber-600 via-yellow-500 to-amber-600 text-black px-4 py-2 font-bold flex items-center justify-between text-xs tracking-wider shadow-lg">
         <div className="flex items-center gap-2">
@@ -304,7 +304,7 @@ export const DebugBench: React.FC<DebugBenchProps> = ({ onExit }) => {
                   soundFx.playBeep();
                   setIsCensusOpen(true);
                 }}
-                className="text-[11px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1.5 bg-cyan-950/60 hover:bg-cyan-950 border border-cyan-500/40 px-2.5 py-1 rounded transition-colors cursor-pointer shadow-sm hover:shadow-[0_0_10px_rgba(6,182,212,0.3)]"
+                className="text-[11px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1.5 bg-cyan-950/60 hover:bg-cyan-950 border border-cyan-500/40 px-2.5 py-1 rounded transition-colors cursor-pointer shadow-sm hover:shadow-[0_0_10px_rgba(180,255,57,0.3)]"
                 title="Open Global Population Census Distribution (8.3 Billion Matrix)"
               >
                 <Users className="w-3.5 h-3.5 text-cyan-400" />
@@ -768,7 +768,7 @@ export const DebugBench: React.FC<DebugBenchProps> = ({ onExit }) => {
             </div>
           </div>
 
-          <div className="bg-[#07080d] p-4 sm:p-8 rounded-2xl border border-gray-800/80 shadow-2xl">
+          <div className="bg-[#0e1510] p-4 sm:p-8 rounded-2xl border border-gray-800/80 shadow-2xl">
             <CitizenDossier
               key={`dossier-${dossierRenderKey}-${selectedCaste}`}
               payload={currentPayload}

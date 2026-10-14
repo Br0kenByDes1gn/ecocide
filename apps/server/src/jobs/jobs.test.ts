@@ -3,6 +3,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import type { OraclePayload } from '@ecocide/types';
+import { getFaction } from '@ecocide/types';
 import { createRepositories, initDb, runMigrations } from '../db/index.js';
 import type { Repositories } from '../db/index.js';
 import type { EmailMessage, Mailer } from '../email/index.js';
@@ -83,7 +84,7 @@ describe('job dispatch (inline mode)', () => {
 
     expect(mailer.sent).toHaveLength(1);
     expect(mailer.sent[0].to).toBe('citizen@example.com');
-    expect(mailer.sent[0].subject).toContain('Class I');
+    expect(mailer.sent[0].subject).toContain(getFaction('class-i').name);
     expect(mailer.sent[0].html).toContain(`https://registry.test/arbitration/${dossierId}`);
   });
 
@@ -112,7 +113,7 @@ describe('job dispatch (inline mode)', () => {
     expect(mailer.sent).toHaveLength(1);
     expect(mailer.sent[0].subject).toContain('APPEAL RULING');
     expect(mailer.sent[0].subject).toContain('GRANTED');
-    expect(mailer.sent[0].html).toContain('Class I');
+    expect(mailer.sent[0].html).toContain(getFaction('class-i').name);
   });
 
   it('does not send when the dossier is missing', async () => {

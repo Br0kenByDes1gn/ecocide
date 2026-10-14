@@ -85,9 +85,9 @@ export const DossierIdentityCard: React.FC<DossierIdentityCardProps> = ({
         onClick={clickable ? onExpand : undefined}
         role={clickable ? 'button' : undefined}
         title={clickable ? 'Expand dossier to full size' : undefined}
-        className={`relative bg-[#0c0e17] rounded-2xl border-2 ${casteTheme.border} overflow-hidden shadow-2xl transition-all duration-700 ${
+        className={`relative bg-[#0e1510] rounded-2xl border-2 ${casteTheme.border} overflow-hidden shadow-2xl transition-all duration-700 ${
           clickable
-            ? 'cursor-pointer hover:shadow-[0_0_30px_rgba(6,182,212,0.35)] hover:border-cyan-400/80'
+            ? 'cursor-pointer hover:shadow-[0_0_30px_rgba(180,255,57,0.35)] hover:border-cyan-400/80'
             : ''
         } ${compact ? 'p-3' : 'p-6'}`}
       >
@@ -259,7 +259,7 @@ export const DossierIdentityCard: React.FC<DossierIdentityCardProps> = ({
                   soundFx.playBeep();
                   setIsCensusModalOpen(true);
                 }}
-                className="font-mono text-xs text-gray-400 bg-black/70 hover:bg-black px-3 py-1.5 rounded-lg border border-gray-800 hover:border-cyan-500/70 hover:text-cyan-300 transition-all flex items-center gap-2 cursor-pointer group shadow-sm hover:shadow-[0_0_15px_rgba(6,182,212,0.25)]"
+                className="font-mono text-xs text-gray-400 bg-black/70 hover:bg-black px-3 py-1.5 rounded-lg border border-gray-800 hover:border-cyan-500/70 hover:text-cyan-300 transition-all flex items-center gap-2 cursor-pointer group shadow-sm hover:shadow-[0_0_15px_rgba(180,255,57,0.25)]"
                 title="View the Global Population Census distribution"
               >
                 <span className="text-gray-500 group-hover:text-cyan-400 text-[11px] font-semibold flex items-center gap-1">

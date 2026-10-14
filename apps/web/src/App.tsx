@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { generateSimulatedVerdict, type BiometricLandmark, type BiometricTelemetry, type OraclePayload } from '@ecocide/types';
 import confetti from 'canvas-confetti';
 import { Bug, Terminal, Volume2, VolumeX, Wallet } from 'lucide-react';
-import { AnimatedIntro } from './components/AnimatedIntro';
+import { HomePage } from './components/HomePage';
 import { AppealRecordsScreen } from './components/AppealRecordsScreen';
 import { AppealScreen } from './components/AppealScreen';
 import { ArbitrationDossier } from './components/ArbitrationDossier';
@@ -80,6 +80,7 @@ export function App() {
   const [oracleData, setOracleData] = useState<OraclePayload | null>(null);
   const [portraitUrl, setPortraitUrl] = useState<string>('');
   const [permalinkId, setPermalinkId] = useState<string | null>(null);
+  const [sessionDate, setSessionDate] = useState<string | null>(null);
   const [systemNotice, setSystemNotice] = useState<string | null>(null);
   const [isMuted, setIsMuted] = useState(soundFx.isMuted);
 
@@ -97,6 +98,7 @@ export function App() {
         setViewState('debug');
         setOracleData(null);
         setPermalinkId(null);
+        setSessionDate(null);
         return;
       }
 
@@ -104,6 +106,7 @@ export function App() {
         setViewState('vault');
         setOracleData(null);
         setPermalinkId(null);
+        setSessionDate(null);
         return;
       }
 
@@ -121,6 +124,7 @@ export function App() {
         }
         setOracleData(null);
         setPermalinkId(null);
+        setSessionDate(null);
         return;
       }
 
@@ -146,6 +150,7 @@ export function App() {
         setOracleData(payload);
         setPortraitUrl(record.stylizedPortraitUrl || '');
         setPermalinkId(record.id);
+        setSessionDate(record.createdAt || null);
         setViewState(
           claimId
             ? 'claim'
@@ -225,6 +230,7 @@ export function App() {
       const id = result.id || null;
       setOracleData(result);
       setPermalinkId(id);
+      setSessionDate(new Date().toISOString());
       setViewState('arbitration');
 
       if (id) {
@@ -243,6 +249,7 @@ export function App() {
       const mockResult: OraclePayload = generateSimulatedVerdict(data.telemetry);
       setOracleData(mockResult);
       setPermalinkId(null);
+      setSessionDate(new Date().toISOString());
       setViewState('arbitration');
     } finally {
       setIsLoading(false);
@@ -258,6 +265,7 @@ export function App() {
     setViewState('intro');
     setOracleData(null);
     setPermalinkId(null);
+    setSessionDate(null);
     window.history.pushState({}, '', '/');
   };
 
@@ -265,6 +273,7 @@ export function App() {
     setViewState('scanning');
     setOracleData(null);
     setPermalinkId(null);
+    setSessionDate(null);
     window.history.pushState({}, '', '/scan');
   };
 
@@ -303,6 +312,7 @@ export function App() {
       setOracleData(payload);
       setPortraitUrl(record.stylizedPortraitUrl || '');
       setPermalinkId(record.id);
+      setSessionDate(record.createdAt || null);
       setViewState('dossier');
       window.history.pushState({}, '', `/citizen/${record.id}`);
     } catch (err) {
@@ -377,38 +387,36 @@ export function App() {
     return <DebugBench onExit={handleExitDebug} />;
   }
 
-  // Full screen immersive intro with no application header/footer
+  // Full screen immersive homepage with header/footer
   if (viewState === 'intro') {
     return (
-      <div className="min-h-screen w-full bg-[#07080d] text-gray-100 cyber-grid flex flex-col items-center justify-center">
-        <AnimatedIntro
-          onProceedToScan={handleProceedToScan}
-          isMuted={isMuted}
-          onToggleMute={() => setIsMuted(soundFx.toggleMute())}
-          onOpenDebug={IS_DEV ? handleOpenDebug : undefined}
-        />
-      </div>
+      <HomePage
+        onProceedToScan={handleProceedToScan}
+        isMuted={isMuted}
+        onToggleMute={() => setIsMuted(soundFx.toggleMute())}
+      />
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#07080d] text-gray-100 cyber-grid flex flex-col items-center justify-between p-4 sm:p-6">
-      {/* Top Banner Navigation */}
-      <header className="w-full max-w-4xl flex items-center justify-between border-b border-cyan-500/30 pb-4 mb-6">
+    <div className="min-h-[100dvh] bg-[#080b08] text-gray-100 cyber-grid flex flex-col">
+      {/* Top Banner Navigation (hidden on scanner - scanner has its own consolidated header) */}
+      {viewState !== 'scanning' && (
+      <header className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between border-b border-lime-500/30 pb-3 mb-4">
         <div
           onClick={handleNavigateHome}
           className="flex items-center gap-3 cursor-pointer group select-none"
           title="Return to Intro (/)"
         >
-          <div className="p-2 rounded-lg bg-cyan-950/60 border border-cyan-500/40 text-cyan-400 group-hover:border-cyan-400 group-hover:shadow-[0_0_15px_rgba(6,182,212,0.4)] transition-all">
+          <div className="p-2 rounded-lg bg-lime-950/60 border border-lime-500/40 text-lime-400 group-hover:border-lime-400 group-hover:shadow-[0_0_15px_rgba(180,255,57,0.4)] transition-all">
             <Terminal className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-lg sm:text-xl font-bold font-mono text-cyan-400 tracking-wider flex items-center gap-2 group-hover:text-cyan-300 transition-colors">
+            <h1 className="text-lg sm:text-xl font-bold font-mono text-lime-400 tracking-wider flex items-center gap-2 group-hover:text-lime-300 transition-colors">
               {IDENTITY.appName} <span className="text-xs text-gray-500 font-normal">v0.1</span>
             </h1>
             <p className="text-[11px] font-mono text-gray-400 tracking-widest">
-              {IDENTITY.entityName.toUpperCase()} // CLASSIFICATION SYSTEM
+              {IDENTITY.tagline.toUpperCase()} // DOMESTIC AUDIT TERMINAL
             </p>
           </div>
         </div>
@@ -430,7 +438,7 @@ export function App() {
           <button
             type="button"
             onClick={goVault}
-            className="text-xs font-mono text-cyan-400 hover:text-cyan-300 border border-cyan-500/50 hover:border-cyan-400 bg-cyan-950/40 hover:bg-cyan-900/40 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
+            className="text-xs font-mono text-lime-400 hover:text-lime-300 border border-lime-500/50 hover:border-lime-400 bg-lime-950/40 hover:bg-lime-900/40 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
             title="Open your Asset Vault (/vault)"
           >
             <Wallet className="w-3.5 h-3.5" />
@@ -440,7 +448,7 @@ export function App() {
           <button
             type="button"
             onClick={handleNavigateHome}
-            className="text-xs font-mono text-gray-400 hover:text-cyan-400 border border-gray-800 hover:border-cyan-500/50 px-3 py-1.5 rounded-lg bg-gray-950 transition-colors hidden sm:block cursor-pointer"
+            className="text-xs font-mono text-gray-400 hover:text-lime-400 border border-gray-800 hover:border-lime-500/50 px-3 py-1.5 rounded-lg bg-gray-950 transition-colors hidden sm:block cursor-pointer"
           >
             INTRO
           </button>
@@ -459,6 +467,7 @@ export function App() {
           </button>
         </div>
       </header>
+      )}
 
       {/* Cyberpunk System Notice Notification */}
       {systemNotice && (
@@ -475,9 +484,18 @@ export function App() {
       )}
 
       {/* Main View Area */}
-      <main className="w-full max-w-4xl flex-1 flex flex-col items-center justify-center">
+      <main className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex-1 flex flex-col">
         {viewState === 'scanning' && (
-          <CameraScanner onLockIn={handleLockIn} isLoading={isLoading} />
+          <CameraScanner
+            onLockIn={handleLockIn}
+            isLoading={isLoading}
+            onNavigateHome={handleNavigateHome}
+            onGoVault={goVault}
+            onToggleMute={() => setIsMuted(soundFx.toggleMute())}
+            isMuted={isMuted}
+            onOpenDebug={IS_DEV ? handleOpenDebug : undefined}
+            IS_DEV={IS_DEV}
+          />
         )}
 
         {viewState === 'dossier' && oracleData && (
@@ -494,6 +512,7 @@ export function App() {
             payload={oracleData}
             portraitUrl={portraitUrl}
             permalinkId={permalinkId || undefined}
+            sessionDate={sessionDate || undefined}
             onClaim={permalinkId ? handleOpenClaim : undefined}
             onAppeal={permalinkId ? handleOpenAppeal : undefined}
           />
@@ -523,17 +542,19 @@ export function App() {
         {viewState === 'vault' && <VaultScreen onOpenDossier={handleOpenDossier} />}
       </main>
 
-      {/* Footer System Status */}
-      <footer className="w-full max-w-4xl border-t border-gray-900 pt-4 mt-8 flex flex-col sm:flex-row items-center justify-between text-[11px] font-mono text-gray-500 gap-2">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span>MEDIAPIPE 478 3D LANDMARK ENGINE ONLINE</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <span>DETERMINISTIC POPULATION BUCKETING: ACTIVE</span>
-          <span className="text-cyan-600">PROTOCOL-1</span>
-        </div>
-      </footer>
+      {/* Footer System Status (hidden on scanner - scanner has its own consolidated footer) */}
+      {viewState !== 'scanning' && (
+        <footer className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-gray-900 pt-4 mt-8 flex flex-col sm:flex-row items-center justify-between text-[11px] font-mono text-gray-500 gap-2">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span>MEDIAPIPE 478 3D LANDMARK ENGINE ONLINE</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <span>DETERMINISTIC POPULATION BUCKETING: ACTIVE</span>
+            <span className="text-cyan-600">PROTOCOL-1</span>
+          </div>
+        </footer>
+      )}
     </div>
   );
 }

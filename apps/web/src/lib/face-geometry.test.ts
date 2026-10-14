@@ -286,13 +286,13 @@ describe('distance-shell caste engine', () => {
 
 describe('scan preview mesh color', () => {
   it('is a neutral ice-white hue that is not assigned to any caste', () => {
-    expect(SCAN_MESH_COLOR_UNCLASSIFIED).toBe('#e2e8f0');
+    expect(SCAN_MESH_COLOR_UNCLASSIFIED).toBe('#e6efe3');
 
     const casteHexes = new Set(Object.values(CASTE_COLORS).map((c) => c.hex.toLowerCase()));
     expect(casteHexes.has(SCAN_MESH_COLOR_UNCLASSIFIED.toLowerCase())).toBe(false);
 
     // Debug accent palette hues that shouldn't be reclaimed either
-    const debugAccentHues = ['#00f3ff', '#00ff66', '#38bdf8', '#e879f9'];
+    const debugAccentHues = ['#b4ff39', '#22c55e', '#2dd4bf', '#ffb703'];
     expect(debugAccentHues).not.toContain(SCAN_MESH_COLOR_UNCLASSIFIED.toLowerCase());
   });
 });

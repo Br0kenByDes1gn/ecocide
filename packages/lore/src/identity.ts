@@ -1,7 +1,5 @@
 // ---------------------------------------------------------------------------
-// Identity — the project's placeholder world identity.
-// TODO-LORE: replace every string here with the real project identity.
-// The in-world decision entity is named "Carbon Minded AI".
+// Identity — the project's world identity from art_directions.md.
 // ---------------------------------------------------------------------------
 
 export const IDENTITY = {
@@ -13,9 +11,13 @@ export const IDENTITY = {
   /** The in-world entity that scans and classifies subjects. */
   entityName: 'Carbon Minded AI',
   /** Generic way to refer to the entity mid-sentence. */
-  entityShortName: 'the Carbon Minded AI',
-  /** One-line pitch shown on the intro page. TODO-LORE. */
-  tagline: 'A provisional world awaits its story — replace the lore pack.',
+  entityShortName: 'the Arbiter',
+  /** Bureaucratic backronym. */
+  backronym: 'Excess Carbon Offence Case Investigation & Disposal Engine',
+  /** One-line pitch shown on the intro page. */
+  tagline: 'Carbon Excess Eliminator',
+  /** Secondary pitch near appeal button. */
+  secondaryTagline: 'Guilty until pledged.',
   /** Population the classification quotas are applied to. */
   worldPopulation: 8_300_000_000,
 } as const;

@@ -38,7 +38,7 @@ export const DossierActions: React.FC<DossierActionsProps> = ({ onReset, onDownl
       if (navigator.share && /Android|iPhone|iPad/i.test(navigator.userAgent)) {
         await navigator.share({
           title: `Citizen Dossier: ${share.honorificTitle}`,
-          text: `AI SUPREME ARBITER VERDICT: Designated as ${share.casteMemberName} (Unit ${share.unitId.toLocaleString()} of ${share.population.toLocaleString()}) with a Biocarbon Compliance Ratio of ${share.biocarbonRatio}%!`,
+          text: `CARBON MINDED AI VERDICT: Designated as ${share.casteMemberName} (Unit ${share.unitId.toLocaleString()} of ${share.population.toLocaleString()}) with a Biocarbon Compliance Ratio of ${share.biocarbonRatio}%!`,
           url: shareUrl,
         });
       }

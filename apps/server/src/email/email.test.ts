@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { CitizenRecord } from '@ecocide/types';
+import { getFaction } from '@ecocide/types';
 import { createMailer, loadMailConfig, normalizeEmail, vaultOtpEmail, verdictEmail } from './index.js';
 
 function makeRecord(): CitizenRecord {
@@ -67,7 +68,7 @@ describe('verdict email template', () => {
     const rendered = verdictEmail(makeRecord(), 'https://arbiter.test');
     const permalink = 'https://arbiter.test/arbitration/abc123';
 
-    expect(rendered.subject).toContain('Class I');
+    expect(rendered.subject).toContain(getFaction('class-i').name);
     expect(rendered.subject).toContain('Provisional Subject #1');
     expect(rendered.html).toContain(permalink);
     expect(rendered.text).toContain(permalink);

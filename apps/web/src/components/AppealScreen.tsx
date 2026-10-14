@@ -71,7 +71,7 @@ export const AppealScreen: React.FC<AppealScreenProps> = ({ payload, permalinkId
       )}
 
       {phase === 'form' && (
-        <div className="bg-[#0f121d] rounded-2xl border border-gray-800 p-6 shadow-xl space-y-4">
+        <div className="bg-[#121a14] rounded-2xl border border-gray-800 p-6 shadow-xl space-y-4">
           <div className="flex items-center gap-2 border-b border-gray-800 pb-3">
             <Gavel className="w-4 h-4 text-purple-400" />
             <h3 className="font-mono text-sm font-bold text-purple-300 tracking-wider uppercase">
@@ -84,7 +84,7 @@ export const AppealScreen: React.FC<AppealScreenProps> = ({ payload, permalinkId
             rows={6}
             maxLength={1200}
             placeholder="Petition the Arbiter... Convince it that your classification is a monstrous clerical error. Grovel, argue, threaten, or flatter. It decides."
-            className="w-full bg-black/40 border border-gray-700 rounded-xl p-4 text-gray-200 font-mono text-sm leading-relaxed focus:border-purple-500 focus:outline-none focus:shadow-[0_0_15px_rgba(168,85,247,0.2)] resize-none"
+            className="w-full bg-black/40 border border-gray-700 rounded-xl p-4 text-gray-200 font-mono text-sm leading-relaxed focus:border-purple-500 focus:outline-none focus:shadow-[0_0_15px_rgba(255,183,3,0.2)] resize-none"
           />
           <div className="flex items-center justify-between gap-3">
             <span className="text-[10px] font-mono text-gray-500">
@@ -94,7 +94,7 @@ export const AppealScreen: React.FC<AppealScreenProps> = ({ payload, permalinkId
               type="button"
               onClick={submitAppeal}
               disabled={!appeal.trim()}
-              className="px-6 py-3 bg-purple-600 hover:bg-purple-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black rounded-xl font-mono text-sm tracking-widest uppercase flex items-center gap-2 transition-all cursor-pointer shadow-lg hover:shadow-purple-500/30"
+              className="px-6 py-3 bg-purple-600 hover:bg-purple-500 disabled:opacity-40 disabled:cursor-not-allowed text-black font-black rounded-xl font-mono text-sm tracking-widest uppercase flex items-center gap-2 transition-all cursor-pointer shadow-lg hover:shadow-purple-500/30"
             >
               <Send className="w-4 h-4" />
               SUBMIT APPEAL
@@ -107,7 +107,7 @@ export const AppealScreen: React.FC<AppealScreenProps> = ({ payload, permalinkId
       )}
 
       {phase === 'loading' && (
-        <div className="bg-[#0f121d] rounded-2xl border border-gray-800 p-10 flex flex-col items-center gap-4 shadow-xl">
+        <div className="bg-[#121a14] rounded-2xl border border-gray-800 p-10 flex flex-col items-center gap-4 shadow-xl">
           <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
           <div className="font-mono text-xs text-gray-300 tracking-widest animate-pulse">
             THE ARBITER IS DELIBERATING YOUR APPEAL...

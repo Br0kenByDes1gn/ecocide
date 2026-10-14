@@ -62,3 +62,5 @@ export type {
   SimReArbitrationInput,
   SimReArbitrationCopy,
 } from './simulate.js';
+export { VERDICT_TIERS, getVerdictTier } from './verdict-tiers.js';
+export type { VerdictTier, VerdictStatus } from './verdict-tiers.js';

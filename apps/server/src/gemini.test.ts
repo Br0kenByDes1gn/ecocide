@@ -7,7 +7,7 @@ import {
   generateSimulatedReArbitration,
 } from './gemini.js';
 import type { BiometricTelemetry, CitizenAppeal, CitizenRecord } from '@ecocide/types';
-import { FACTIONS } from '@ecocide/lore';
+import { FACTIONS, getFaction } from '@ecocide/lore';
 
 describe('buildOraclePrompt (placeholder lore pack)', () => {
   const baseTelemetry: Omit<BiometricTelemetry, 'caste' | 'castePercentile'> = {
@@ -189,8 +189,8 @@ describe('re-arbitration', () => {
     const first = generateSimulatedReArbitration(dossier, appeal);
     const second = generateSimulatedReArbitration(dossier, appeal);
     expect(first).toEqual(second);
-    expect(first.headline).toContain('CLASS II');
-    expect(first.newHonorificTitle).toContain('Class II Member');
+    expect(first.headline).toContain(getFaction('class-ii').name.toUpperCase());
+    expect(first.newHonorificTitle).toContain(getFaction('class-ii').memberTitle);
     expect(first.scripture[0]).toContain('I hereby petition for re-classification as Class II.');
     // the appeal text appears only in paragraph 1
     expect(first.scripture[1]).not.toContain('petition');

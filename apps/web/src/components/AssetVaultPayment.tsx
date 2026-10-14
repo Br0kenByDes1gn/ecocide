@@ -74,7 +74,7 @@ export const AssetVaultPayment: React.FC<AssetVaultPaymentProps> = ({
   }, [bindDossierId, amount, reason, chargeRef, refresh, onPaid]);
 
   return (
-    <div className="w-full max-w-md mx-auto bg-[#0c0e17] rounded-2xl border-2 border-cyan-500/40 p-6 shadow-2xl">
+    <div className="w-full max-w-md mx-auto bg-[#0e1510] rounded-2xl border-2 border-cyan-500/40 p-6 shadow-2xl">
       <div className="flex items-center justify-between border-b border-gray-800 pb-3 mb-5">
         <div className="flex items-center gap-2 text-cyan-300 font-mono text-xs font-bold tracking-widest">
           <Lock className="w-4 h-4" />
