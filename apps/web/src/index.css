@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=Special+Elite&display=swap");
 @import "tailwindcss";
 
 /* --- ECOCIDE styling tokens & UI defaults --- */
@@ -8,6 +9,40 @@
 /* Lighter outer second border on all buttons */
 button, [role='button'] {
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18) !important;
+}
+/* Barcode bars should remain boxy (no curved corners) */
+.barcode-bar {
+  border-radius: 0 !important;
+}
+/* Stamp has only two corner borders in dark black */
+.stamp-corner {
+  border: 0;
+  background: transparent;
+}
+.stamp-corner::before,
+.stamp-corner::after {
+  content: '';
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #c2322b;
+}
+.stamp-corner::before {
+  top: 0;
+  left: 0;
+  border-right: 0;
+  border-bottom: 0;
+}
+.stamp-corner::after {
+  bottom: 0;
+  right: 0;
+  border-top: 0;
+  border-left: 0;
+}
+/* Dossier content reads as typewritten text */
+.paper-layer {
+  font-family: 'Special Elite', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace !important;
+  word-spacing: 1px;
 }
 @source "../../../packages/compliance/src";
 @source "../../../packages/types/src";
