@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { AuditItem, OraclePayload } from '@ecocide/types';
 import { getFaction, OVERRIDE_RULES } from '@ecocide/types';
-import { IDENTITY } from '@ecocide/lore';
 import { ArrowRightLeft, ChevronDown, ChevronUp, Layers, ScanSearch, Shield } from 'lucide-react';
 import type { AuditRevealState } from '../lib/useAuditReveal';
 import { drawAuditLens, ITEM_STATUS_COLORS, ITEM_STATUS_LABELS, LENSES, type LensId } from '../lib/audit-lenses';
@@ -39,7 +38,7 @@ export const HouseholdAuditCard: React.FC<HouseholdAuditCardProps> = ({
   payload,
   evidenceUrl,
   reveal,
-  headerLabel = `${IDENTITY.appName} // HOUSEHOLD AUDIT DOSSIER`,
+    headerLabel = 'ARBITER VERDICT',
   compact = false,
   interactive = false,
   onExpand,
@@ -126,15 +125,15 @@ export const HouseholdAuditCard: React.FC<HouseholdAuditCardProps> = ({
             <span className="font-mono text-xs uppercase tracking-widest text-gray-400">{headerLabel}</span>
           </div>
           <div className="flex items-center gap-2 text-[11px] font-mono text-gray-500">
-            <span>CASE FILE // {payload.id ? `#${payload.id}` : 'PENDING'}</span>
+            <span>CASE ID - {payload.id ? `#${payload.id}` : 'PENDING'}</span>
           </div>
         </div>
 
-        <div className={`grid grid-cols-12 gap-5 transition-all duration-700 ${compact ? 'mt-1 gap-3 items-center' : 'mt-5'}`}>
+        <div className={`transition-all duration-700 flex ${compact ? 'flex-row items-center gap-3 mt-1' : 'flex-col gap-5 mt-5'}`}>
           {/* Evidence photo column */}
           <div
             className={`transition-all duration-700 ${
-              compact ? 'col-span-12 sm:col-span-2' : 'sm:col-span-6'
+              compact ? 'w-16 h-16 sm:w-20 sm:h-20 shrink-0 rounded-xl overflow-hidden' : 'w-full aspect-square rounded-xl overflow-hidden'
             }`}
           >
             <div
@@ -207,8 +206,8 @@ export const HouseholdAuditCard: React.FC<HouseholdAuditCardProps> = ({
 
           {/* Details column */}
           <div
-            className={`flex flex-col justify-center min-w-0 transition-all duration-700 ${
-              compact ? 'col-span-12 sm:col-span-10 space-y-1.5' : 'sm:col-span-6 space-y-4'
+            className={`flex flex-col min-w-0 transition-all duration-700 ${
+              compact ? 'flex-1 min-w-0 space-y-1.5' : 'w-full space-y-4'
             }`}
           >
             {compact ? (
@@ -233,7 +232,6 @@ export const HouseholdAuditCard: React.FC<HouseholdAuditCardProps> = ({
                 {/* Tier banner */}
                 <div className={`flex items-center justify-between gap-3 rounded-xl border ${faction.colors.border} ${faction.colors.bg} px-3 py-2.5 ${faction.colors.glow}`}>
                   <div className="flex items-center gap-3 min-w-0">
-                    <TierStamp caste={user_profile.caste} />
                     <div className="min-w-0">
                       <div className="font-mono text-[10px] text-gray-400 uppercase tracking-widest">CLASSIFICATION</div>
                       <div className={`font-black font-mono text-base sm:text-lg leading-tight ${faction.colors.color}`}>
@@ -242,17 +240,11 @@ export const HouseholdAuditCard: React.FC<HouseholdAuditCardProps> = ({
                       <div className="text-[10px] font-mono text-gray-400 italic truncate">{faction.verdictLine}</div>
                     </div>
                   </div>
-                  <div className="hidden sm:flex flex-col items-end gap-1">
-                    <span className="text-[9px] font-mono text-gray-500 uppercase tracking-widest">Score {ratio}–100</span>
-                    <span className="text-[9px] font-mono text-gray-500">{faction.reticleMotif.toUpperCase()}</span>
-                  </div>
-                </div>
-
-                {/* Title */}
-                <div className="min-w-0">
-                  <div className="text-xs font-mono text-gray-400">CASE TITLE // DOMINANT HABIT</div>
-                  <div className={`font-bold font-mono text-white tracking-wide mt-0.5 text-xl sm:text-2xl break-words ${faction.colors.color}`}>
-                    {stat(reveal.titleText, 'w-2/3 h-5')}
+                  <div className="flex flex-col items-end gap-1 text-right shrink-0">
+                    <span className="text-[10px] font-mono text-gray-400 uppercase tracking-widest">Sustainability Index</span>
+                    <span className={`text-4xl sm:text-5xl font-black tracking-tight ${faction.colors.color}`}>
+                      {stat(reveal.ratioText, 'w-20 h-8')}
+                    </span>
                   </div>
                 </div>
 
@@ -346,7 +338,7 @@ export const HouseholdAuditCard: React.FC<HouseholdAuditCardProps> = ({
             compact ? 'max-h-0 opacity-0 border-t-transparent' : 'max-h-10 opacity-100'
           }`}
         >
-          <span>CASE FILE: {payload.id ? `#${payload.id}` : 'PENDING'} // AUDIT PROTOCOL {IDENTITY.auditProtocol}</span>
+          <span>CASE FILE: {payload.id ? `#${payload.id}` : 'PENDING'}</span>
           <div className="tracking-[4px] font-bold text-gray-400">||||| | |||| ||| |</div>
           <span>GRID-VERIFIED // ALL VALUES ARE ESTIMATES</span>
         </div>

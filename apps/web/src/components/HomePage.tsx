@@ -235,7 +235,7 @@ export const HomePage: React.FC<HomePageProps> = ({
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] font-mono text-gray-500">
           <div className="flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-lime-400 animate-pulse" />
-            <span>OBJECT AUDIT ENGINE ONLINE // {IDENTITY.entityName.toUpperCase()}</span>
+            <span>OBJECT AUDIT ENGINE ONLINE | {IDENTITY.entityName.toUpperCase()}</span>
           </div>
           <div className="flex items-center gap-4">
             <span>DETERMINISTIC COMPLIANCE MATH: ACTIVE</span>

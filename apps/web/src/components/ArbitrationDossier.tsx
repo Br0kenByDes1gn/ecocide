@@ -7,7 +7,8 @@ import {
   type DimensionKey,
 } from '@ecocide/compliance';
 import { IDENTITY } from '@ecocide/lore';
-import { ArrowRight, Gavel, Recycle, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Gavel, ShieldCheck } from 'lucide-react';
+import { PaperDossierHeader } from './PaperDossierHeader';
 import { ITEM_STATUS_LABELS } from '../lib/audit-lenses';
 
 interface ArbitrationDossierProps {
@@ -188,19 +189,6 @@ const ItemRow: React.FC<{ item: AuditItem; index: number; evidenceUrl?: string }
   );
 };
 
-/** Vertical barcode block: varied bar widths, same height as the recycling logo but wider. */
-const Barcode: React.FC<{ bars: readonly number[] }> = ({ bars }) => (
-  <div className="inline-flex w-24 h-12 items-stretch gap-[2px] p-[3px]">
-    {bars.map((w, i) => (
-      <span
-        key={i}
-        className="block h-full bg-[#1f2a1f] barcode-bar"
-        style={{ width: `${w}px` }}
-      />
-    ))}
-  </div>
-);
-
 /**
  * The verdict page at /arbitration/:id.
  *
@@ -226,18 +214,6 @@ export const ArbitrationDossier: React.FC<ArbitrationDossierProps> = ({
   const caseId = permalinkId || payload.id || null;
 
   const items = audit?.items ?? [];
-  const barcodeBars = React.useMemo(() => {
-    const source = caseId || 'AUDIT';
-    const widths = new Set<number>();
-    let guard = 0;
-    while (widths.size < 16 && guard < 96) {
-      const code = source.charCodeAt(guard % source.length) || 1;
-      // fractional px widths so adjacent bars do not repeat
-      widths.add(Math.round(((code * 37 + (guard + 11) * 19) % 75 + 8) / 10 * 10) / 10);
-      guard += 1;
-    }
-    return [...widths];
-  }, [caseId]);
   const ratio = audit?.ratio ?? score ?? null;
 
   const sessionDateText = (() => {
@@ -263,7 +239,7 @@ export const ArbitrationDossier: React.FC<ArbitrationDossierProps> = ({
         {/* Left: compact verdict panel */}
         <section
           aria-label="Household verdict"
-          className="rounded-xl border border-gray-800 bg-[#121a14] p-4 flex flex-col min-w-0 lg:min-h-0 lg:overflow-y-auto"
+          className="rounded-xl border border-gray-800 bg-[#121a14] p-[1.15rem] flex flex-col min-w-0 lg:min-h-0 lg:overflow-y-auto"
         >
           <h2 className="text-[10px] font-mono tracking-[0.3em] text-lime-400/90 uppercase">
             Household Verdict
@@ -353,33 +329,7 @@ export const ArbitrationDossier: React.FC<ArbitrationDossierProps> = ({
             style={{ backgroundImage: PAPER_NOISE }}
           />
 
-          <div className="relative flex items-start justify-between gap-3 border-b border-[#cfc4a8] pb-2">
-            <div className="flex items-center gap-3 min-w-0">
-              <Recycle className="w-16 h-16 shrink-0" style={{ color: '#2f7d3a' }} />
-              <div className="flex flex-col justify-center h-12 min-w-0 gap-0">
-                <div className="text-xl font-black uppercase tracking-widest text-[#1f2a1f] leading-tight">
-                  PLANETARY AUDIT BUREAU
-                </div>
-                <div className="pl-3 text-sm font-mono uppercase tracking-widest text-[#6b7263] leading-tight">
-                  CONSUMER IMPACT DOSSIER
-                </div>
-              </div>
-            </div>
-            <div className="flex flex-col items-center shrink-0">
-              <Barcode bars={barcodeBars} />
-              <span
-                className="mt-1 text-[9px] font-mono font-black uppercase tracking-widest text-[#6b7263] whitespace-nowrap"
-                style={{ fontFamily: "'Special Elite', ui-monospace, monospace", letterSpacing: '1px' }}
-              >
-                {sessionDateText
-                  ? sessionDateText.toUpperCase()
-                  : (caseId ? `#${caseId}` : 'UNAVAILABLE')}
-              </span>
-            </div>
-          </div>
-          <div className="relative mt-1 text-xl font-black font-mono uppercase tracking-widest text-[#1f2a1f] leading-tight">
-            Case ID - {caseId ? `#${caseId}` : 'UNAVAILABLE'}
-          </div>
+          <PaperDossierHeader caseId={caseId} sessionDate={sessionDate} />
 
           {/* Overall classification — the tier resolved from the audit score */}
           <div className="relative mt-1 flex items-center gap-2">

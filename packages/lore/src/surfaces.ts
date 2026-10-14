@@ -86,14 +86,14 @@ export const REGISTRY_COPY = {
   /** The simulated payment terminal used by the claim and appeal flows. */
   terminal: {
     title: 'Carbon Registry Terminal',
-    secChannel: 'SEC-CHANNEL // 9',
+    secChannel: 'SEC-CHANNEL : 9',
     drawnFrom: 'Drawn from your registry account',
     unlocked: 'Registry unlocked',
     authorize: 'Authorize payment',
     binding: 'Binding assessment to your registry...',
     debiting: 'Debiting registry ledger...',
     paid: 'Payment authorized',
-    simulation: 'Simulation terminal // no real charge will be made',
+    simulation: 'Simulation terminal | no real charge will be made',
     balance: 'Balance',
   },
 } as const;

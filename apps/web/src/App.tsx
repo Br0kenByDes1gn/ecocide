@@ -487,6 +487,7 @@ export function App() {
             evidenceUrl={evidenceUrl}
             onReset={handleReset}
             permalinkId={permalinkId || undefined}
+            sessionDate={sessionDate || undefined}
           />
         )}
 
@@ -535,7 +536,7 @@ export function App() {
       <footer className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-gray-900 pt-4 mt-8 pb-4 flex flex-col sm:flex-row items-center justify-between text-[11px] font-mono text-gray-500 gap-2">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-lime-400 animate-pulse" />
-          <span>OBJECT AUDIT ENGINE ONLINE // {IDENTITY.entityName.toUpperCase()}</span>
+          <span>OBJECT AUDIT ENGINE ONLINE | {IDENTITY.entityName.toUpperCase()}</span>
         </div>
         <div className="flex items-center gap-4">
           <span>DETERMINISTIC COMPLIANCE MATH: ACTIVE</span>
