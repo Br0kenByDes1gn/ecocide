@@ -1,12 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, RefreshCw, Camera, Zap, CheckCircle, Circle, Loader2, Leaf } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Camera, Zap } from 'lucide-react';
 import { IDENTITY, PALETTE } from '@ecocide/lore';
 import { soundFx } from '../lib/audio';
 import { ScannerHeader } from './ScannerHeader';
 import { UploadPanel, type ItemCategory } from './UploadPanel';
 import { EvidenceDropZone } from './EvidenceDropZone';
-import { AssetWireframe } from './AssetWireframe';
-import { AnalysisPanel, ANALYSIS_STAGES } from './AnalysisPanel';
+import { AnalysisPanel } from './AnalysisPanel';
 
 interface ObjectScannerProps {
   onLockIn: (data: { rawImage: string; category: ItemCategory | null }) => void;
@@ -415,97 +414,29 @@ export const ObjectScanner: React.FC<ObjectScannerProps> = ({
           <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
         </section>
 
-        {/* Right panel: analysis pipeline. In flight, the audit cinematic takes over. */}
-        {isLoading ? (
+        {/* Right panel: audit controls + the shared scan panel (wireframe → live scan) */}
+        <div className="flex flex-col gap-3 min-h-0">
+          {!isLoading && (
+            <div className="bg-[#121a14] border border-gray-800 rounded-xl p-3">
+              <UploadPanel
+                selectedCategory={category}
+                onCategoryChange={(c) => {
+                  soundFx.playClick();
+                  setCategory(c);
+                }}
+                isAnalyzing={isAnalyzing}
+              />
+            </div>
+          )}
+
           <AnalysisPanel
             photo={captured ?? preview}
-            active
+            active={isLoading}
             category={category === 'others' ? null : category}
+            statusText={scanStatus}
+            idleStatusFor={stageStatusFor}
           />
-        ) : (
-          <section className="rounded-xl border border-gray-800 bg-[#121a14] p-4 flex flex-col gap-3">
-            <UploadPanel
-              selectedCategory={category}
-              onCategoryChange={(c) => {
-                soundFx.playClick();
-                setCategory(c);
-              }}
-              isAnalyzing={isAnalyzing}
-            />
-
-            {/* Analysis pipeline */}
-            <div className="flex flex-col gap-3">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5">
-                <h2 className="text-sm font-bold font-mono text-lime-400 tracking-wider uppercase">
-                  {evidenceStaged ? (
-                    <>
-                      SCANNING YOUR ITEMS<span className="animate-pulse">...</span>
-                    </>
-                  ) : (
-                    'AWAITING EVIDENCE'
-                  )}
-                </h2>
-                <span className="text-[9px] font-mono text-gray-400 tracking-wider">{scanStatus}</span>
-              </div>
-
-              {/* Rotating asset wireframe under a wandering inspection spotlight */}
-              <div className="relative w-40 h-40 mx-auto my-1 rounded-full border border-lime-500/30 overflow-hidden">
-                <AssetWireframe className="h-full w-full" />
-              </div>
-
-              <h3 className="text-center text-xs font-mono text-gray-300 tracking-wider">
-                Estimating embodied carbon...
-              </h3>
-
-              <ul className="flex flex-col gap-1.5">
-                {ANALYSIS_STAGES.map((stage, index) => {
-                  const status = stageStatusFor(index);
-                  const StageIcon = stage.icon;
-                  return (
-                    <li
-                      key={stage.id}
-                      className="flex items-center justify-between gap-2 px-2.5 py-2 rounded-lg border border-gray-800 bg-gray-900/40"
-                    >
-                      <span className="flex items-center gap-2 min-w-0 text-[11px] font-mono text-gray-300">
-                        {status === 'complete' ? (
-                          <CheckCircle className="w-3.5 h-3.5 text-lime-400 flex-shrink-0" />
-                        ) : status === 'active' ? (
-                          <Loader2 className="w-3.5 h-3.5 text-lime-400 animate-spin flex-shrink-0" />
-                        ) : (
-                          <Circle className="w-3.5 h-3.5 text-gray-600 flex-shrink-0" />
-                        )}
-                        <StageIcon className={`w-3.5 h-3.5 flex-shrink-0 ${status === 'pending' ? 'text-gray-600' : stage.color}`} />
-                        <span className="truncate">
-                          {stage.label}
-                          <span className="hidden sm:inline text-gray-600"> — {stage.description}</span>
-                        </span>
-                      </span>
-                      <span
-                        className={`text-[8px] font-mono tracking-widest px-1.5 py-0.5 rounded border flex-shrink-0 ${
-                          status === 'complete'
-                            ? 'border-lime-500/40 text-lime-400'
-                            : status === 'active'
-                              ? 'border-lime-500/40 text-lime-400/80'
-                              : 'border-gray-700 text-gray-500'
-                        }`}
-                      >
-                        {status.toUpperCase()}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-
-              {/* Bottom info strip */}
-              <div className="flex items-center gap-2.5 p-2.5 rounded-lg bg-[#0c110d] border border-lime-500/20">
-                <Leaf className="w-4 h-4 text-lime-400 flex-shrink-0" />
-                <p className="text-[10px] font-mono text-gray-400 leading-relaxed">
-                  Small changes make a big difference.
-                </p>
-              </div>
-            </div>
-          </section>
-        )}
+        </div>
       </div>
     </div>
   );
