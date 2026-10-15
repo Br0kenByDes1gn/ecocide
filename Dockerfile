@@ -4,12 +4,14 @@ FROM node:24-bookworm-slim AS builder
 
 WORKDIR /app
 
-# Enable pnpm
-RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
+# Enable pnpm (must match the "packageManager" field in package.json)
+RUN corepack enable && corepack prepare pnpm@10.32.1 --activate
 
 # Copy workspace and package dependency manifests
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY packages/compliance/package.json ./packages/compliance/
 COPY packages/types/package.json ./packages/types/
+COPY packages/lore/package.json ./packages/lore/
 COPY apps/server/package.json ./apps/server/
 COPY apps/web/package.json ./apps/web/
 
@@ -34,7 +36,9 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV STATIC_DIR=/app/web/dist
-ENV DB_PATH=/data/dossiers.db
+# Archived audit photos are files, never DB blobs (AGENTS.md rule 4). Point the
+# default at the writable volume; Cloud Run overrides this with its bucket mount.
+ENV EVIDENCE_DIR=/data/evidence
 
 # Create persistent storage mount and application directories with non-root ownership
 RUN mkdir -p /data /app/web/dist && chown -R node:node /data /app

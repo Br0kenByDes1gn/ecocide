@@ -1,48 +1,44 @@
-import { sql } from 'drizzle-orm';
-import { index, integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { boolean, doublePrecision, index, integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
 
 /**
- * Single source of truth for the database schema.
+ * Single source of truth for the database schema (PostgreSQL).
  *
- * Column names intentionally mirror the on-disk layout (snake_case). JSON
- * blobs (`items_json`, `suggestions_json`, `scripture`) are stored as TEXT and
+ * Column names intentionally mirror the on-disk layout (snake_case). JSON blobs
+ * (`items_json`, `suggestions_json`, `scripture`) are stored as TEXT and
  * serialized/parsed in the repository layer — simple and dialect-portable.
  *
- * The archived evidence photo is a FILE on disk (apps/server/data/evidence);
- * the DB stores only `evidence_filename`.
+ * Timestamps: the Better Auth tables use real `timestamptz` columns (the
+ * library reads Dates); the application tables keep their ISO-8601 TEXT stamps,
+ * which is what the lore/dossier contracts expect and keeps ordering lexical.
+ *
+ * The archived evidence photo is a FILE on disk (EVIDENCE_DIR); the DB stores
+ * only `evidence_filename`.
  */
 
 // ---------------------------------------------------------------------------
 // Better Auth core tables
 // ---------------------------------------------------------------------------
 
-export const user = sqliteTable('user', {
+export const user = pgTable('user', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   email: text('email').notNull().unique(),
-  emailVerified: integer('email_verified', { mode: 'boolean' })
-    .default(false)
-    .notNull(),
+  emailVerified: boolean('email_verified').default(false).notNull(),
   image: text('image'),
-  createdAt: integer('created_at', { mode: 'timestamp_ms' })
-    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
-    .notNull(),
-  updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
-    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' })
     .$onUpdate(() => new Date())
     .notNull(),
 });
 
-export const session = sqliteTable(
+export const session = pgTable(
   'session',
   {
     id: text('id').primaryKey(),
-    expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'date' }).notNull(),
     token: text('token').notNull().unique(),
-    createdAt: integer('created_at', { mode: 'timestamp_ms' })
-      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
-      .notNull(),
-    updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' })
       .$onUpdate(() => new Date())
       .notNull(),
     ipAddress: text('ip_address'),
@@ -54,7 +50,7 @@ export const session = sqliteTable(
   (t) => [index('idx_session_user_id').on(t.userId)]
 );
 
-export const account = sqliteTable(
+export const account = pgTable(
   'account',
   {
     id: text('id').primaryKey(),
@@ -66,31 +62,33 @@ export const account = sqliteTable(
     accessToken: text('access_token'),
     refreshToken: text('refresh_token'),
     idToken: text('id_token'),
-    accessTokenExpiresAt: integer('access_token_expires_at', { mode: 'timestamp_ms' }),
-    refreshTokenExpiresAt: integer('refresh_token_expires_at', { mode: 'timestamp_ms' }),
+    accessTokenExpiresAt: timestamp('access_token_expires_at', {
+      withTimezone: true,
+      mode: 'date',
+    }),
+    refreshTokenExpiresAt: timestamp('refresh_token_expires_at', {
+      withTimezone: true,
+      mode: 'date',
+    }),
     scope: text('scope'),
     password: text('password'),
-    createdAt: integer('created_at', { mode: 'timestamp_ms' })
-      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
-      .notNull(),
-    updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' })
       .$onUpdate(() => new Date())
       .notNull(),
   },
   (t) => [index('idx_account_user_id').on(t.userId)]
 );
 
-export const verification = sqliteTable(
+export const verification = pgTable(
   'verification',
   {
     id: text('id').primaryKey(),
     identifier: text('identifier').notNull(),
     value: text('value').notNull(),
-    expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
-    createdAt: integer('created_at', { mode: 'timestamp_ms' })
-      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
-      .notNull(),
-    updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
+    expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'date' }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' })
       .$onUpdate(() => new Date())
       .notNull(),
   },
@@ -101,7 +99,7 @@ export const verification = sqliteTable(
 // Carbon Registry (wallet) — 1:1 with a Better Auth user
 // ---------------------------------------------------------------------------
 
-export const wallets = sqliteTable(
+export const wallets = pgTable(
   'wallets',
   {
     id: text('id').primaryKey(),
@@ -109,6 +107,7 @@ export const wallets = sqliteTable(
       .notNull()
       .unique()
       .references(() => user.id, { onDelete: 'cascade' }),
+    /** Whole token units; the ledger sums to this balance. */
     credits: integer('credits').notNull().default(0),
     created_at: text('created_at').notNull(),
     updated_at: text('updated_at').notNull(),
@@ -116,7 +115,7 @@ export const wallets = sqliteTable(
   (t) => [index('idx_wallets_user_id').on(t.user_id)]
 );
 
-export const walletLedger = sqliteTable(
+export const walletLedger = pgTable(
   'wallet_ledger',
   {
     id: text('id').primaryKey(),
@@ -136,7 +135,7 @@ export const walletLedger = sqliteTable(
 // Dossiers, appeals & scan logs
 // ---------------------------------------------------------------------------
 
-export const dossiers = sqliteTable(
+export const dossiers = pgTable(
   'dossiers',
   {
     id: text('id').primaryKey(),
@@ -154,7 +153,7 @@ export const dossiers = sqliteTable(
     items_json: text('items_json').notNull().default('[]'),
     /** Improvement suggestions offered as appeal pledges (JSON). */
     suggestions_json: text('suggestions_json').notNull().default('[]'),
-    /** Evidence photo file name on disk (apps/server/data/evidence). */
+    /** Evidence photo file name on disk (EVIDENCE_DIR). */
     evidence_filename: text('evidence_filename'),
     /** Owning Carbon Registry account (Better Auth user id); null while anonymous. */
     user_id: text('user_id').references(() => user.id, { onDelete: 'set null' }),
@@ -165,13 +164,13 @@ export const dossiers = sqliteTable(
   ]
 );
 
-export const appeals = sqliteTable(
+export const appeals = pgTable(
   'appeals',
   {
     id: text('id').primaryKey(),
     dossier_id: text('dossier_id').notNull(),
     appeal_text: text('appeal_text').notNull(),
-    accepted: integer('accepted', { mode: 'boolean' }).notNull().default(false),
+    accepted: boolean('accepted').notNull().default(false),
     new_caste: text('new_caste'),
     new_honorific_title: text('new_honorific_title'),
     headline: text('headline'),
@@ -184,7 +183,7 @@ export const appeals = sqliteTable(
   (t) => [index('idx_appeals_dossier_created').on(t.dossier_id, t.created_at)]
 );
 
-export const scanApiLogs = sqliteTable(
+export const scanApiLogs = pgTable(
   'scan_api_logs',
   {
     id: text('id').primaryKey(),
@@ -196,7 +195,8 @@ export const scanApiLogs = sqliteTable(
     candidates_tokens: integer('candidates_tokens').notNull().default(0),
     thoughts_tokens: integer('thoughts_tokens').notNull().default(0),
     total_tokens: integer('total_tokens').notNull().default(0),
-    cost_usd: real('cost_usd').notNull().default(0),
+    /** Float, NOT numeric: `pg` returns numeric as a string (see repositories). */
+    cost_usd: doublePrecision('cost_usd').notNull().default(0),
     duration_ms: integer('duration_ms').notNull().default(0),
     status: text('status').notNull().default('success'),
     error_message: text('error_message'),

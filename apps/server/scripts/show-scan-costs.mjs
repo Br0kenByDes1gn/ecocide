@@ -1,68 +1,79 @@
 #!/usr/bin/env node
-import { DatabaseSync } from 'node:sqlite';
 import path from 'path';
 import fs from 'fs';
-import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+/**
+ * Scan cost audit (`pnpm scan-costs`).
+ *
+ * Reads the same database the server writes — `pg` when DATABASE_URL is set
+ * (production), otherwise the local PGlite data directory — and prints the
+ * per-scan token/latency/cost breakdown from `scan_api_logs`.
+ *
+ * Lives in apps/server/ so the workspace-resolved drivers (`pg`,
+ * `@electric-sql/pglite`) are importable; the root `pnpm scan-costs` script
+ * delegates here.
+ */
 
-// Locate SQLite database
-function resolveDbPath() {
-  if (process.env.DB_PATH && fs.existsSync(process.env.DB_PATH)) {
-    return process.env.DB_PATH;
+/** Open the database the server would use, and describe it for the header. */
+async function openDatabase() {
+  const url = process.env.DATABASE_URL?.trim();
+  if (url) {
+    const { Client } = await import('pg');
+    const client = new Client({ connectionString: url });
+    await client.connect();
+    return {
+      label: `PostgreSQL — ${url.replace(/:\/\/([^:]+):[^@]*@/, '://$1:***@')}`,
+      query: (text, params) => client.query(text, params),
+      close: () => client.end(),
+    };
   }
-  const candidates = [
-    path.resolve(process.cwd(), 'apps/server/data/dossiers.db'),
-    path.resolve(__dirname, '../apps/server/data/dossiers.db'),
-    path.resolve(process.cwd(), 'data/dossiers.db'),
-    path.resolve(__dirname, '../data/dossiers.db'),
-  ];
-  for (const p of candidates) {
-    if (fs.existsSync(p)) return p;
+
+  const dataDir = process.env.PGLITE_DATA_DIR || path.resolve(process.cwd(), 'data/pgdata');
+  if (!fs.existsSync(dataDir)) {
+    console.error(`\x1b[31m[ERROR] Local database not found at: ${dataDir}\x1b[0m`);
+    console.error('Run at least one scan (pnpm dev:server) to initialize it, or set DATABASE_URL.');
+    process.exit(1);
   }
-  return candidates[0];
+
+  const { PGlite } = await import('@electric-sql/pglite');
+  const client = new PGlite(dataDir);
+  await client.waitReady;
+  return {
+    label: `PGlite (local) — ${dataDir}`,
+    query: (text, params) => client.query(text, params),
+    close: () => client.close(),
+  };
 }
 
-const dbPath = resolveDbPath();
-if (!fs.existsSync(dbPath)) {
-  console.error(`\x1b[31m[ERROR] Database not found at: ${dbPath}\x1b[0m`);
-  console.error('Run at least one scan to initialize the database.');
-  process.exit(1);
-}
-
-const db = new DatabaseSync(dbPath);
+const db = await openDatabase();
 
 const limitArg = parseInt(process.argv[2], 10);
 const limit = isNaN(limitArg) || limitArg <= 0 ? 10 : limitArg;
 
-// Fetch dossiers
-const dossiers = db
-  .prepare(
-    `SELECT id, created_at, caste, biocarbon_ratio, honorific_title, headline
-     FROM dossiers
-     ORDER BY created_at DESC
-     LIMIT ?`
-  )
-  .all(limit);
-
-const logStmt = db.prepare(
-  `SELECT id, call_type, provider, model, prompt_tokens, candidates_tokens, thoughts_tokens,
-          total_tokens, cost_usd, duration_ms, status, error_message, created_at
-   FROM scan_api_logs
-   WHERE dossier_id = ?
-   ORDER BY created_at ASC`
+const { rows: dossiers } = await db.query(
+  `SELECT id, created_at, caste, biocarbon_ratio, honorific_title, headline
+   FROM dossiers
+   ORDER BY created_at DESC
+   LIMIT $1`,
+  [limit]
 );
+
+const LOGS_SQL = `SELECT id, call_type, provider, model, prompt_tokens, candidates_tokens, thoughts_tokens,
+        total_tokens, cost_usd, duration_ms, status, error_message, created_at
+ FROM scan_api_logs
+ WHERE dossier_id = $1
+ ORDER BY created_at ASC`;
 
 console.log('\n\x1b[1m\x1b[36m================================================================================================\x1b[0m');
 console.log('\x1b[1m\x1b[35m                      ECOCIDE // SCAN COST AUDIT LOG                          \x1b[0m');
 console.log('\x1b[1m\x1b[36m================================================================================================\x1b[0m');
-console.log(`\x1b[90mDatabase:\x1b[0m ${dbPath}`);
+console.log(`\x1b[90mDatabase:\x1b[0m ${db.label}`);
 console.log(`\x1b[90mAudit Timestamp:\x1b[0m ${new Date().toISOString()}`);
 console.log(`\x1b[90mDisplaying latest \x1b[1m${dossiers.length}\x1b[0m\x1b[90m audit records...\x1b[0m\n`);
 
 if (dossiers.length === 0) {
   console.log('\x1b[33mNo audit records found in database.\x1b[0m\n');
+  await db.close();
   process.exit(0);
 }
 
@@ -73,11 +84,11 @@ let grandTotalOutputTokens = 0;
 let grandTotalTokens = 0;
 let grandTotalDurationMs = 0;
 
-dossiers.forEach((dossier, idx) => {
-  const logs = logStmt.all(dossier.id);
+for (const [idx, dossier] of dossiers.entries()) {
+  const { rows: logs } = await db.query(LOGS_SQL, [dossier.id]);
   const scanIndex = idx + 1;
 
-  const scanTotalCost = logs.reduce((sum, l) => sum + (l.cost_usd || 0), 0);
+  const scanTotalCost = logs.reduce((sum, l) => sum + Number(l.cost_usd || 0), 0);
   const scanPromptTokens = logs.reduce((sum, l) => sum + (l.prompt_tokens || 0), 0);
   const scanOutputTokens = logs.reduce((sum, l) => sum + (l.candidates_tokens || 0), 0);
   const scanTotalTokens = logs.reduce((sum, l) => sum + (l.total_tokens || 0), 0);
@@ -90,9 +101,10 @@ dossiers.forEach((dossier, idx) => {
   grandTotalTokens += scanTotalTokens;
   grandTotalDurationMs += scanDurationMs;
 
-  const dateFormatted = new Date(dossier.created_at).toLocaleString();
+  const createdAt = new Date(dossier.created_at);
+  const dateFormatted = createdAt.toLocaleString();
 
-  console.log(`\x1b[1m\x1b[33m[${scanIndex}]\x1b[0m \x1b[1mSCAN ID:\x1b[0m \x1b[36m${dossier.id}\x1b[0m  |  \x1b[90m${dateFormatted} (${dossier.created_at})\x1b[0m`);
+  console.log(`\x1b[1m\x1b[33m[${scanIndex}]\x1b[0m \x1b[1mSCAN ID:\x1b[0m \x1b[36m${dossier.id}\x1b[0m  |  \x1b[90m${dateFormatted} (${createdAt.toISOString()})\x1b[0m`);
   console.log(`    \x1b[90mSubject:\x1b[0m \x1b[1m${dossier.honorific_title}\x1b[0m`);
   console.log(
     `    \x1b[90mTier:\x1b[0m \x1b[35m${dossier.caste.toUpperCase()}\x1b[0m  |  \x1b[90mSustainability Index:\x1b[0m \x1b[32m${dossier.biocarbon_ratio}%\x1b[0m`
@@ -118,11 +130,11 @@ dossiers.forEach((dossier, idx) => {
     for (const log of logs) {
       const typeStr = log.call_type;
       const modelStr = log.model;
-      const latencyStr = `${log.duration_ms.toLocaleString()}ms`;
-      const promptStr = log.prompt_tokens.toLocaleString();
-      const outputStr = (log.candidates_tokens + (log.thoughts_tokens || 0)).toLocaleString();
-      const totalStr = log.total_tokens.toLocaleString();
-      const costStr = `$${log.cost_usd.toFixed(6)}`;
+      const latencyStr = `${Number(log.duration_ms).toLocaleString()}ms`;
+      const promptStr = Number(log.prompt_tokens).toLocaleString();
+      const outputStr = (Number(log.candidates_tokens) + Number(log.thoughts_tokens || 0)).toLocaleString();
+      const totalStr = Number(log.total_tokens).toLocaleString();
+      const costStr = `$${Number(log.cost_usd).toFixed(6)}`;
 
       const statusColor = log.status === 'error' ? '\x1b[31m' : '\x1b[0m';
       console.log(
@@ -154,9 +166,8 @@ dossiers.forEach((dossier, idx) => {
       `  \x1b[1m\x1b[33m${scanCostStr.padStart(10)}\x1b[0m`
   );
   console.log('');
-});
+}
 
-// Grand total summary
 console.log('\x1b[1m\x1b[36m================================================================================================\x1b[0m');
 console.log('\x1b[1m\x1b[35m                                    AUDIT SUMMARY STATISTICS                                     \x1b[0m');
 console.log('\x1b[1m\x1b[36m================================================================================================\x1b[0m');
@@ -171,3 +182,5 @@ console.log(`  \x1b[1mGrand Total Cost:\x1b[0m    \x1b[1m\x1b[32m$${grandTotalCo
 const avgCost = dossiers.length > 0 ? grandTotalCost / dossiers.length : 0;
 console.log(`  \x1b[1mAverage Cost / Scan:\x1b[0m \x1b[1m\x1b[33m$${avgCost.toFixed(6)} USD\x1b[0m`);
 console.log('\x1b[1m\x1b[36m================================================================================================\x1b[0m\n');
+
+await db.close();

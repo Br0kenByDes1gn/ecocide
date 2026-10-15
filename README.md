@@ -24,7 +24,7 @@ nothing.
 
 - pnpm workspace monorepo: `packages/compliance` (formula math),
   `packages/lore` (story+art), `packages/types` (contracts + derived
-  taxonomy), `apps/server` (Hono + SQLite/Drizzle + Gemini + BullMQ + Better
+  taxonomy), `apps/server` (Hono + PostgreSQL/Drizzle + Gemini + BullMQ + Better
   Auth), `apps/web` (React 19 + Vite + Tailwind v4 + PWA).
 - Deterministic compliance math — the tier, the stamps, the titles: no AI
   tokens needed for the core loop.
@@ -41,6 +41,23 @@ pnpm test           # vitest (hermetic — no Redis/SMTP/API key needed)
 Environment: copy `.env.example` to `.env`. Everything is optional — without
 Gemini credentials the server uses the offline simulated audit, without
 `SMTP_HOST` emails are logged, without `REDIS_URL` jobs run inline.
+
+### Database: Postgres everywhere, PGlite locally
+
+The server speaks **PostgreSQL** — `pg` when `DATABASE_URL` is set, and
+[PGlite](https://pglite.dev) (a full PostgreSQL compiled to WASM, in-process)
+when it is not. Local dev and `pnpm test` therefore need no database server and
+no Docker, while running the same schema, the same SQL and the same drizzle-kit
+migrations as production.
+
+`apps/server/data/pgdata/` holds the local database and persists across
+restarts. Two caveats that come with an embedded engine:
+
+- It is **single-process**: the server takes an advisory lock
+  (`data/pgdata.lock`), so a second dev server — or `pnpm scan-costs` while the
+  server is running — reports a clear error instead of corrupting the directory.
+- If a directory *is* damaged (e.g. two processes initialized it at once),
+  delete it and start fresh: `rm -rf apps/server/data/pgdata`.
 
 ### Gemini billing: Vertex AI vs API key
 
@@ -79,19 +96,26 @@ packages/
                # offline simulation — see STORY.md)
   types/       # contracts; derives the taxonomy (tiers) from lore
 apps/
-  server/      # Hono API, DB (Drizzle/SQLite), Gemini two-pass engine,
-               # evidence file store, BullMQ jobs, nodemailer, Better Auth registry
+  server/      # Hono API, DB (Drizzle/PostgreSQL, PGlite locally),
+               # Gemini two-pass engine, evidence file store, BullMQ jobs,
+               # nodemailer, Better Auth registry
   web/         # React PWA: intro → audit → verdict → claim/appeal → registry
-charts/        # Helm chart (placeholder branding — mount a volume at
-               # EVIDENCE_DIR in production)
+deploy/gcp/    # Cloud Run + Cloud SQL deployment: setup.sh, runbook, and the
+               # tag-triggered GitHub Actions release in .github/workflows/
 ```
 
 ## Deploy
 
-Dockerfile + `charts/ecocide` are carried over from the fork; image and Helm
-values are re-named to `ecocide`. Mount a persistent volume at the evidence
-directory (`EVIDENCE_DIR`) and run migrations via the chart's migrate init
-container (`AUTO_MIGRATE=false` for app pods).
+Production is **Cloud Run + Cloud SQL (PostgreSQL)**, with audit photos on a
+mounted Cloud Storage bucket and migrations applied by a Cloud Run job. Pushing a
+`v*` tag builds the image, runs the migrations, deploys a revision with no
+traffic, smoke-tests `/api/health`, and only then shifts traffic — see
+[`deploy/gcp/README.md`](deploy/gcp/README.md) for the runbook (one-time
+`deploy/gcp/setup.sh`, first deploy, domain mapping, rollback).
+
+The old Helm chart is gone: this app ships as a single container that serves the
+API and the SPA on one origin, and Kubernetes was only ever buying the PVC that
+SQLite needed.
 
 See [`AGENTS.md`](AGENTS.md) for the developer/agent brief,
 [`STORY.md`](STORY.md) for the lore-pack authoring guide,

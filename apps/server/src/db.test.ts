@@ -1,20 +1,26 @@
-import { describe, expect, it, beforeEach, afterEach } from 'vitest';
-import fs from 'fs';
-import os from 'os';
-import path from 'path';
+import { describe, expect, it, beforeAll, afterAll, beforeEach } from 'vitest';
+import { sql } from 'drizzle-orm';
 import { createRepositories, initDb, runMigrations } from './db/index.js';
-import type { Repositories } from './db/index.js';
+import type { DbConnection, Repositories } from './db/index.js';
 import type { OraclePayload } from '@ecocide/types';
 
 /**
- * Each test runs against a throwaway SQLite file (temp dir) that is migrated
- * fresh from the drizzle-kit baseline — the shared `apps/server/data` database
- * is never touched, so the suite is hermetic and exercises the migration path.
+ * Each test file boots ONE throwaway in-process PostgreSQL (PGlite, in memory)
+ * that is migrated fresh from the drizzle-kit baseline; every test then starts
+ * from empty tables. `apps/server/data/pgdata` is never touched, so the suite
+ * stays hermetic — no Docker, no network — while exercising the real migration
+ * path. (A cluster per *test* would cost ~2s each, so the cluster is per file.)
  */
 
 let repositories: Repositories;
-let closeDb: () => void;
-let tempDir: string;
+let conn: DbConnection;
+
+/** Empty every table in schema.ts between tests. */
+async function truncateAll(db: DbConnection['db']): Promise<void> {
+  await db.execute(
+    sql`TRUNCATE TABLE "user", "session", "account", "verification", "wallets", "wallet_ledger", "dossiers", "appeals", "scan_api_logs" CASCADE`
+  );
+}
 
 function makePayload(overrides: Partial<OraclePayload> = {}): OraclePayload {
   return {
@@ -68,20 +74,21 @@ function makePayload(overrides: Partial<OraclePayload> = {}): OraclePayload {
   };
 }
 
-beforeEach(async () => {
-  tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ecocide-db-test-'));
-  const conn = await initDb({ path: path.join(tempDir, 'dossiers.db') });
-  await runMigrations(conn.db);
+beforeAll(async () => {
+  conn = await initDb({ memory: true });
+  await runMigrations(conn);
   repositories = createRepositories(conn.db);
-  closeDb = conn.close;
 });
 
-afterEach(() => {
-  closeDb();
-  fs.rmSync(tempDir, { recursive: true, force: true });
+afterAll(async () => {
+  await conn.close();
 });
 
-describe('sqlite database dossier repository', () => {
+beforeEach(async () => {
+  await truncateAll(conn.db);
+});
+
+describe('postgres database dossier repository', () => {
   it('saves and retrieves a household dossier by id', async () => {
     const payload = makePayload();
 

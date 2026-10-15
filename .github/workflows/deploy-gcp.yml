@@ -1,0 +1,138 @@
+name: Deploy to Cloud Run
+
+# A tag push is a production release. `workflow_dispatch` redeploys an existing
+# image tag (rollback) without rebuilding or re-running migrations.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Existing image tag to redeploy (rollback). Skips build + migrations.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write # Workload Identity Federation
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false # never cancel a deploy mid-flight
+
+env:
+  PROJECT: ecocide-511407
+  REGION: asia-southeast1
+  SERVICE: ecocide
+  MIGRATE_JOB: ecocide-migrate
+  IMAGE_REPO: asia-southeast1-docker.pkg.dev/ecocide-511407/ecocide/ecocide
+
+jobs:
+  verify:
+    name: Build & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      # Hermetic: the DB tests boot PGlite in-memory, so no services are needed.
+      - run: pnpm test
+
+  deploy:
+    name: Deploy
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      # gcloud is preinstalled on ubuntu-latest runners.
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: projects/757714368400/locations/global/workloadIdentityPools/github/providers/github-actions
+          service_account: ecocide-deploy@ecocide-511407.iam.gserviceaccount.com
+
+      - name: Resolve image
+        id: image
+        run: |
+          TAG="${{ inputs.image_tag || github.ref_name }}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "uri=${IMAGE_REPO}:${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Deploying ${TAG}"
+
+      - name: Build & push image
+        if: ${{ !inputs.image_tag }}
+        run: |
+          gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+          docker build --tag "${{ steps.image.outputs.uri }}" .
+          docker push "${{ steps.image.outputs.uri }}"
+
+      # The apps/server migrate entrypoint is exactly what the job runs, and the
+      # migrations ship *inside* the image — so the job must be re-pointed at the
+      # new tag before it executes, or prod would be migrated by the old code.
+      #
+      # Migrations run BEFORE the traffic shift, so they must stay compatible with
+      # the revision still serving (additive only, no destructive DDL).
+      - name: Apply migrations
+        if: ${{ !inputs.image_tag }}
+        run: |
+          gcloud run jobs update "$MIGRATE_JOB" --region="$REGION" \
+            --image="${{ steps.image.outputs.uri }}"
+          gcloud run jobs execute "$MIGRATE_JOB" --region="$REGION" --wait
+
+      # Only the image changes: `run services update` leaves env vars, secrets,
+      # volumes and CPU settings exactly as configured.
+      - name: Deploy revision without traffic
+        run: |
+          gcloud run services update "$SERVICE" --region="$REGION" \
+            --image="${{ steps.image.outputs.uri }}" \
+            --no-traffic --tag=candidate
+
+      - name: Smoke test the candidate
+        run: |
+          URL=$(gcloud run services describe "$SERVICE" --region="$REGION" --format=json \
+                | jq -r '.status.traffic[] | select(.tag == "candidate") | .url')
+          echo "candidate: $URL"
+
+          # Poll until the app is up AND its background SMTP verification has
+          # settled (health reports "checking" until then).
+          CODE=000
+          MAIL=missing
+          for _ in $(seq 1 20); do
+            CODE=$(curl -s -o /tmp/health.json -w '%{http_code}' "$URL/api/health" || true)
+            MAIL=$(jq -r '.mail // "missing"' /tmp/health.json 2>/dev/null || echo missing)
+            if [ "$CODE" = "200" ] && [ "$MAIL" != "checking" ]; then break; fi
+            sleep 6
+          done
+          cat /tmp/health.json 2>/dev/null || true
+
+          fail() { echo "::error::$1"; exit 1; }
+
+          [ "$CODE" = "200" ] || fail "health check failed (HTTP $CODE)"
+
+          # Wrong backend, or Vertex quietly falling back to the offline simulation.
+          jq -e '.database == "PostgreSQL Active"' /tmp/health.json >/dev/null \
+            || fail "expected the PostgreSQL driver"
+          jq -e '.engine | startswith("Vertex AI")' /tmp/health.json >/dev/null \
+            || fail "Gemini engine is offline — check the runtime SA's aiplatform.user role"
+
+          # A wrong Brevo key must fail the deploy, not a citizen's login.
+          # "disabled" is a deliberate choice (no SMTP configured), so it only warns.
+          case "$MAIL" in
+            smtp) echo "SMTP verified" ;;
+            disabled) echo "::warning::SMTP is not configured — the Carbon Registry cannot issue OTPs" ;;
+            error) fail "SMTP verification failed — check SMTP_HOST/SMTP_USER/SMTP_PASS (Brevo SMTP key, not the API key)" ;;
+            *) fail "health payload has no usable mail status ($MAIL) — is the candidate running this tag?" ;;
+          esac
+
+      # Reached only when the smoke test passed: a failure leaves the previous
+      # revision serving 100% of traffic.
+      - name: Shift traffic
+        run: |
+          gcloud run services update-traffic "$SERVICE" --region="$REGION" --to-latest
+          gcloud run services describe "$SERVICE" --region="$REGION" --format='value(status.url)'

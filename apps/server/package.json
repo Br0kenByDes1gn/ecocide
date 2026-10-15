@@ -6,14 +6,17 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "migrate": "node dist/migrate-cli.js",
+    "db:generate": "drizzle-kit generate",
+    "scan-costs": "node scripts/show-scan-costs.mjs"
   },
   "dependencies": {
+    "@bull-board/api": "^9.10.2",
+    "@bull-board/hono": "^9.10.2",
     "@ecocide/compliance": "workspace:*",
     "@ecocide/lore": "workspace:*",
     "@ecocide/types": "workspace:*",
-    "@bull-board/api": "^9.10.2",
-    "@bull-board/hono": "^9.10.2",
     "@google/genai": "^2.24.0",
     "@hono/node-server": "^1.13.8",
     "better-auth": "1.7.7",
@@ -25,11 +28,14 @@
     "ioredis": "^6.0.0",
     "nanoid": "^5.1.0",
     "nodemailer": "^10.0.14",
+    "pg": "^8.23.1",
     "sharp": "^0.35.5"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.10",
     "@types/node": "^22.13.0",
     "@types/nodemailer": "^8.0.2",
+    "@types/pg": "^8.23.1",
     "@types/sharp": "^0.32.0",
     "drizzle-kit": "1.0.0-rc.5-5935859",
     "tsx": "^4.19.2",

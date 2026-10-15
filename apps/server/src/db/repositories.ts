@@ -28,9 +28,14 @@ import { appeals, dossiers, scanApiLogs, walletLedger, wallets } from './schema.
 /**
  * Repository layer: the whole database surface of the app.
  *
- * Functions are `async` even though the node:sqlite driver is synchronous —
- * awaiting the sync query methods is a no-op today, and the signatures are then
- * stable when the app later switches to an async Postgres driver.
+ * Written against the shared async Postgres query surface ({@link AppDb}), so it
+ * runs unchanged on either driver — `pg` in production, PGlite locally.
+ *
+ * Two codec rules worth keeping in mind when editing:
+ *  • `count(*)` is a Postgres `bigint`, which `pg` returns as a **string** —
+ *    always wrap aggregates in `Number(...)`.
+ *  • money/credits are whole `integer` units; `cost_usd` is `doublePrecision`
+ *    (never `numeric`, which would also come back as a string).
  */
 
 export interface SaveDossierOptions {
@@ -191,7 +196,7 @@ export function createRepositories(db: DbConnection['db']) {
         items_json: JSON.stringify(payload.audit.items ?? []),
         suggestions_json: JSON.stringify(payload.suggestions ?? []),
         evidence_filename: options.evidenceFileName ?? null,
-      }).run();
+      });
 
       return id;
     },
@@ -208,8 +213,7 @@ export function createRepositories(db: DbConnection['db']) {
           paragraph_2: fields.paragraph_2,
           paragraph_3: fields.paragraph_3,
         })
-        .where(eq(dossiers.id, id))
-        .run();
+        .where(eq(dossiers.id, id));
     },
 
     /** Persists an appeal filing + its ruling, linked to the original dossier. */
@@ -230,19 +234,18 @@ export function createRepositories(db: DbConnection['db']) {
         caste_before: entry.casteBefore,
         caste_after: entry.casteAfter || null,
         created_at: createdAt,
-      }).run();
+      });
 
       return id;
     },
 
     /** Lists every appeal for a dossier, newest first. */
     async getAppealsByDossier(dossierId: string): Promise<CitizenAppeal[]> {
-      const rows = db
+      const rows = await db
         .select()
         .from(appeals)
         .where(eq(appeals.dossier_id, dossierId))
-        .orderBy(desc(appeals.created_at))
-        .all();
+        .orderBy(desc(appeals.created_at));
 
       return rows.map((row) => {
         let scripture: [string, string, string] | undefined;
@@ -271,28 +274,26 @@ export function createRepositories(db: DbConnection['db']) {
     },
 
     async getDossier(id: string): Promise<CitizenRecord | null> {
-      const row = db.select().from(dossiers).where(eq(dossiers.id, id)).get();
+      const [row] = await db.select().from(dossiers).where(eq(dossiers.id, id)).limit(1);
       if (!row) return null;
       return mapRowToRecord(row);
     },
 
     async getRecentDossiers(limit: number = 10): Promise<CitizenRecord[]> {
-      const rows = db
+      const rows = await db
         .select()
         .from(dossiers)
         .orderBy(desc(dossiers.created_at))
-        .limit(limit)
-        .all();
+        .limit(limit);
       return rows.map(mapRowToRecord);
     },
 
     /** Live census: audited-household counts per tier (art §7). */
     async getCensusReport(): Promise<CensusReport> {
-      const rows = db
+      const rows = await db
         .select({ caste: dossiers.caste, count: sql<number>`count(*)` })
         .from(dossiers)
-        .groupBy(dossiers.caste)
-        .all();
+        .groupBy(dossiers.caste);
       const total = rows.reduce((sum, r) => sum + Number(r.count), 0);
       const byCaste = new Map<string, number>(rows.map((r) => [r.caste as string, Number(r.count)]));
       const entries = CASTE_ORDER.map((caste) => {
@@ -325,55 +326,56 @@ export function createRepositories(db: DbConnection['db']) {
         status: entry.status || 'success',
         error_message: entry.errorMessage || null,
         created_at: createdAt,
-      }).run();
+      });
 
       return id;
     },
 
     async getScanApiLogs(dossierId: string): Promise<ApiCallLog[]> {
-      const rows = db
+      const rows = await db
         .select()
         .from(scanApiLogs)
         .where(eq(scanApiLogs.dossier_id, dossierId))
-        .orderBy(scanApiLogs.created_at)
-        .all();
+        .orderBy(scanApiLogs.created_at);
       return rows.map(mapScanLogRow);
     },
 
     async getRecentScansWithCosts(limit: number = 10): Promise<ScanCostSummary[]> {
-      const recent = db
+      const recent = await db
         .select()
         .from(dossiers)
         .orderBy(desc(dossiers.created_at))
-        .limit(limit)
-        .all();
+        .limit(limit);
 
-      return recent.map((dossier) => {
-        const rawLogs = db
-          .select()
-          .from(scanApiLogs)
-          .where(eq(scanApiLogs.dossier_id, dossier.id))
-          .orderBy(scanApiLogs.created_at)
-          .all();
-        const apiCalls = rawLogs.map(mapScanLogRow);
+      return Promise.all(
+        recent.map(async (dossier) => {
+          const rawLogs = await db
+            .select()
+            .from(scanApiLogs)
+            .where(eq(scanApiLogs.dossier_id, dossier.id))
+            .orderBy(scanApiLogs.created_at);
+          const apiCalls = rawLogs.map(mapScanLogRow);
 
-        const totalCostUsd = Number(apiCalls.reduce((sum, c) => sum + (c.costUsd || 0), 0).toFixed(6));
-        const totalTokens = apiCalls.reduce((sum, c) => sum + (c.totalTokens || 0), 0);
-        const totalDurationMs = apiCalls.reduce((sum, c) => sum + (c.durationMs || 0), 0);
+          const totalCostUsd = Number(
+            apiCalls.reduce((sum, c) => sum + (c.costUsd || 0), 0).toFixed(6)
+          );
+          const totalTokens = apiCalls.reduce((sum, c) => sum + (c.totalTokens || 0), 0);
+          const totalDurationMs = apiCalls.reduce((sum, c) => sum + (c.durationMs || 0), 0);
 
-        return {
-          dossierId: dossier.id,
-          createdAt: dossier.created_at,
-          caste: dossier.caste,
-          biocarbonRatio: dossier.biocarbon_ratio,
-          honorificTitle: dossier.honorific_title,
-          headline: dossier.headline,
-          totalCostUsd,
-          totalTokens,
-          totalDurationMs,
-          apiCalls,
-        };
-      });
+          return {
+            dossierId: dossier.id,
+            createdAt: dossier.created_at,
+            caste: dossier.caste,
+            biocarbonRatio: dossier.biocarbon_ratio,
+            honorificTitle: dossier.honorific_title,
+            headline: dossier.headline,
+            totalCostUsd,
+            totalTokens,
+            totalDurationMs,
+            apiCalls,
+          };
+        })
+      );
     },
 
     // ------------------------------------------------------------------
@@ -382,7 +384,7 @@ export function createRepositories(db: DbConnection['db']) {
 
     /** Returns the wallet for a user, or null when the vault has no wallet yet. */
     async getWalletByUser(userId: string): Promise<Wallet | null> {
-      const row = db.select().from(wallets).where(eq(wallets.user_id, userId)).get();
+      const [row] = await db.select().from(wallets).where(eq(wallets.user_id, userId)).limit(1);
       return row ? mapWalletRow(row) : null;
     },
 
@@ -392,34 +394,34 @@ export function createRepositories(db: DbConnection['db']) {
      * balance is always reconstructable from the ledger.
      */
     async createWalletForUser(userId: string, initialCredits = 0): Promise<Wallet> {
-      const existing = db.select().from(wallets).where(eq(wallets.user_id, userId)).get();
+      const [existing] = await db
+        .select()
+        .from(wallets)
+        .where(eq(wallets.user_id, userId))
+        .limit(1);
       if (existing) return mapWalletRow(existing);
 
       const id = nanoid(10);
       const now = new Date().toISOString();
 
-      db.insert(wallets)
-        .values({
-          id,
-          user_id: userId,
-          credits: initialCredits,
-          created_at: now,
-          updated_at: now,
-        })
-        .run();
+      await db.insert(wallets).values({
+        id,
+        user_id: userId,
+        credits: initialCredits,
+        created_at: now,
+        updated_at: now,
+      });
 
       if (initialCredits !== 0) {
-        db.insert(walletLedger)
-          .values({
-            id: nanoid(12),
-            user_id: userId,
-            delta: initialCredits,
-            reason: 'seed',
-            ref: null,
-            balance_after: initialCredits,
-            created_at: now,
-          })
-          .run();
+        await db.insert(walletLedger).values({
+          id: nanoid(12),
+          user_id: userId,
+          delta: initialCredits,
+          reason: 'seed',
+          ref: null,
+          balance_after: initialCredits,
+          created_at: now,
+        });
       }
 
       return {
@@ -442,19 +444,24 @@ export function createRepositories(db: DbConnection['db']) {
       reason: WalletLedgerReason;
       ref?: string;
     }): Promise<{ wallet: Wallet; entry: WalletLedgerEntry }> {
-      let wallet = db.select().from(wallets).where(eq(wallets.user_id, entry.userId)).get();
+      let wallet = (
+        await db.select().from(wallets).where(eq(wallets.user_id, entry.userId)).limit(1)
+      )[0];
       if (!wallet) {
         await this.createWalletForUser(entry.userId, 0);
-        wallet = db.select().from(wallets).where(eq(wallets.user_id, entry.userId)).get()!;
+        wallet = (
+          await db.select().from(wallets).where(eq(wallets.user_id, entry.userId)).limit(1)
+        )[0];
       }
+      if (!wallet) throw new Error('wallet provisioning failed');
 
       const now = new Date().toISOString();
       const balanceAfter = wallet.credits + entry.delta;
 
-      db.update(wallets)
+      await db
+        .update(wallets)
         .set({ credits: balanceAfter, updated_at: now })
-        .where(eq(wallets.id, wallet.id))
-        .run();
+        .where(eq(wallets.id, wallet.id));
 
       const ledgerEntry: WalletLedgerEntry = {
         id: nanoid(12),
@@ -466,17 +473,15 @@ export function createRepositories(db: DbConnection['db']) {
         createdAt: now,
       };
 
-      db.insert(walletLedger)
-        .values({
-          id: ledgerEntry.id,
-          user_id: entry.userId,
-          delta: entry.delta,
-          reason: entry.reason,
-          ref: entry.ref || null,
-          balance_after: balanceAfter,
-          created_at: now,
-        })
-        .run();
+      await db.insert(walletLedger).values({
+        id: ledgerEntry.id,
+        user_id: entry.userId,
+        delta: entry.delta,
+        reason: entry.reason,
+        ref: entry.ref || null,
+        balance_after: balanceAfter,
+        created_at: now,
+      });
 
       return {
         wallet: { ...mapWalletRow(wallet), credits: balanceAfter, updatedAt: now },
@@ -490,24 +495,22 @@ export function createRepositories(db: DbConnection['db']) {
       ref: string,
       reason: WalletLedgerReason
     ): Promise<WalletLedgerEntry | null> {
-      const row = db
+      const rows = await db
         .select()
         .from(walletLedger)
-        .where(eq(walletLedger.user_id, userId))
-        .all()
-        .find((r) => r.ref === ref && r.reason === reason);
+        .where(eq(walletLedger.user_id, userId));
+      const row = rows.find((r) => r.ref === ref && r.reason === reason);
       return row ? mapLedgerRow(row) : null;
     },
 
     /** Recent ledger entries for a wallet, newest first. */
     async getWalletLedger(userId: string, limit = 25): Promise<WalletLedgerEntry[]> {
-      const rows = db
+      const rows = await db
         .select()
         .from(walletLedger)
         .where(eq(walletLedger.user_id, userId))
         .orderBy(desc(walletLedger.created_at))
-        .limit(limit)
-        .all();
+        .limit(limit);
       return rows.map(mapLedgerRow);
     },
 
@@ -516,36 +519,34 @@ export function createRepositories(db: DbConnection['db']) {
       userId: string,
       options: { limit: number; offset: number }
     ): Promise<{ entries: WalletLedgerEntry[]; total: number }> {
-      const total =
-        db
-          .select({ count: sql<number>`count(*)` })
-          .from(walletLedger)
-          .where(eq(walletLedger.user_id, userId))
-          .get()?.count ?? 0;
+      const [countRow] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(walletLedger)
+        .where(eq(walletLedger.user_id, userId));
+      // `count(*)` is bigint → a string under node-postgres.
+      const total = Number(countRow?.count ?? 0);
 
-      const rows = db
+      const rows = await db
         .select()
         .from(walletLedger)
         .where(eq(walletLedger.user_id, userId))
         .orderBy(desc(walletLedger.created_at))
         .limit(options.limit)
-        .offset(options.offset)
-        .all();
+        .offset(options.offset);
 
-      return { entries: rows.map(mapLedgerRow), total: Number(total) };
+      return { entries: rows.map(mapLedgerRow), total };
     },
 
     /** Aggregate credits/spend/count over the whole ledger (not just a page). */
     async getWalletStats(userId: string): Promise<VaultStats> {
-      const row = db
+      const [row] = await db
         .select({
           totalCredited: sql<number>`coalesce(sum(case when ${walletLedger.delta} > 0 then ${walletLedger.delta} else 0 end), 0)`,
           totalSpent: sql<number>`coalesce(sum(case when ${walletLedger.delta} < 0 then -${walletLedger.delta} else 0 end), 0)`,
           transactionCount: sql<number>`count(*)`,
         })
         .from(walletLedger)
-        .where(eq(walletLedger.user_id, userId))
-        .get();
+        .where(eq(walletLedger.user_id, userId));
 
       return {
         totalCredited: Number(row?.totalCredited ?? 0),
@@ -556,7 +557,7 @@ export function createRepositories(db: DbConnection['db']) {
 
     /** Attaches an (anonymous) dossier to a vault account. */
     async linkDossierToUser(dossierId: string, userId: string): Promise<void> {
-      await db.update(dossiers).set({ user_id: userId }).where(eq(dossiers.id, dossierId)).run();
+      await db.update(dossiers).set({ user_id: userId }).where(eq(dossiers.id, dossierId));
     },
 
     /**
@@ -565,7 +566,7 @@ export function createRepositories(db: DbConnection['db']) {
      * standing (the route derives it, items never reach the client).
      */
     async getVaultAssessmentRows(userId: string): Promise<VaultAssessmentRow[]> {
-      const rows = db
+      const rows = await db
         .select({
           id: dossiers.id,
           caste: dossiers.caste,
@@ -578,8 +579,7 @@ export function createRepositories(db: DbConnection['db']) {
         })
         .from(dossiers)
         .where(eq(dossiers.user_id, userId))
-        .orderBy(desc(dossiers.created_at))
-        .all();
+        .orderBy(desc(dossiers.created_at));
 
       return rows.map((row) => {
         const items = parseJson<AuditItem[]>(row.items_json, []);

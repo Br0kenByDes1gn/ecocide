@@ -64,11 +64,16 @@ dotenv.config({
 // Explicitly boot the database: open the connection, apply drizzle-kit migrations,
 // then build the typed repository interface the routes call. Top-level await is
 // supported under NodeNext, and env vars are loaded above *before* the DB opens.
-const { db, close } = await initDb();
+const conn = await initDb();
+const { db, close, driver } = conn;
 if (process.env.AUTO_MIGRATE !== 'false') {
-  await runMigrations(db);
+  await runMigrations(conn);
 }
 const repositories = createRepositories(db);
+
+console.log(
+  `[Db] ${driver === 'postgres' ? 'PostgreSQL' : 'PGlite (in-process PostgreSQL)'} online.`
+);
 
 // Boot-time engine status: makes a missing/typo'd env file obvious immediately
 // instead of only surfacing as a simulated verdict on the first scan.
@@ -80,7 +85,32 @@ console.log(`[Oracle] Gemini engine ${geminiConfigured() ? `online — ${geminiM
 // mail is logged via nodemailer's jsonTransport instead of sent.
 const mailConfig = loadMailConfig();
 const mailer = createMailer(mailConfig);
-void mailer.verify();
+
+/**
+ * Mail-delivery status reported by `/api/health`.
+ *
+ * The SMTP handshake runs in the background on purpose: awaiting it at boot
+ * could stall startup for minutes against an unreachable host, and Cloud Run
+ * would fail the revision. So health says `checking` until it settles.
+ *
+ * Only verified when SMTP is configured: `Mailer.verify()` returns `true` for a
+ * disabled mailer, which must not be reported as a working one.
+ *
+ * The release smoke test waits for `checking` to settle and fails on `error`,
+ * which is the only way a wrong SMTP key fails a deploy instead of a login.
+ */
+type MailStatus = 'disabled' | 'checking' | 'smtp' | 'error';
+let mailStatus: MailStatus = mailConfig.enabled ? 'checking' : 'disabled';
+if (mailConfig.enabled) {
+  void mailer
+    .verify()
+    .then((ok) => {
+      mailStatus = ok ? 'smtp' : 'error';
+    })
+    .catch(() => {
+      mailStatus = 'error';
+    });
+}
 
 const jobSystem = await createJobSystem({
   redisUrl: process.env.REDIS_URL,
@@ -99,7 +129,7 @@ async function shutdown(signal: string): Promise<void> {
   console.log(`[Core] ${signal} received — shutting down (draining jobs, closing db)...`);
   await jobSystem.close().catch((err) => console.warn('[Core] Job system close failed:', err));
   mailer.close();
-  close();
+  await close();
   process.exit(0);
 }
 process.once('SIGINT', () => void shutdown('SIGINT'));
@@ -125,9 +155,10 @@ app.get('/api/health', (c) => {
   return c.json({
     status: 'online',
     system: 'ECOCIDE Core',
-    database: 'SQLite Active',
+    database: driver === 'postgres' ? 'PostgreSQL Active' : 'PGlite Active',
     auditProtocol: 'PROTOCOL-9',
     engine: geminiModeLabel(),
+    mail: mailStatus,
     timestamp: new Date().toISOString(),
   });
 });

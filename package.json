@@ -9,8 +9,8 @@
     "dev:server": "pnpm --filter @ecocide/server dev",
     "build": "pnpm --filter @ecocide/compliance build && pnpm --filter @ecocide/lore build && pnpm --filter @ecocide/types build && pnpm --filter @ecocide/server build && pnpm --filter @ecocide/web build",
     "test": "vitest run",
-    "scan-costs": "node scripts/show-scan-costs.mjs",
-    "wireframes": "node scripts/wireframes.mjs"
+    "wireframes": "node scripts/wireframes.mjs",
+    "scan-costs": "pnpm --filter @ecocide/server scan-costs"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

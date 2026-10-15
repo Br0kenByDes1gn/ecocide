@@ -1,1070 +1,1490 @@
 {
-  "version": "7",
-  "dialect": "sqlite",
-  "id": "81795c91-859e-40b0-a5dc-c28c0334e02e",
+  "version": "8",
+  "dialect": "postgres",
+  "id": "66ea47ad-505f-4039-bdf3-e078521f261d",
   "prevIds": [
-    "7bebfedb-c8d0-42c2-9b45-22c97712f819"
+    "00000000-0000-0000-0000-000000000000"
   ],
   "ddl": [
     {
+      "isRlsEnabled": false,
       "name": "account",
-      "entityType": "tables"
+      "entityType": "tables",
+      "schema": "public"
     },
     {
+      "isRlsEnabled": false,
       "name": "appeals",
-      "entityType": "tables"
+      "entityType": "tables",
+      "schema": "public"
     },
     {
+      "isRlsEnabled": false,
       "name": "dossiers",
-      "entityType": "tables"
+      "entityType": "tables",
+      "schema": "public"
     },
     {
+      "isRlsEnabled": false,
       "name": "scan_api_logs",
-      "entityType": "tables"
+      "entityType": "tables",
+      "schema": "public"
     },
     {
+      "isRlsEnabled": false,
       "name": "session",
-      "entityType": "tables"
+      "entityType": "tables",
+      "schema": "public"
     },
     {
+      "isRlsEnabled": false,
       "name": "user",
-      "entityType": "tables"
+      "entityType": "tables",
+      "schema": "public"
     },
     {
+      "isRlsEnabled": false,
       "name": "verification",
-      "entityType": "tables"
+      "entityType": "tables",
+      "schema": "public"
     },
     {
+      "isRlsEnabled": false,
       "name": "wallet_ledger",
-      "entityType": "tables"
+      "entityType": "tables",
+      "schema": "public"
     },
     {
+      "isRlsEnabled": false,
       "name": "wallets",
-      "entityType": "tables"
+      "entityType": "tables",
+      "schema": "public"
     },
     {
       "type": "text",
-      "notNull": false,
-      "autoincrement": false,
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "id",
       "entityType": "columns",
+      "schema": "public",
       "table": "account"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "account_id",
       "entityType": "columns",
+      "schema": "public",
       "table": "account"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "provider_id",
       "entityType": "columns",
+      "schema": "public",
       "table": "account"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "user_id",
       "entityType": "columns",
+      "schema": "public",
       "table": "account"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": false,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "access_token",
       "entityType": "columns",
+      "schema": "public",
       "table": "account"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": false,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "refresh_token",
       "entityType": "columns",
+      "schema": "public",
       "table": "account"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": false,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "id_token",
       "entityType": "columns",
+      "schema": "public",
       "table": "account"
     },
     {
-      "type": "integer",
+      "type": "timestamp with time zone",
+      "typeSchema": null,
       "notNull": false,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "access_token_expires_at",
       "entityType": "columns",
+      "schema": "public",
       "table": "account"
     },
     {
-      "type": "integer",
+      "type": "timestamp with time zone",
+      "typeSchema": null,
       "notNull": false,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "refresh_token_expires_at",
       "entityType": "columns",
+      "schema": "public",
       "table": "account"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": false,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "scope",
       "entityType": "columns",
+      "schema": "public",
       "table": "account"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": false,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "password",
       "entityType": "columns",
+      "schema": "public",
       "table": "account"
     },
     {
-      "type": "integer",
+      "type": "timestamp with time zone",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
-      "default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+      "dimensions": 0,
+      "default": "now()",
       "generated": null,
+      "identity": null,
       "name": "created_at",
       "entityType": "columns",
+      "schema": "public",
       "table": "account"
     },
     {
-      "type": "integer",
+      "type": "timestamp with time zone",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "updated_at",
       "entityType": "columns",
+      "schema": "public",
       "table": "account"
     },
     {
       "type": "text",
-      "notNull": false,
-      "autoincrement": false,
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "id",
       "entityType": "columns",
+      "schema": "public",
       "table": "appeals"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "dossier_id",
       "entityType": "columns",
+      "schema": "public",
       "table": "appeals"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "appeal_text",
       "entityType": "columns",
+      "schema": "public",
       "table": "appeals"
     },
     {
-      "type": "integer",
+      "type": "boolean",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": "false",
       "generated": null,
+      "identity": null,
       "name": "accepted",
       "entityType": "columns",
+      "schema": "public",
       "table": "appeals"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": false,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "new_caste",
       "entityType": "columns",
+      "schema": "public",
       "table": "appeals"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": false,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "new_honorific_title",
       "entityType": "columns",
+      "schema": "public",
       "table": "appeals"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": false,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "headline",
       "entityType": "columns",
+      "schema": "public",
       "table": "appeals"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "reason",
       "entityType": "columns",
+      "schema": "public",
       "table": "appeals"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": false,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "scripture",
       "entityType": "columns",
+      "schema": "public",
       "table": "appeals"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "caste_before",
       "entityType": "columns",
+      "schema": "public",
       "table": "appeals"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": false,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "caste_after",
       "entityType": "columns",
+      "schema": "public",
       "table": "appeals"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "created_at",
       "entityType": "columns",
+      "schema": "public",
       "table": "appeals"
     },
     {
       "type": "text",
-      "notNull": false,
-      "autoincrement": false,
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "id",
       "entityType": "columns",
+      "schema": "public",
       "table": "dossiers"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "created_at",
       "entityType": "columns",
+      "schema": "public",
       "table": "dossiers"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "caste",
       "entityType": "columns",
+      "schema": "public",
       "table": "dossiers"
     },
     {
       "type": "integer",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "biocarbon_ratio",
       "entityType": "columns",
+      "schema": "public",
       "table": "dossiers"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
-      "name": "life_stage",
-      "entityType": "columns",
-      "table": "dossiers"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "equipped_wealth",
-      "entityType": "columns",
-      "table": "dossiers"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "energy_level",
-      "entityType": "columns",
-      "table": "dossiers"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "apparent_presentation",
-      "entityType": "columns",
-      "table": "dossiers"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
+      "identity": null,
       "name": "honorific_title",
       "entityType": "columns",
+      "schema": "public",
       "table": "dossiers"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "headline",
       "entityType": "columns",
+      "schema": "public",
       "table": "dossiers"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "paragraph_1",
       "entityType": "columns",
+      "schema": "public",
       "table": "dossiers"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "paragraph_2",
       "entityType": "columns",
+      "schema": "public",
       "table": "dossiers"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "paragraph_3",
       "entityType": "columns",
+      "schema": "public",
       "table": "dossiers"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": false,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
-      "name": "stylized_portrait",
+      "identity": null,
+      "name": "room_type",
       "entityType": "columns",
+      "schema": "public",
       "table": "dossiers"
     },
     {
       "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "'[]'",
+      "generated": null,
+      "identity": null,
+      "name": "items_json",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "dossiers"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "'[]'",
+      "generated": null,
+      "identity": null,
+      "name": "suggestions_json",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "dossiers"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
       "notNull": false,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
-      "name": "source_snapshot",
+      "identity": null,
+      "name": "evidence_filename",
       "entityType": "columns",
+      "schema": "public",
       "table": "dossiers"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": false,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
-      "name": "avatar_url",
-      "entityType": "columns",
-      "table": "dossiers"
-    },
-    {
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": "'pending'",
-      "generated": null,
-      "name": "avatar_status",
-      "entityType": "columns",
-      "table": "dossiers"
-    },
-    {
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "avatar_engine",
-      "entityType": "columns",
-      "table": "dossiers"
-    },
-    {
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "landmarks_json",
-      "entityType": "columns",
-      "table": "dossiers"
-    },
-    {
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "telemetry_json",
-      "entityType": "columns",
-      "table": "dossiers"
-    },
-    {
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": "'neon-hologram'",
-      "generated": null,
-      "name": "portrait_style",
-      "entityType": "columns",
-      "table": "dossiers"
-    },
-    {
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "portrait_color",
-      "entityType": "columns",
-      "table": "dossiers"
-    },
-    {
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
+      "identity": null,
       "name": "user_id",
       "entityType": "columns",
+      "schema": "public",
       "table": "dossiers"
     },
     {
       "type": "text",
-      "notNull": false,
-      "autoincrement": false,
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "id",
       "entityType": "columns",
+      "schema": "public",
       "table": "scan_api_logs"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "dossier_id",
       "entityType": "columns",
+      "schema": "public",
       "table": "scan_api_logs"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "call_type",
       "entityType": "columns",
+      "schema": "public",
       "table": "scan_api_logs"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "provider",
       "entityType": "columns",
+      "schema": "public",
       "table": "scan_api_logs"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "model",
       "entityType": "columns",
+      "schema": "public",
       "table": "scan_api_logs"
     },
     {
       "type": "integer",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": "0",
       "generated": null,
+      "identity": null,
       "name": "prompt_tokens",
       "entityType": "columns",
+      "schema": "public",
       "table": "scan_api_logs"
     },
     {
       "type": "integer",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": "0",
       "generated": null,
+      "identity": null,
       "name": "candidates_tokens",
       "entityType": "columns",
+      "schema": "public",
       "table": "scan_api_logs"
     },
     {
       "type": "integer",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": "0",
       "generated": null,
+      "identity": null,
       "name": "thoughts_tokens",
       "entityType": "columns",
+      "schema": "public",
       "table": "scan_api_logs"
     },
     {
       "type": "integer",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": "0",
       "generated": null,
+      "identity": null,
       "name": "total_tokens",
       "entityType": "columns",
+      "schema": "public",
       "table": "scan_api_logs"
     },
     {
-      "type": "real",
+      "type": "double precision",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": "0",
       "generated": null,
+      "identity": null,
       "name": "cost_usd",
       "entityType": "columns",
+      "schema": "public",
       "table": "scan_api_logs"
     },
     {
       "type": "integer",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": "0",
       "generated": null,
+      "identity": null,
       "name": "duration_ms",
       "entityType": "columns",
+      "schema": "public",
       "table": "scan_api_logs"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": "'success'",
       "generated": null,
+      "identity": null,
       "name": "status",
       "entityType": "columns",
+      "schema": "public",
       "table": "scan_api_logs"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": false,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "error_message",
       "entityType": "columns",
+      "schema": "public",
       "table": "scan_api_logs"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "created_at",
       "entityType": "columns",
+      "schema": "public",
       "table": "scan_api_logs"
     },
     {
       "type": "text",
-      "notNull": false,
-      "autoincrement": false,
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "id",
       "entityType": "columns",
+      "schema": "public",
       "table": "session"
     },
     {
-      "type": "integer",
+      "type": "timestamp with time zone",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "expires_at",
       "entityType": "columns",
+      "schema": "public",
       "table": "session"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "token",
       "entityType": "columns",
+      "schema": "public",
       "table": "session"
     },
     {
-      "type": "integer",
+      "type": "timestamp with time zone",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
-      "default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+      "dimensions": 0,
+      "default": "now()",
       "generated": null,
+      "identity": null,
       "name": "created_at",
       "entityType": "columns",
+      "schema": "public",
       "table": "session"
     },
     {
-      "type": "integer",
+      "type": "timestamp with time zone",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "updated_at",
       "entityType": "columns",
+      "schema": "public",
       "table": "session"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": false,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "ip_address",
       "entityType": "columns",
+      "schema": "public",
       "table": "session"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": false,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "user_agent",
       "entityType": "columns",
+      "schema": "public",
       "table": "session"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "user_id",
       "entityType": "columns",
+      "schema": "public",
       "table": "session"
     },
     {
       "type": "text",
-      "notNull": false,
-      "autoincrement": false,
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "id",
       "entityType": "columns",
+      "schema": "public",
       "table": "user"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "name",
       "entityType": "columns",
+      "schema": "public",
       "table": "user"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "email",
       "entityType": "columns",
+      "schema": "public",
       "table": "user"
     },
     {
-      "type": "integer",
+      "type": "boolean",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": "false",
       "generated": null,
+      "identity": null,
       "name": "email_verified",
       "entityType": "columns",
+      "schema": "public",
       "table": "user"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": false,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "image",
       "entityType": "columns",
+      "schema": "public",
       "table": "user"
     },
     {
-      "type": "integer",
+      "type": "timestamp with time zone",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
-      "default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+      "dimensions": 0,
+      "default": "now()",
       "generated": null,
+      "identity": null,
       "name": "created_at",
       "entityType": "columns",
+      "schema": "public",
       "table": "user"
     },
     {
-      "type": "integer",
+      "type": "timestamp with time zone",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
-      "default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+      "dimensions": 0,
+      "default": null,
       "generated": null,
+      "identity": null,
       "name": "updated_at",
       "entityType": "columns",
+      "schema": "public",
       "table": "user"
     },
     {
       "type": "text",
-      "notNull": false,
-      "autoincrement": false,
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "id",
       "entityType": "columns",
+      "schema": "public",
       "table": "verification"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "identifier",
       "entityType": "columns",
+      "schema": "public",
       "table": "verification"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "value",
       "entityType": "columns",
+      "schema": "public",
       "table": "verification"
     },
     {
-      "type": "integer",
+      "type": "timestamp with time zone",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "expires_at",
       "entityType": "columns",
+      "schema": "public",
       "table": "verification"
     },
     {
-      "type": "integer",
+      "type": "timestamp with time zone",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
-      "default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+      "dimensions": 0,
+      "default": "now()",
       "generated": null,
+      "identity": null,
       "name": "created_at",
       "entityType": "columns",
+      "schema": "public",
       "table": "verification"
     },
     {
-      "type": "integer",
+      "type": "timestamp with time zone",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
-      "default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+      "dimensions": 0,
+      "default": null,
       "generated": null,
+      "identity": null,
       "name": "updated_at",
       "entityType": "columns",
+      "schema": "public",
       "table": "verification"
     },
     {
       "type": "text",
-      "notNull": false,
-      "autoincrement": false,
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "id",
       "entityType": "columns",
+      "schema": "public",
       "table": "wallet_ledger"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "user_id",
       "entityType": "columns",
+      "schema": "public",
       "table": "wallet_ledger"
     },
     {
       "type": "integer",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "delta",
       "entityType": "columns",
+      "schema": "public",
       "table": "wallet_ledger"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "reason",
       "entityType": "columns",
+      "schema": "public",
       "table": "wallet_ledger"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": false,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "ref",
       "entityType": "columns",
+      "schema": "public",
       "table": "wallet_ledger"
     },
     {
       "type": "integer",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "balance_after",
       "entityType": "columns",
+      "schema": "public",
       "table": "wallet_ledger"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "created_at",
       "entityType": "columns",
+      "schema": "public",
       "table": "wallet_ledger"
     },
     {
       "type": "text",
-      "notNull": false,
-      "autoincrement": false,
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "id",
       "entityType": "columns",
+      "schema": "public",
       "table": "wallets"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "user_id",
       "entityType": "columns",
+      "schema": "public",
       "table": "wallets"
     },
     {
       "type": "integer",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": "0",
       "generated": null,
+      "identity": null,
       "name": "credits",
       "entityType": "columns",
+      "schema": "public",
       "table": "wallets"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "created_at",
       "entityType": "columns",
+      "schema": "public",
       "table": "wallets"
     },
     {
       "type": "text",
+      "typeSchema": null,
       "notNull": true,
-      "autoincrement": false,
+      "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": null,
       "name": "updated_at",
       "entityType": "columns",
+      "schema": "public",
       "table": "wallets"
     },
     {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "user_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "idx_account_user_id",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "account"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "dossier_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "created_at",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "idx_appeals_dossier_created",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "appeals"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "created_at",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "idx_dossiers_created_at",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "dossiers"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "user_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "idx_dossiers_user_id",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "dossiers"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "dossier_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "idx_scan_api_logs_dossier_id",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "scan_api_logs"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "created_at",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "idx_scan_api_logs_created_at",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "scan_api_logs"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "user_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "idx_session_user_id",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "session"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "identifier",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "idx_verification_identifier",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "verification"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "user_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "created_at",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "idx_wallet_ledger_user_created",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "wallet_ledger"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "user_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "idx_wallets_user_id",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "wallets"
+    },
+    {
+      "nameExplicit": false,
       "columns": [
         "user_id"
       ],
+      "schemaTo": "public",
       "tableTo": "user",
       "columnsTo": [
         "id"
       ],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
-      "nameExplicit": false,
-      "name": "fk_account_user_id_user_id_fk",
+      "name": "account_user_id_user_id_fkey",
       "entityType": "fks",
+      "schema": "public",
       "table": "account"
     },
     {
+      "nameExplicit": false,
       "columns": [
         "user_id"
       ],
+      "schemaTo": "public",
       "tableTo": "user",
       "columnsTo": [
         "id"
       ],
       "onUpdate": "NO ACTION",
       "onDelete": "SET NULL",
-      "nameExplicit": false,
-      "name": "fk_dossiers_user_id_user_id_fk",
+      "name": "dossiers_user_id_user_id_fkey",
       "entityType": "fks",
+      "schema": "public",
       "table": "dossiers"
     },
     {
+      "nameExplicit": false,
       "columns": [
         "user_id"
       ],
+      "schemaTo": "public",
       "tableTo": "user",
       "columnsTo": [
         "id"
       ],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
-      "nameExplicit": false,
-      "name": "fk_session_user_id_user_id_fk",
+      "name": "session_user_id_user_id_fkey",
       "entityType": "fks",
+      "schema": "public",
       "table": "session"
     },
     {
+      "nameExplicit": false,
       "columns": [
         "user_id"
       ],
+      "schemaTo": "public",
       "tableTo": "user",
       "columnsTo": [
         "id"
       ],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
-      "nameExplicit": false,
-      "name": "fk_wallet_ledger_user_id_user_id_fk",
+      "name": "wallet_ledger_user_id_user_id_fkey",
       "entityType": "fks",
+      "schema": "public",
       "table": "wallet_ledger"
     },
     {
+      "nameExplicit": false,
       "columns": [
         "user_id"
       ],
+      "schemaTo": "public",
       "tableTo": "user",
       "columnsTo": [
         "id"
       ],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
-      "nameExplicit": false,
-      "name": "fk_wallets_user_id_user_id_fk",
+      "name": "wallets_user_id_user_id_fkey",
       "entityType": "fks",
+      "schema": "public",
       "table": "wallets"
     },
     {
@@ -1072,7 +1492,8 @@
         "id"
       ],
       "nameExplicit": false,
-      "name": "account_pk",
+      "name": "account_pkey",
+      "schema": "public",
       "table": "account",
       "entityType": "pks"
     },
@@ -1081,7 +1502,8 @@
         "id"
       ],
       "nameExplicit": false,
-      "name": "appeals_pk",
+      "name": "appeals_pkey",
+      "schema": "public",
       "table": "appeals",
       "entityType": "pks"
     },
@@ -1090,7 +1512,8 @@
         "id"
       ],
       "nameExplicit": false,
-      "name": "dossiers_pk",
+      "name": "dossiers_pkey",
+      "schema": "public",
       "table": "dossiers",
       "entityType": "pks"
     },
@@ -1099,7 +1522,8 @@
         "id"
       ],
       "nameExplicit": false,
-      "name": "scan_api_logs_pk",
+      "name": "scan_api_logs_pkey",
+      "schema": "public",
       "table": "scan_api_logs",
       "entityType": "pks"
     },
@@ -1108,7 +1532,8 @@
         "id"
       ],
       "nameExplicit": false,
-      "name": "session_pk",
+      "name": "session_pkey",
+      "schema": "public",
       "table": "session",
       "entityType": "pks"
     },
@@ -1117,7 +1542,8 @@
         "id"
       ],
       "nameExplicit": false,
-      "name": "user_pk",
+      "name": "user_pkey",
+      "schema": "public",
       "table": "user",
       "entityType": "pks"
     },
@@ -1126,7 +1552,8 @@
         "id"
       ],
       "nameExplicit": false,
-      "name": "verification_pk",
+      "name": "verification_pkey",
+      "schema": "public",
       "table": "verification",
       "entityType": "pks"
     },
@@ -1135,7 +1562,8 @@
         "id"
       ],
       "nameExplicit": false,
-      "name": "wallet_ledger_pk",
+      "name": "wallet_ledger_pkey",
+      "schema": "public",
       "table": "wallet_ledger",
       "entityType": "pks"
     },
@@ -1144,184 +1572,43 @@
         "id"
       ],
       "nameExplicit": false,
-      "name": "wallets_pk",
+      "name": "wallets_pkey",
+      "schema": "public",
       "table": "wallets",
       "entityType": "pks"
     },
     {
-      "columns": [
-        {
-          "value": "user_id",
-          "isExpression": false
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "origin": "manual",
-      "name": "idx_account_user_id",
-      "entityType": "indexes",
-      "table": "account"
-    },
-    {
-      "columns": [
-        {
-          "value": "dossier_id",
-          "isExpression": false
-        },
-        {
-          "value": "created_at",
-          "isExpression": false
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "origin": "manual",
-      "name": "idx_appeals_dossier_created",
-      "entityType": "indexes",
-      "table": "appeals"
-    },
-    {
-      "columns": [
-        {
-          "value": "created_at",
-          "isExpression": false
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "origin": "manual",
-      "name": "idx_dossiers_created_at",
-      "entityType": "indexes",
-      "table": "dossiers"
-    },
-    {
-      "columns": [
-        {
-          "value": "user_id",
-          "isExpression": false
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "origin": "manual",
-      "name": "idx_dossiers_user_id",
-      "entityType": "indexes",
-      "table": "dossiers"
-    },
-    {
-      "columns": [
-        {
-          "value": "dossier_id",
-          "isExpression": false
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "origin": "manual",
-      "name": "idx_scan_api_logs_dossier_id",
-      "entityType": "indexes",
-      "table": "scan_api_logs"
-    },
-    {
-      "columns": [
-        {
-          "value": "created_at",
-          "isExpression": false
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "origin": "manual",
-      "name": "idx_scan_api_logs_created_at",
-      "entityType": "indexes",
-      "table": "scan_api_logs"
-    },
-    {
-      "columns": [
-        {
-          "value": "user_id",
-          "isExpression": false
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "origin": "manual",
-      "name": "idx_session_user_id",
-      "entityType": "indexes",
-      "table": "session"
-    },
-    {
-      "columns": [
-        {
-          "value": "identifier",
-          "isExpression": false
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "origin": "manual",
-      "name": "idx_verification_identifier",
-      "entityType": "indexes",
-      "table": "verification"
-    },
-    {
-      "columns": [
-        {
-          "value": "user_id",
-          "isExpression": false
-        },
-        {
-          "value": "created_at",
-          "isExpression": false
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "origin": "manual",
-      "name": "idx_wallet_ledger_user_created",
-      "entityType": "indexes",
-      "table": "wallet_ledger"
-    },
-    {
-      "columns": [
-        {
-          "value": "user_id",
-          "isExpression": false
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "origin": "manual",
-      "name": "idx_wallets_user_id",
-      "entityType": "indexes",
-      "table": "wallets"
-    },
-    {
+      "nameExplicit": false,
       "columns": [
         "token"
       ],
-      "nameExplicit": false,
-      "name": "session_token_unique",
-      "entityType": "uniques",
-      "table": "session"
+      "nullsNotDistinct": false,
+      "name": "session_token_key",
+      "schema": "public",
+      "table": "session",
+      "entityType": "uniques"
     },
     {
+      "nameExplicit": false,
       "columns": [
         "email"
       ],
-      "nameExplicit": false,
-      "name": "user_email_unique",
-      "entityType": "uniques",
-      "table": "user"
+      "nullsNotDistinct": false,
+      "name": "user_email_key",
+      "schema": "public",
+      "table": "user",
+      "entityType": "uniques"
     },
     {
+      "nameExplicit": false,
       "columns": [
         "user_id"
       ],
-      "nameExplicit": false,
-      "name": "wallets_user_id_unique",
-      "entityType": "uniques",
-      "table": "wallets"
+      "nullsNotDistinct": false,
+      "name": "wallets_user_id_key",
+      "schema": "public",
+      "table": "wallets",
+      "entityType": "uniques"
     }
   ],
   "renames": []

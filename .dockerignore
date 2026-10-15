@@ -1,5 +1,8 @@
-node_modules
-dist
+# Match at any depth: without the **/ prefix these only match the context root,
+# so a monorepo would ship host node_modules/dist over the container's install.
+**/node_modules
+**/dist
+**/*.tsbuildinfo
 .git
 .github
 .vscode
@@ -8,6 +11,8 @@ dist
 .env.*
 apps/server/data/*.db
 apps/server/data/*.db-journal
+apps/server/data/pgdata*
+apps/server/data/evidence
 data/
 coverage/
 .DS_Store

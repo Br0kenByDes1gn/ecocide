@@ -1,48 +1,54 @@
-import { describe, expect, it, beforeEach, afterEach } from 'vitest';
-import fs from 'fs';
-import os from 'os';
-import path from 'path';
+import { describe, expect, it, beforeAll, afterAll, beforeEach } from 'vitest';
+import { sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { VAULT_ALLOWANCE, VAULT_CLAIM_FEE, type OraclePayload } from '@ecocide/types';
-import { createRepositories, initDb, runMigrations, type Repositories } from '../db/index.js';
+import { createRepositories, initDb, runMigrations, type DbConnection, type Repositories } from '../db/index.js';
 import { user } from '../db/schema.js';
 import type { Auth } from '../auth/index.js';
 import type { AuthVariables } from '../auth/middleware.js';
 import { createVaultRoutes } from './routes.js';
 
 /**
- * Vault routes are exercised through Hono's `app.request` against a throwaway
- * migrated SQLite file. Auth is stubbed (Better Auth itself is covered by the
- * email-OTP integration path) so the tests focus on wallet/link semantics.
+ * Vault routes are exercised through Hono's `app.request` against one in-process
+ * PostgreSQL (PGlite, in memory) per file, truncated between tests. Auth is
+ * stubbed (Better Auth itself is covered by the email-OTP integration path) so
+ * the tests focus on wallet/link semantics.
  */
 
 let repositories: Repositories;
 let db: any;
-let closeDb: () => void;
-let tempDir: string;
+let conn: DbConnection;
 
 const USER_A = 'user-aaaa';
 const USER_B = 'user-bbbb';
 
-beforeEach(async () => {
-  tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ecocide-vault-test-'));
-  const conn = await initDb({ path: path.join(tempDir, 'dossiers.db') });
-  await runMigrations(conn.db);
+/** Empty every table in schema.ts between tests. */
+async function truncateAll(): Promise<void> {
+  await db.execute(
+    sql`TRUNCATE TABLE "user", "session", "account", "verification", "wallets", "wallet_ledger", "dossiers", "appeals", "scan_api_logs" CASCADE`
+  );
+}
+
+beforeAll(async () => {
+  conn = await initDb({ memory: true });
+  await runMigrations(conn);
   db = conn.db;
   repositories = createRepositories(conn.db);
-  closeDb = conn.close;
+});
+
+afterAll(async () => {
+  await conn.close();
+});
+
+beforeEach(async () => {
+  await truncateAll();
 
   for (const [id, email] of [
     [USER_A, 'a@arbiter.test'],
     [USER_B, 'b@arbiter.test'],
   ] as const) {
-    db.insert(user).values({ id, name: '', email, emailVerified: true }).run();
+    await db.insert(user).values({ id, name: '', email, emailVerified: true });
   }
-});
-
-afterEach(() => {
-  closeDb();
-  fs.rmSync(tempDir, { recursive: true, force: true });
 });
 
 /** Stub auth: returns a fixed identity (or none) regardless of headers. */

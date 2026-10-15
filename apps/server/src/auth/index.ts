@@ -33,7 +33,7 @@ export function createAuth(options: CreateAuthOptions) {
     baseURL: config.baseURL,
     trustedOrigins: config.trustedOrigins,
     database: drizzleAdapter(options.db, {
-      provider: 'sqlite',
+      provider: 'pg',
       schema: authSchema,
     }),
     // No passwords. Email OTP is the sole authentication factor.

@@ -1,10 +1,8 @@
-import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
-import fs from 'fs';
-import os from 'os';
-import path from 'path';
+import { describe, expect, it, beforeAll, afterAll, beforeEach, vi } from 'vitest';
+import { sql } from 'drizzle-orm';
 import type { OraclePayload } from '@ecocide/types';
 import { createRepositories, initDb, runMigrations } from '../db/index.js';
-import type { Repositories } from '../db/index.js';
+import type { DbConnection, Repositories } from '../db/index.js';
 import type { EmailMessage, Mailer } from '../email/index.js';
 import { createInlineDispatcher } from './dispatcher.js';
 import { createHandlers } from './handlers/index.js';
@@ -58,20 +56,22 @@ const payload: OraclePayload = {
 };
 
 let repositories: Repositories;
-let closeDb: () => void;
-let tempDir: string;
+let conn: DbConnection;
 
-beforeEach(async () => {
-  tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ecocide-jobs-test-'));
-  const conn = await initDb({ path: path.join(tempDir, 'dossiers.db') });
-  await runMigrations(conn.db);
+beforeAll(async () => {
+  conn = await initDb({ memory: true });
+  await runMigrations(conn);
   repositories = createRepositories(conn.db);
-  closeDb = conn.close;
 });
 
-afterEach(() => {
-  closeDb();
-  fs.rmSync(tempDir, { recursive: true, force: true });
+afterAll(async () => {
+  await conn.close();
+});
+
+beforeEach(async () => {
+  await conn.db.execute(
+    sql`TRUNCATE TABLE "user", "session", "account", "verification", "wallets", "wallet_ledger", "dossiers", "appeals", "scan_api_logs" CASCADE`
+  );
 });
 
 function makeDispatcher(mailer: FakeMailer) {

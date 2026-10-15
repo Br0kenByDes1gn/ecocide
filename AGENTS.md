@@ -70,12 +70,15 @@ packages/lore/        # THE STORY + ART SURFACE: identity, six tiers (factions),
                       # archetype catalog, exhibit rooms, art tokens
 packages/types/       # Contracts only; derives the taxonomy from lore +
                       # formula from compliance; simulateScanFromItems etc.
-apps/server/          # Hono + SQLite (Drizzle) + Gemini + BullMQ + Better Auth
-                      # + nodemailer + evidence file store
+apps/server/          # Hono + PostgreSQL (Drizzle; PGlite locally) + Gemini
+                      # + BullMQ + Better Auth + nodemailer + evidence file store
 apps/web/             # React 19 + Vite + Tailwind v4 + PWA
                       # (intro → scan → verdict → claim/appeal → vault)
-charts/               # Helm chart (placeholder branding)
-scripts/              # scan-cost audit, wireframe model conversion
+deploy/gcp/           # Cloud Run + Cloud SQL deploy: setup.sh (one-time IAM/SQL/
+                      # bucket/secrets), sync-env.sh (.env.production → Secret
+                      # Manager + service), env.production.example, runbook
+                      # (release workflow: .github/workflows/deploy-gcp.yml)
+apps/server/scripts/  # scan-cost audit
 ```
 
 ### packages/compliance
@@ -129,9 +132,15 @@ scripts/              # scan-cost audit, wireframe model conversion
 - `GET /admin/queues` Bull Board (BullMQ mode + Basic auth only).
 - Prompt assembly is thin in `src/gemini.ts` (wraps lore builders, parses
   JSON, sanitizes model output); world copy comes from the pack.
-- DB: `node:sqlite` + Drizzle, WAL mode, explicit `initDb()`/`createRepositories()`
-  factories; migrations via drizzle-kit, applied at boot (`AUTO_MIGRATE=false`
-  to defer); never commit `*.db*` or `data/evidence/` files.
+- DB: PostgreSQL + Drizzle via `pg` (`DATABASE_URL`) or **PGlite** in-process
+  when unset — one schema, one repository implementation, both drivers extending
+  Drizzle's `PgAsyncDatabase` (see `db/client.ts`). Explicit
+  `initDb()`/`createRepositories()` factories; migrations via drizzle-kit, applied
+  at boot (`AUTO_MIGRATE=false` to defer to the Cloud Run migrate job); never
+  commit `*.db*`, `data/pgdata*` or `data/evidence/` files.
+- Local DB caveats: PGlite is single-process (advisory `pgdata.lock`, readable
+  error instead of corruption) and a directory initialized twice is unopenable —
+  delete `apps/server/data/pgdata` to reset.
 
 ### apps/web
 
@@ -169,6 +178,7 @@ scripts/              # scan-cost audit, wireframe model conversion
 | `pnpm test` | Vitest across packages (hermetic) |
 | `pnpm scan-costs` | Token/cost audit from the local DB |
 | `pnpm wireframes` | Convert `models-src/*.obj` → `apps/web/src/lib/asset-wireframes.ts` |
+| `pnpm --filter @ecocide/server db:generate` | drizzle-kit generate (schema → `apps/server/drizzle`) |
 
 Dev without AI tokens: `/debug` bench (six exhibit rooms, one per tier),
 simulated audits (no `GEMINI_API_KEY`), OTP printed to the server console,
@@ -185,8 +195,11 @@ emails logged via jsonTransport (no SMTP), inline job dispatcher (no Redis).
    colors, stamps and titles follow. Keep the invariant tests green
    (band monotonicity, boundary mapping, exhibit rooms landing in-band,
    simulate determinism).
-4. **DB discipline**: no `*.db*` or `data/evidence/` in git; schema changes
-   go through `drizzle-kit generate`; never hand-write DDL.
+4. **DB discipline**: no `*.db*`, `data/pgdata*` or `data/evidence/` in git;
+   schema changes go through `drizzle-kit generate` (`pnpm --filter
+   @ecocide/server db:generate`); never hand-write DDL. Money/credits are
+   `integer` units and aggregates (`count(*)`, `sum(...)`) must be wrapped in
+   `Number(...)` — `pg` returns bigint as a string.
 5. **Display vs storage**: `caste`/`biocarbon_ratio` stay in code/DB/API;
    all user-facing strings are pack-driven.
 6. **Markdown links** to files in responses: `[file](file:///path)`.
@@ -205,6 +218,8 @@ rg -i -n "carbon minded|aipocalypse|neon grid|mainframe|biocarbon(?!_ratio)|redu
 - [`STORY.md`](STORY.md) — lore-pack authoring handbook (every slot, tier
   mechanics, prompts, art, workflow).
 - [`README.md`](README.md) — user-facing overview + quick start.
+- [`deploy/gcp/README.md`](deploy/gcp/README.md) — Cloud Run + Cloud SQL
+  deployment runbook (setup, releases, rollback).
 - `art_directions.md` — visual style bible (§-numbered; the source of truth
   for colors, tiers, stamps, lenses, motion, copy rules).
 - `compliance_formula.md` — the base item-level formula implemented verbatim
