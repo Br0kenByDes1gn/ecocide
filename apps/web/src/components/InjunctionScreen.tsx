@@ -3,7 +3,7 @@ import type { InjunctionTask } from '@ecocide/types';
 import { REGISTRY_COPY } from '@ecocide/lore';
 import { ClipboardList, Loader2, Square, SquareCheckBig, Wallet } from 'lucide-react';
 import { useVault } from '../lib/useVault';
-import { fetchInjunctionTasks } from '../lib/vault-api';
+import { confirmInjunctionTasks, fetchInjunctionTasks } from '../lib/vault-api';
 import { formatVaultDate } from '../lib/vault-format';
 import { RegistryUnlock } from './RegistryUnlock';
 import { RegistrySidePanel } from './RegistrySidePanel';
@@ -34,6 +34,8 @@ export const InjunctionScreen: React.FC<InjunctionScreenProps> = ({
 }) => {
   const { session, isPending, vault, refresh } = useVault();
   const [checked, setChecked] = useState<Set<string>>(new Set());
+  const [confirming, setConfirming] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
   const [state, setState] = useState<TaskState>({ status: 'loading' });
 
   const load = useCallback(async () => {
@@ -99,7 +101,24 @@ export const InjunctionScreen: React.FC<InjunctionScreenProps> = ({
   };
 
   const tasks = state.status === 'ready' ? state.tasks : [];
-  const allChecked = tasks.length > 0 && checked.size >= tasks.length;
+  const pendingSelected = tasks.filter((t) => !t.completed && checked.has(t.id));
+  const bonusTotal = tasks.filter((t) => t.completed).reduce((sum, t) => sum + t.points, 0);
+
+  const handleConfirm = async () => {
+    if (pendingSelected.length === 0 || confirming) return;
+    setConfirming(true);
+    setConfirmError(null);
+    try {
+      await confirmInjunctionTasks(pendingSelected.map((t) => t.id));
+      setChecked(new Set());
+      await refresh();
+      await load();
+    } catch (e) {
+      setConfirmError(e instanceof Error ? e.message : 'CONFIRM FAILED');
+    } finally {
+      setConfirming(false);
+    }
+  };
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-6">
@@ -111,10 +130,23 @@ export const InjunctionScreen: React.FC<InjunctionScreenProps> = ({
             {REGISTRY_COPY.injunction.title}{' '}
             {state.status === 'ready' && (
               <span className="text-gray-500">
-                ({checked.size}/{tasks.length})
+                ({tasks.filter((t) => t.completed).length}/{tasks.length})
               </span>
             )}
+            <button
+              type="button"
+              onClick={() => void handleConfirm()}
+              disabled={pendingSelected.length === 0 || confirming}
+              className="ml-auto px-4 py-1.5 rounded-lg font-mono text-[11px] font-black tracking-widest uppercase bg-cyan-500 hover:bg-cyan-400 disabled:opacity-40 disabled:cursor-not-allowed text-black transition-all cursor-pointer"
+            >
+              {confirming ? 'Filing...' : 'Confirm'}
+            </button>
           </div>
+          {confirmError && (
+            <p className="px-5 pt-3 font-mono text-[11px] text-red-400 uppercase tracking-widest">
+              ⚠ {confirmError}
+            </p>
+          )}
 
           {state.status === 'loading' && (
             <div className="px-5 py-10 flex flex-col items-center gap-3">
@@ -165,16 +197,17 @@ export const InjunctionScreen: React.FC<InjunctionScreenProps> = ({
               </p>
               <ul className="p-5 space-y-2">
                 {tasks.map((task) => {
-                  const done = checked.has(task.id);
+                  const done = task.completed || checked.has(task.id);
                   return (
                     <li key={task.id}>
                       <button
                         type="button"
-                        onClick={() => toggleItem(task.id)}
-                        className={`w-full text-left px-3 py-2.5 rounded-lg border font-mono text-xs transition-all cursor-pointer ${
+                        onClick={() => !task.completed && toggleItem(task.id)}
+                        disabled={task.completed}
+                        className={`w-full text-left px-3 py-2.5 rounded-lg border font-mono text-xs transition-all ${
                           done
-                            ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-200'
-                            : 'bg-black/30 border-gray-800 text-gray-300 hover:border-cyan-500/40'
+                            ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-200 cursor-default'
+                            : 'bg-black/30 border-gray-800 text-gray-300 hover:border-cyan-500/40 cursor-pointer'
                         }`}
                       >
                         <span className="flex items-start gap-3">
@@ -192,6 +225,7 @@ export const InjunctionScreen: React.FC<InjunctionScreenProps> = ({
                             </span>
                             <span className="block mt-1 text-[10px] uppercase tracking-widest text-gray-500">
                               Target: {task.replaces} · {task.category.replace(/_/g, ' ')} · Added {formatVaultDate(task.createdAt)}
+                              {task.completed && task.points > 0 ? ` · +${task.points}` : ''}
                             </span>
                           </span>
                           <span className="flex flex-col gap-1 shrink-0 text-right">
@@ -217,13 +251,13 @@ export const InjunctionScreen: React.FC<InjunctionScreenProps> = ({
                 })}
               </ul>
               <p className="px-5 pb-5 font-mono text-[11px] text-gray-500 uppercase tracking-widest">
-                {allChecked ? REGISTRY_COPY.injunction.cleared : REGISTRY_COPY.injunction.closing}
+                {tasks.length > 0 && tasks.every((t) => t.completed) ? REGISTRY_COPY.injunction.cleared : REGISTRY_COPY.injunction.closing}
               </p>
             </>
           )}
         </div>
 
-        <RegistrySidePanel vault={vault} onBeginAudit={onBeginAudit} onOpenDossier={onOpenDossier} />
+        <RegistrySidePanel vault={vault} onBeginAudit={onBeginAudit} onOpenDossier={onOpenDossier} bonus={bonusTotal} />
       </div>
     </div>
   );

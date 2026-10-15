@@ -3,6 +3,7 @@ import { registryStanding } from '@ecocide/compliance';
 import {
   VAULT_ALLOWANCE,
   VAULT_CLAIM_FEE,
+  getCasteFromScore,
   type VaultChargeResult,
   type VaultDossierSummary,
   type VaultLedgerPage,
@@ -99,6 +100,48 @@ export function createVaultRoutes(deps: VaultRouteDeps) {
     const user = c.get('user');
     const tasks = await deps.repositories.getInjunctionTasksByUser(user.id);
     return c.json({ tasks });
+  });
+
+  app.post('/injunction-confirm', async (c) => {
+    const user = c.get('user');
+    const body = (await c.req.json<{ taskIds?: string[] }>().catch(() => ({}))) as {
+      taskIds?: string[];
+    };
+    const taskIds = Array.isArray(body.taskIds)
+      ? body.taskIds.filter((id): id is string => typeof id === 'string').slice(0, 100)
+      : [];
+    if (taskIds.length === 0) {
+      return c.json({ error: 'No tasks selected' }, 400);
+    }
+
+    const IMPACT_POINTS: Record<string, number> = { low: 2, medium: 4, high: 8 };
+    const EFFORT_POINTS: Record<string, number> = { easy: 2, moderate: 4, hard: 8 };
+    const owned = await deps.repositories.getInjunctionTasksByUser(user.id);
+    const pendingById = new Map(owned.filter((t) => !t.completed).map((t) => [t.id, t]));
+    const confirmed = taskIds
+      .filter((id) => pendingById.has(id))
+      .map((id) => {
+        const task = pendingById.get(id)!;
+        return {
+          id,
+          points: (IMPACT_POINTS[task.impact] ?? 0) * (EFFORT_POINTS[task.effort] ?? 0),
+        };
+      });
+
+    await deps.repositories.confirmInjunctionTasks(user.id, confirmed);
+    const bonusTotal = await deps.repositories.getInjunctionBonusTotal(user.id);
+
+    const rows = await deps.repositories.getVaultAssessmentRows(user.id);
+    const standing = registryStanding(
+      rows.map((row) => ({ createdAt: row.createdAt, items: row.items }))
+    );
+    const effectiveIndex = Math.min(100, standing.index + bonusTotal);
+    return c.json({
+      confirmed,
+      bonusTotal,
+      effectiveIndex,
+      effectiveCaste: getCasteFromScore(effectiveIndex),
+    });
   });
 
   app.post('/link', async (c) => {

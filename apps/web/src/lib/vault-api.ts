@@ -40,6 +40,27 @@ export async function fetchInjunctionTasks(): Promise<InjunctionTask[]> {
   return body.tasks ?? [];
 }
 
+export interface InjunctionConfirmResult {
+  confirmed: Array<{ id: string; points: number }>;
+  bonusTotal: number;
+  effectiveIndex: number;
+  effectiveCaste: string;
+}
+
+/** Confirm completed injunction tasks; banked points lift the pooled index. */
+export async function confirmInjunctionTasks(taskIds: string[]): Promise<InjunctionConfirmResult> {
+  const res = await authFetch('/api/vault/injunction-confirm', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ taskIds }),
+  });
+  if (!res.ok) {
+    const payload = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(payload.error || `INJUNCTION CONFIRM FAILED (${res.status})`);
+  }
+  return res.json();
+}
+
 /** Bind a freshly-scanned dossier to the vault (charges the certification fee). */
 export async function linkDossierToVault(dossierId: string): Promise<VaultLinkResult> {
   const res = await authFetch('/api/vault/link', {

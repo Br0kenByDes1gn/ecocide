@@ -154,6 +154,9 @@ export interface InjunctionTask {
   effort: InjunctionItem['effort'];
   dossierId: string | null;
   createdAt: string;
+  completed: boolean;
+  completedAt: string | null;
+  points: number;
 }
 
 /** The full household audit result. */

@@ -204,6 +204,9 @@ export const injunctionTasks = sqliteTable(
     impact: text('impact').notNull(),
     effort: text('effort').notNull(),
     created_at: text('created_at').notNull(),
+    completed: integer('completed', { mode: 'boolean' }).notNull().default(false),
+    completed_at: text('completed_at'),
+    points: integer('points').notNull().default(0),
   },
   (t) => [index('idx_injunction_tasks_user_created').on(t.user_id, t.created_at)]
 );
