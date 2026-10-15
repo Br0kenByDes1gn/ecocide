@@ -103,6 +103,7 @@ pnpm/lockfile mismatch surfaces here rather than on a tag push.
 ```bash
 gcloud run jobs create ecocide-migrate \
   --region=asia-southeast1 \
+  --service-account=ecocide-run@ecocide-511407.iam.gserviceaccount.com \
   --image=asia-southeast1-docker.pkg.dev/ecocide-511407/ecocide/ecocide:v0.1.0 \
   --set-cloudsql-instances=ecocide-511407:asia-southeast1:ecocide-pg \
   --set-secrets=DATABASE_URL=ecocide-db-url:latest \
@@ -110,14 +111,27 @@ gcloud run jobs create ecocide-migrate \
   --max-retries=1 --task-timeout=10m
 ```
 
+`--service-account` is not optional. `setup.sh` puts every runtime permission on
+`ecocide-run@` (Vertex, Cloud SQL, Secret Manager, the evidence bucket); omit the flag and
+Cloud Run silently falls back to the **Compute Engine default service account**, which has
+none of them — the job dies at create time with
+`Permission denied on secret: … for Revision service account …-compute@developer.gserviceaccount.com`.
+
 The app runs with `AUTO_MIGRATE=false`: DDL belongs to this job, not to cold starts.
 (`gcloud run jobs` uses `--set-cloudsql-instances`; services use `--add-cloudsql-instances`.)
+
+Then apply it:
+
+```bash
+gcloud run jobs execute ecocide-migrate --region=asia-southeast1 --wait
+```
 
 ## 4. Deploy the service
 
 ```bash
 gcloud run deploy ecocide \
   --region=asia-southeast1 \
+  --service-account=ecocide-run@ecocide-511407.iam.gserviceaccount.com \
   --image=asia-southeast1-docker.pkg.dev/ecocide-511407/ecocide/ecocide:v0.1.0 \
   --allow-unauthenticated \
   --port=3000 \
@@ -130,13 +144,23 @@ gcloud run deploy ecocide \
   --add-volume=name=evidence,type=cloud-storage,bucket=ecocide-511407-evidence \
   --add-volume-mount=volume=evidence,mount-path=/app/evidence \
   --set-secrets=BETTER_AUTH_SECRET=ecocide-auth-secret:latest,DATABASE_URL=ecocide-db-url:latest,SMTP_PASS=ecocide-smtp-pass:latest \
-  --set-env-vars=NODE_ENV=production,AUTO_MIGRATE=false,EVIDENCE_DIR=/app/evidence,BETTER_AUTH_URL=https://ecocide.quest,APP_BASE_URL=https://ecocide.quest,GEMINI_MODE=vertex,GEMINI_PROJECT=ecocide-511407,GEMINI_LOCATION=global,GEMINI_MODEL=gemini-3.8-flash,SMTP_HOST=smtp-relay.brevo.com,SMTP_PORT=587,SMTP_SECURE=false,SMTP_USER=your-brevo-login@example.com,MAIL_FROM=ECOCIDE <no-reply@ecocide.quest>
+  --set-env-vars='^|^NODE_ENV=production|AUTO_MIGRATE=false|EVIDENCE_DIR=/app/evidence|BETTER_AUTH_URL=https://ecocide.quest|APP_BASE_URL=https://ecocide.quest|GEMINI_MODE=vertex|GEMINI_PROJECT=ecocide-511407|GEMINI_LOCATION=global|GEMINI_MODEL=gemini-3.8-flash|SMTP_HOST=smtp-relay.brevo.com|SMTP_PORT=587|SMTP_SECURE=false|SMTP_USER=your-brevo-login@example.com|MAIL_FROM=ECOCIDE <no-reply@ecocide.quest>'
 ```
+
+`--service-account=ecocide-run@…` for the same reason as the job — and here the failure is
+quieter: without it the revision cannot inject secrets, has no `cloudsql.client` (the app
+cannot reach the database) and no `aiplatform.user` (Vertex falls back to *offline
+simulation*, which the release smoke test then refuses to deploy).
+
+`--set-env-vars` uses gcloud's `^|^` alternative delimiter, because a comma in a value
+(`MAIL_FROM`) would otherwise corrupt the flag; `./deploy/gcp/sync-env.sh --print-flags`
+emits both long flags correctly formatted.
 
 Flags that are not cosmetic:
 
 | Flag | Why |
 | --- | --- |
+| `--service-account` | Everything the app is allowed to do lives on this identity. |
 | `--no-cpu-throttling` | The OTP/verdict emails are sent after the HTTP response (fire-and-forget jobs). With throttled CPU the container is frozen at that point and **emails silently never send**. |
 | `--concurrency=8`, `--max-instances=3` | One scan is two Gemini calls taking 15-30s. The default concurrency of 80 on a 1 GiB instance is an OOM and a bill. |
 | `--add-volume` (GCS) | Audit photos are files (AGENTS.md rule 4) and are written once, never modified — safe on FUSE, and no code change. Swap to the GCS SDK inside `evidence.ts` if FUSE memory ever bites. |
@@ -148,11 +172,43 @@ Flags that are not cosmetic:
 ## 5. Domain
 
 ```bash
-gcloud run domain-mappings create --service=ecocide --domain=ecocide.quest --region=asia-southeast1
+# 1. ownership of the base domain, once per project (covers subdomains)
+gcloud domains list-user-verified
+gcloud domains verify ecocide.quest
+
+# 2. the mapping — the GA `gcloud run domain-mappings create` is the old Cloud
+#    Run for Anthos command; managed Cloud Run needs the beta variant
+gcloud components install beta
+gcloud beta run domain-mappings create \
+  --service=ecocide --domain=ecocide.quest --region=asia-southeast1
+
+# 3. the DNS records (also printed by step 2; empty until the mapping is Ready)
+gcloud beta run domain-mappings describe --domain=ecocide.quest --region=asia-southeast1
 ```
 
-Add the records it prints (Cloudflare: DNS-only while the managed certificate provisions),
-then re-deploy with `BETTER_AUTH_URL`/`APP_BASE_URL` set to the final origin. Those two
+Add every record under `status.resourceRecords` — for an apex domain that is **A and AAAA**
+(add both, or IPv6-only clients fail); a subdomain gets a CNAME instead. Use `@` for the
+apex and `www` for `www`.
+
+Two DNS facts that break the *certificate*, not the app:
+
+- **Cloudflare:** turn **off** "Always use HTTPS" (SSL/TLS → Edge Certificates). It
+  intercepts the validation requests, so the mapping or its renewal fails.
+- **CAA records:** authorize **both** `pki.goog` and `letsencrypt.org`.
+
+Provisioning usually takes ~15 minutes but can take up to 24 hours. A mapping created
+before its service exists stays `Ready: False, reason: RouteMissing` and retries every
+minute — that is not an error to fix, and it emits no `resourceRecords` until the service
+appears.
+
+**Preview status:** Cloud Run domain mapping is a preview feature and Google's docs do not
+recommend it for production services (latency). The production-grade alternative is a
+global external Application Load Balancer in front of a serverless NEG (~$18-25/mo), which
+also allows custom certificates, TLS 1.2-only and CDN/Armor. Also note you cannot use
+wildcards, cannot upload your own certificate, cannot disable TLS 1.0/1.1, and can only map
+to `/`.
+
+Then re-deploy with `BETTER_AUTH_URL`/`APP_BASE_URL` set to the final origin. Those two
 feed Better Auth's `trustedOrigins`, so a mismatch breaks the registry with a confusing
 CORS error. Serve **one** canonical origin — mapping `www` too would break cookies there
 instead of redirecting.

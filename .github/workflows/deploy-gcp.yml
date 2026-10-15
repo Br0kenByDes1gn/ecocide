@@ -76,13 +76,28 @@ jobs:
       # migrations ship *inside* the image — so the job must be re-pointed at the
       # new tag before it executes, or prod would be migrated by the old code.
       #
+      # Created here if absent so a first release cannot fail on a missing job.
+      # `--service-account` is mandatory: every runtime permission lives on it,
+      # and without it the job falls back to the Compute Engine default service
+      # account, which cannot read the DATABASE_URL secret.
+      #
       # Migrations run BEFORE the traffic shift, so they must stay compatible with
       # the revision still serving (additive only, no destructive DDL).
       - name: Apply migrations
         if: ${{ !inputs.image_tag }}
         run: |
-          gcloud run jobs update "$MIGRATE_JOB" --region="$REGION" \
-            --image="${{ steps.image.outputs.uri }}"
+          if gcloud run jobs describe "$MIGRATE_JOB" --region="$REGION" >/dev/null 2>&1; then
+            gcloud run jobs update "$MIGRATE_JOB" --region="$REGION" \
+              --image="${{ steps.image.outputs.uri }}"
+          else
+            gcloud run jobs create "$MIGRATE_JOB" --region="$REGION" \
+              --image="${{ steps.image.outputs.uri }}" \
+              --service-account="ecocide-run@${PROJECT}.iam.gserviceaccount.com" \
+              --set-cloudsql-instances="${PROJECT}:${REGION}:ecocide-pg" \
+              --set-secrets=DATABASE_URL=ecocide-db-url:latest \
+              --command=node --args=dist/migrate-cli.js \
+              --max-retries=1 --task-timeout=10m
+          fi
           gcloud run jobs execute "$MIGRATE_JOB" --region="$REGION" --wait
 
       # Only the image changes: `run services update` leaves env vars, secrets,
