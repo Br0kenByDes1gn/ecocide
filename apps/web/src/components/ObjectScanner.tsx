@@ -147,6 +147,15 @@ export const ObjectScanner: React.FC<ObjectScannerProps> = ({
     };
   }, [facingMode, view]);
 
+  // On small screens the scan panel sits below the (tall) capture panel, so
+  // bring the top of the page into view when a run starts — and again if it
+  // fails, so the transmission-failure notice is not missed.
+  useEffect(() => {
+    if (!isLoading) return;
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    window.scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' });
+  }, [isLoading]);
+
   const ingestFile = async (file: File) => {
     setIsAnalyzing(true);
     setUploadError(null);
@@ -290,7 +299,11 @@ export const ObjectScanner: React.FC<ObjectScannerProps> = ({
 
       <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
         {/* Left panel: upload + controls */}
-        <section className="rounded-xl border border-gray-800 bg-[#121a14] p-4 flex flex-col gap-3">
+        <section
+          className={`rounded-xl border border-gray-800 bg-[#121a14] p-4 flex-col gap-3 ${
+            isLoading ? 'hidden lg:flex' : 'flex'
+          }`}
+        >
           <div>
             <div className="flex items-center gap-2 mb-1">
               <Camera className="w-4 h-4 text-lime-400" />
