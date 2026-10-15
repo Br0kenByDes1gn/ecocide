@@ -25,9 +25,9 @@ export const HomePage: React.FC<HomePageProps> = ({
   return (
     <div className="min-h-screen w-full bg-[#080b08] text-[#e6efe3] cyber-grid flex flex-col">
       {/* Header */}
-      <header className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-2 border-b border-lime-500/20">
+      <header className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-2 border-b border-lime-500/25">
         <div className="flex items-center gap-3 min-w-0">
-          {/* Globe Emblem */}
+          {/* ECOCIDE Brand */}
           <div className="p-2 rounded-lg bg-lime-950/60 border border-lime-500/40 text-lime-400 flex-shrink-0">
             <Globe className="w-6 h-6" />
           </div>
@@ -35,8 +35,8 @@ export const HomePage: React.FC<HomePageProps> = ({
             <h1 className="text-lg sm:text-xl font-bold font-mono text-lime-400 tracking-wider flex items-center gap-2 whitespace-nowrap">
               {IDENTITY.appName}
             </h1>
-            <p className="hidden sm:block text-[11px] font-mono text-gray-400 tracking-widest uppercase">
-              {IDENTITY.tagline}
+            <p className="hidden sm:block text-[11px] font-mono text-gray-400 tracking-widest">
+              {IDENTITY.tagline.toUpperCase()}
             </p>
           </div>
         </div>
@@ -96,7 +96,7 @@ export const HomePage: React.FC<HomePageProps> = ({
             {/* Protocol Badge */}
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-lime-950/60 border border-lime-500/40 text-lime-400 text-xs font-mono tracking-widest uppercase mb-4">
               <ShieldAlert className="w-3.5 h-3.5" />
-              <span>DOMESTIC AUDIT PROTOCOL // ECOCIDE</span>
+              <span>DOMESTIC AUDIT PROTOCOL</span>
             </div>
 
             {/* Main Headline */}
@@ -231,11 +231,11 @@ export const HomePage: React.FC<HomePageProps> = ({
       </main>
 
       {/* Footer */}
-      <footer className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 border-t border-gray-900/60">
+      <footer className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 border-t border-gray-900/60">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] font-mono text-gray-500">
           <div className="flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-lime-400 animate-pulse" />
-            <span>OBJECT AUDIT ENGINE ONLINE // {IDENTITY.entityName.toUpperCase()}</span>
+            <span>OBJECT AUDIT ENGINE ONLINE | {IDENTITY.entityName.toUpperCase()}</span>
           </div>
           <div className="flex items-center gap-4">
             <span>DETERMINISTIC COMPLIANCE MATH: ACTIVE</span>

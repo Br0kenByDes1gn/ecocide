@@ -24,18 +24,18 @@ export const LENSES: ReadonlyArray<{ id: LensId; label: string }> = [
 ];
 
 export const ITEM_STATUS_COLORS = {
-  compliant: '#22c55e',
-  borderline: '#fbbf24',
-  'non-compliant': '#ef4444',
-  'special-handling': '#facc15',
+  compliant: '#285A37',
+  acceptable: '#315A96',
+  'needs-improvement': '#865D13',
+  'non-compliant': '#983D3D',
 } as const;
 
 /** Status labels for chips/cards (special-handling comes from Step-5 rules). */
 export const ITEM_STATUS_LABELS = {
   compliant: 'APPROVED',
-  borderline: 'PENDING REVIEW',
+  acceptable: 'ACCEPTED',
+  'needs-improvement': 'IMPROVE',
   'non-compliant': 'DENIED',
-  'special-handling': 'SPECIAL HANDLING',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -90,7 +90,7 @@ function drawNeonOutline(
     if (!box) continue;
     const size = Math.max(box.w, box.h);
     const intensity = Math.min(0.9, 0.35 + (size / Math.max(w, h)) * 2.2);
-    const status = item.status ?? 'borderline';
+    const status = item.status ?? 'needs-improvement';
 
     ctx.save();
     ctx.strokeStyle = PALETTE.accent;
@@ -103,7 +103,7 @@ function drawNeonOutline(
 
     ctx.save();
     ctx.globalAlpha = 0.08 + (intensity - 0.35) * 0.25;
-    ctx.fillStyle = ITEM_STATUS_COLORS[status];
+    ctx.fillStyle = ITEM_STATUS_COLORS[status] ?? ITEM_STATUS_COLORS['needs-improvement'];
     ctx.fillRect(box.x, box.y, box.w, box.h);
     ctx.restore();
   }
@@ -175,7 +175,7 @@ function drawInspectionHud(
   for (const item of items) {
     const box = boxFor(item, w, h);
     if (!box) continue;
-    const status = item.status ?? 'borderline';
+    const status = item.status ?? 'needs-improvement';
     const color = ITEM_STATUS_COLORS[status];
     const isActive = !!activeLabel && item.label === activeLabel;
 
@@ -320,5 +320,5 @@ export function drawAuditLens(
 export function itemChipText(item: AuditItem): string {
   const count = item.count > 1 ? ` x${item.count}` : '';
   const si = Math.round(item.si ?? siFromHarm(harmScore(item.ratings)));
-  return `${item.label.toUpperCase()}${count} // SI ${si} // ${(item.status ?? 'borderline').toUpperCase()}`;
+  return `${item.label.toUpperCase()}${count} - SI ${si} - ${(item.status ?? 'needs-improvement').toUpperCase()}`;
 }

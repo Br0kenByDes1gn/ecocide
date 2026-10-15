@@ -1,7 +1,7 @@
 import React from 'react';
-import { Upload, CheckCircle, XCircle, Shield, Leaf, Trash2, Cpu, Utensils, Box, FileImage } from 'lucide-react';
+import { Upload, CheckCircle, XCircle, Bed, Bath, Utensils, Leaf, Briefcase, Box, FileImage } from 'lucide-react';
 
-export type ItemCategory = 'fridge' | 'wardrobe' | 'bin' | 'desk' | 'kitchen' | 'other';
+export type ItemCategory = 'bedroom' | 'bathroom' | 'kitchen' | 'outdoors' | 'workspace' | 'others';
 
 export const ITEM_CATEGORIES: {
   id: ItemCategory;
@@ -9,12 +9,12 @@ export const ITEM_CATEGORIES: {
   icon: React.ReactNode;
   color: string;
 }[] = [
-  { id: 'fridge', label: 'FRIDGE', icon: <Leaf className="w-5 h-5" />, color: 'text-emerald-400' },
-  { id: 'wardrobe', label: 'WARDROBE', icon: <Shield className="w-5 h-5" />, color: 'text-blue-400' },
-  { id: 'bin', label: 'BIN', icon: <Trash2 className="w-5 h-5" />, color: 'text-amber-400' },
-  { id: 'desk', label: 'DESK', icon: <Cpu className="w-5 h-5" />, color: 'text-purple-400' },
+  { id: 'bedroom', label: 'BEDROOM', icon: <Bed className="w-5 h-5" />, color: 'text-emerald-400' },
+  { id: 'bathroom', label: 'BATHROOM', icon: <Bath className="w-5 h-5" />, color: 'text-blue-400' },
   { id: 'kitchen', label: 'KITCHEN', icon: <Utensils className="w-5 h-5" />, color: 'text-orange-400' },
-  { id: 'other', label: 'OTHER', icon: <Box className="w-5 h-5" />, color: 'text-gray-400' },
+  { id: 'outdoors', label: 'OUTDOORS', icon: <Leaf className="w-5 h-5" />, color: 'text-lime-400' },
+  { id: 'workspace', label: 'WORKSPACE', icon: <Briefcase className="w-5 h-5" />, color: 'text-purple-400' },
+  { id: 'others', label: 'OTHERS', icon: <Box className="w-5 h-5" />, color: 'text-gray-400' },
 ];
 
 interface UploadPanelProps {
@@ -63,7 +63,7 @@ export const UploadPanel: React.FC<UploadPanelProps> = ({
       <div>
         <div className="flex items-center justify-between mb-2">
           <span className="text-[10px] font-mono text-gray-500 uppercase tracking-widest">
-            AUDIT AREA (OPTIONAL HINT)
+            AUDIT AREA
           </span>
           <span className="text-[10px] font-mono text-gray-600">
             {ITEM_CATEGORIES.find((c) => c.id === selectedCategory)?.label ?? 'OTHER'}

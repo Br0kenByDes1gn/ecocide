@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { OraclePayload } from '@ecocide/types';
 import confetti from 'canvas-confetti';
-import { Bug, Terminal, Volume2, VolumeX, Wallet } from 'lucide-react';
+import { Bug, Globe, Volume2, VolumeX, Wallet } from 'lucide-react';
 import { HomePage } from './components/HomePage';
 import { AppealRecordsScreen } from './components/AppealRecordsScreen';
 import { AppealScreen } from './components/AppealScreen';
@@ -392,14 +392,14 @@ export function App() {
           title="Return to Intro (/)"
         >
           <div className="p-2 rounded-lg bg-lime-950/60 border border-lime-500/40 text-lime-400 group-hover:border-lime-400 group-hover:shadow-[0_0_15px_rgba(180,255,57,0.35)] transition-all">
-            <Terminal className="w-6 h-6" />
+            <Globe className="w-6 h-6" />
           </div>
           <div>
             <h1 className="text-lg sm:text-xl font-bold font-mono text-lime-400 tracking-wider flex items-center gap-2 group-hover:text-lime-300 transition-colors">
               {IDENTITY.appName} <span className="hidden sm:inline text-xs text-gray-500 font-normal">v{IDENTITY.appVersion}</span>
             </h1>
             <p className="hidden sm:block text-[11px] font-mono text-gray-400 tracking-widest">
-              {IDENTITY.entityName.toUpperCase()} // HOUSEHOLD AUDIT SYSTEM
+              {IDENTITY.tagline.toUpperCase()}
             </p>
           </div>
         </div>
@@ -487,6 +487,7 @@ export function App() {
             evidenceUrl={evidenceUrl}
             onReset={handleReset}
             permalinkId={permalinkId || undefined}
+            sessionDate={sessionDate || undefined}
           />
         )}
 
@@ -509,6 +510,7 @@ export function App() {
           <AppealScreen
             payload={oracleData}
             permalinkId={permalinkId || undefined}
+            sessionDate={sessionDate || undefined}
             onSubmitted={handleAppealSubmitted}
           />
         )}
@@ -530,12 +532,12 @@ export function App() {
         )}
       </main>
 
-      {/* Footer System Status (hidden on the scan screen — the scanner header carries its own) */}
-      {viewState !== 'scanning' && (
-      <footer className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-gray-900 pt-4 mt-8 pb-4 flex flex-col sm:flex-row items-center justify-between text-[11px] font-mono text-gray-500 gap-2">
+      {/* Footer System Status (hidden on the scan + arbitration screens — those carry their own) */}
+      {viewState !== 'scanning' && viewState !== 'arbitration' && (
+      <footer className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-gray-900 pt-2 mt-2 pb-2 flex flex-col sm:flex-row items-center justify-between text-[11px] font-mono text-gray-500 gap-2">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-lime-400 animate-pulse" />
-          <span>OBJECT AUDIT ENGINE ONLINE // {IDENTITY.entityName.toUpperCase()}</span>
+          <span>OBJECT AUDIT ENGINE ONLINE | {IDENTITY.entityName.toUpperCase()}</span>
         </div>
         <div className="flex items-center gap-4">
           <span>DETERMINISTIC COMPLIANCE MATH: ACTIVE</span>

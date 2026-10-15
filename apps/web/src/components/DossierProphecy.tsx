@@ -30,6 +30,8 @@ interface DossierProphecyProps {
   onFastForward?: () => void;
   /** Label for the fast-forward button (only rendered when onFastForward is set). */
   fastForwardLabel?: string;
+  /** Visual tone; citizen paper dossier uses the arbitration paper style. */
+  tone?: 'dark' | 'paper';
 }
 
 const CLAIM_ACCENTS = ['border-teal-400', 'border-amber-400', 'border-emerald-400'];
@@ -55,6 +57,7 @@ export const DossierProphecy: React.FC<DossierProphecyProps> = ({
   onExpandParagraph,
   onFastForward,
   fastForwardLabel = 'ACCELERATE',
+  tone = 'dark',
 }) => {
   const texts = [text1, text2, text3];
   const effectiveStatusLine =
@@ -67,24 +70,35 @@ export const DossierProphecy: React.FC<DossierProphecyProps> = ({
     const clickable = interactive && isCollapsed && !!onExpandParagraph;
 
     return [
-      'relative bg-black/30 p-3 rounded-lg border-l-2 overflow-hidden transition-all duration-700',
+      tone === 'paper'
+        ? 'relative overflow-hidden transition-all duration-700'
+        : 'relative bg-black/30 p-3 rounded-lg border-l-2 overflow-hidden transition-all duration-700',
       CLAIM_ACCENTS[index % CLAIM_ACCENTS.length],
-      `font-mono ${fontSize === 'lg' ? 'text-lg' : 'text-sm'} leading-relaxed text-gray-300`,
+      tone === 'paper'
+        ? `text-sm leading-relaxed tracking-[1px] text-[#2c3a2c]`
+        : `font-mono ${fontSize === 'lg' ? 'text-lg' : 'text-sm'} leading-relaxed text-gray-300`,
       isCollapsed ? 'max-h-[5.25rem] line-clamp-2' : 'max-h-[40rem]',
       clickable ? 'cursor-pointer hover:bg-black/40 hover:border-cyan-300/70' : '',
     ].join(' ');
   };
 
   return (
-    <div className="bg-[#121a14] rounded-2xl border border-gray-800 p-6 space-y-4 shadow-xl">
-      <div className="flex items-center gap-2 border-b border-gray-800 pb-3">
-        <Sparkles className="w-5 h-5 text-amber-400" />
-        <h3 className="font-mono text-sm font-bold text-amber-400 tracking-wider uppercase">
-          ARBITER VERDICT // {headline}
-        </h3>
-      </div>
-
-      <div className="space-y-4">
+    <div
+      className={
+        tone === 'paper'
+          ? 'relative space-y-2'
+          : 'bg-[#121a14] rounded-2xl border border-gray-800 p-6 space-y-4 shadow-xl'
+      }
+    >
+      {tone === 'dark' && (
+        <div className="flex items-center gap-2 border-b border-gray-800 pb-3">
+          <Sparkles className="w-5 h-5 text-amber-400" />
+          <h3 className="font-mono text-sm font-bold text-amber-400 tracking-wider uppercase">
+            {`ARBITER VERDICT - ${headline}`}
+          </h3>
+        </div>
+      )}
+      <div className={tone === 'paper' ? 'space-y-2' : 'space-y-4'}>
         {texts.map((text, index) => {
           const collapsed = Boolean(paragraphCollapsed?.[index]);
           const expanded = Boolean(paragraphExpanded?.[index]);
@@ -110,7 +124,7 @@ export const DossierProphecy: React.FC<DossierProphecyProps> = ({
               }
             >
               <TopicIcon
-                className={`inline-block w-5 h-5 shrink-0 mr-2.5 align-middle ${ACCENT_TEXT[index % ACCENT_TEXT.length]}`}
+                className={`inline-block w-5 h-5 shrink-0 mr-2.5 align-middle ${tone === 'paper' ? 'text-[#c19a6b]' : ACCENT_TEXT[index % ACCENT_TEXT.length]}`}
                 aria-hidden
               />
               {text}
@@ -128,9 +142,21 @@ export const DossierProphecy: React.FC<DossierProphecyProps> = ({
       </div>
 
       {effectiveStatusLine && (
-        <div className="text-xs font-mono text-cyan-400 animate-pulse flex items-center justify-between gap-3 pt-1">
+        <div
+          className={
+            tone === 'paper'
+              ? 'text-xs font-mono text-[#6b7263] animate-pulse flex items-center justify-between gap-3 pt-1'
+              : 'text-xs font-mono text-cyan-400 animate-pulse flex items-center justify-between gap-3 pt-1'
+          }
+        >
           <span className="flex items-center gap-1.5 min-w-0">
-            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping shrink-0" />
+            <span
+              className={
+                tone === 'paper'
+                  ? 'w-2 h-2 rounded-full bg-[#6b7263] animate-ping shrink-0'
+                  : 'w-2 h-2 rounded-full bg-cyan-400 animate-ping shrink-0'
+              }
+            />
             <span className="truncate">{effectiveStatusLine}</span>
           </span>
           {onFastForward && (

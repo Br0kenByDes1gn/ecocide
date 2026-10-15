@@ -222,12 +222,13 @@ export function evaluateOverrides(
 }
 
 /** Step 4 — compliance status (extended by the Step-5 overrides). */
-export type ItemStatus = 'compliant' | 'borderline' | 'non-compliant' | 'special-handling';
+export type ItemStatus = 'compliant' | 'acceptable' | 'needs-improvement' | 'non-compliant';
 
-/** Base status from the SI alone. Boundaries: ≥60 / ≥40 / <40. */
-export function baseItemStatus(si: number): Exclude<ItemStatus, 'special-handling'> {
-  if (si >= 60) return 'compliant';
-  if (si >= 40) return 'borderline';
+/** Base status from the SI alone. Boundaries: ≥75 / ≥60 / ≥40 / <40. */
+export function baseItemStatus(si: number): ItemStatus {
+  if (si >= 75) return 'compliant';
+  if (si >= 60) return 'acceptable';
+  if (si >= 40) return 'needs-improvement';
   return 'non-compliant';
 }
 
@@ -242,7 +243,9 @@ export function itemStatus(si: number, overrides: readonly OverrideRuleId[] = []
     return 'non-compliant';
   }
   if (overrides.includes('hazardous')) {
-    return base === 'non-compliant' ? 'non-compliant' : 'special-handling';
+    // Hazardous items cannot be approved; they are rejected (the Step-5 flag
+    // keeps emitting the matching override badge so the hazard stays visible).
+    return 'non-compliant';
   }
   return base;
 }
@@ -250,9 +253,9 @@ export function itemStatus(si: number, overrides: readonly OverrideRuleId[] = []
 /** Stamp label per item status (formula Step 4 + Step 5 overrides). */
 export const ITEM_STAMPS: Readonly<Record<ItemStatus, string>> = {
   compliant: 'APPROVED',
-  borderline: 'PENDING REVIEW',
+  acceptable: 'ACCEPTED',
+  'needs-improvement': 'IMPROVE',
   'non-compliant': 'DENIED',
-  'special-handling': 'SPECIAL HANDLING',
 };
 
 export function itemStamp(si: number, overrides: readonly OverrideRuleId[] = []): string {

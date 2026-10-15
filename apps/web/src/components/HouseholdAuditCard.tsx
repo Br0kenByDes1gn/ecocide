@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { AuditItem, OraclePayload } from '@ecocide/types';
 import { getFaction, OVERRIDE_RULES } from '@ecocide/types';
-import { IDENTITY } from '@ecocide/lore';
-import { ArrowRightLeft, ChevronDown, ChevronUp, Layers, ScanSearch, Shield } from 'lucide-react';
+import { ArrowRightLeft, ChevronDown, ChevronUp, Layers, Shield, X } from 'lucide-react';
 import type { AuditRevealState } from '../lib/useAuditReveal';
 import { drawAuditLens, ITEM_STATUS_COLORS, ITEM_STATUS_LABELS, LENSES, type LensId } from '../lib/audit-lenses';
 import { TierStamp } from './TierStamp';
@@ -27,6 +26,8 @@ interface HouseholdAuditCardProps {
   onExpand?: () => void;
   /** Default lens for the evidence photo. */
   defaultLens?: LensId;
+  /** Hide the per-item inventory block (citizen page renders it in the paper panel). */
+  hideInventory?: boolean;
 }
 
 /**
@@ -39,17 +40,20 @@ export const HouseholdAuditCard: React.FC<HouseholdAuditCardProps> = ({
   payload,
   evidenceUrl,
   reveal,
-  headerLabel = `${IDENTITY.appName} // HOUSEHOLD AUDIT DOSSIER`,
+    headerLabel = 'ARBITER VERDICT',
   compact = false,
   interactive = false,
   onExpand,
   defaultLens = 'neon-outline',
+  hideInventory = false,
 }) => {
   const { user_profile, audit, suggestions } = payload;
   const faction = getFaction(user_profile.caste);
   const [lens, setLens] = useState<LensId>(defaultLens);
   const [itemsOpen, setItemsOpen] = useState(false);
+  const [fullscreenOpen, setFullscreenOpen] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const fullscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const clickable = interactive && compact && !!onExpand;
 
   useEffect(() => {
@@ -81,14 +85,68 @@ export const HouseholdAuditCard: React.FC<HouseholdAuditCardProps> = ({
     img.src = evidenceUrl || '';
   }, [evidenceUrl, lens, audit.items]);
 
+  // Close the fullscreen viewer with Escape
+  useEffect(() => {
+    if (!fullscreenOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setFullscreenOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [fullscreenOpen]);
+
+  // Render the same audit lens (with object markings) in the fullscreen viewer
+  useEffect(() => {
+    if (!fullscreenOpen) return;
+    const canvas = fullscreenCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const draw = (img: HTMLImageElement) => {
+      drawAuditLens(ctx, img, canvas.width, canvas.height, audit.items, lens);
+      // Item labels (the chips are DOM in the inline view, so redraw them here)
+      const W = canvas.width;
+      const H = canvas.height;
+      ctx.font = 'bold 28px ui-monospace, SFMono-Regular, Menlo, monospace';
+      ctx.textBaseline = 'top';
+      audit.items.forEach((item) => {
+        const b = item.bounds;
+        if (!b) return;
+        const color = ITEM_STATUS_COLORS[item.status ?? 'needs-improvement'];
+        const text = `${item.label.toUpperCase()}${item.count > 1 ? ` x${item.count}` : ''} - SI ${Math.round(item.si ?? 0)}`;
+        const pad = 10;
+        const textWidth = ctx.measureText(text).width;
+        const boxH = 28 + pad * 2;
+        const lx = Math.min(Math.max(b.x1 * W, 0), W - textWidth - pad * 2);
+        const ly = Math.min(Math.max(b.y1 * H - boxH - 6, 0), H - boxH);
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.fillRect(lx, ly, textWidth + pad * 2, boxH);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(lx, ly, textWidth + pad * 2, boxH);
+        ctx.fillStyle = color;
+        ctx.fillText(text, lx + pad, ly + pad);
+      });
+    };
+
+    const img = new Image();
+    if (evidenceUrl) {
+      img.crossOrigin = 'anonymous';
+    }
+    img.onload = () => draw(img);
+    img.onerror = () => {
+      ctx.fillStyle = '#070a08';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    };
+    img.src = evidenceUrl || '';
+  }, [fullscreenOpen, evidenceUrl, lens, audit.items]);
+
   const bounded = useMemo(() => audit.items.filter((i) => i.bounds), [audit.items]);
   const unbounded = useMemo(() => audit.items.filter((i) => !i.bounds), [audit.items]);
 
   const stat = (text: string | null, placeholderClassName = 'w-16 h-2.5') =>
     text ? <>{text}</> : <Placeholder className={placeholderClassName} />;
-
-  const ratio = user_profile.biocarbon_ratio;
-  const wasteFill = Math.max(0, Math.min(100, 100 - ratio));
 
   return (
     <div className="space-y-6">
@@ -126,23 +184,28 @@ export const HouseholdAuditCard: React.FC<HouseholdAuditCardProps> = ({
             <span className="font-mono text-xs uppercase tracking-widest text-gray-400">{headerLabel}</span>
           </div>
           <div className="flex items-center gap-2 text-[11px] font-mono text-gray-500">
-            <span>CASE FILE // {payload.id ? `#${payload.id}` : 'PENDING'}</span>
+            <span>CASE ID - {payload.id ? `#${payload.id}` : 'PENDING'}</span>
           </div>
         </div>
 
-        <div className={`grid grid-cols-12 gap-5 transition-all duration-700 ${compact ? 'mt-1 gap-3 items-center' : 'mt-5'}`}>
+        <div className={`transition-all duration-700 flex ${compact ? 'flex-row items-center gap-3 mt-1' : 'flex-col gap-5 mt-5'}`}>
           {/* Evidence photo column */}
           <div
             className={`transition-all duration-700 ${
-              compact ? 'col-span-12 sm:col-span-2' : 'sm:col-span-6'
+              compact ? 'w-16 h-16 sm:w-20 sm:h-20 shrink-0 rounded-xl overflow-hidden' : 'w-full aspect-square rounded-xl overflow-hidden'
             }`}
           >
             <div
+              onClick={evidenceUrl ? () => setFullscreenOpen(true) : undefined}
+              role={evidenceUrl ? 'button' : undefined}
+              tabIndex={evidenceUrl ? 0 : undefined}
+              title={evidenceUrl ? 'Open evidence photo fullscreen' : undefined}
+              onKeyDown={evidenceUrl ? (e) => { if (e.key === 'Enter') setFullscreenOpen(true); } : undefined}
               className={`relative overflow-hidden rounded-xl border ${
                 faction.colors.border
               } transition-all duration-700 ${
                 compact ? 'w-16 h-16 sm:w-20 sm:h-20' : 'w-full aspect-square'
-              } ${reveal.evidenceVisible ? 'opacity-100' : 'opacity-0'}`}
+              } ${reveal.evidenceVisible ? 'opacity-100' : 'opacity-0'} ${evidenceUrl && !compact ? 'cursor-zoom-in' : ''}`}
             >
               <canvas ref={canvasRef} className="w-full h-full" width={640} height={640} />
 
@@ -150,7 +213,7 @@ export const HouseholdAuditCard: React.FC<HouseholdAuditCardProps> = ({
               {!compact &&
                 bounded.map((item, i) => {
                   const b = item.bounds!;
-                  const status = item.status ?? 'borderline';
+                  const status = item.status ?? 'needs-improvement';
                   const color = ITEM_STATUS_COLORS[status];
                   const style: React.CSSProperties = {
                     left: `${b.x1 * 100}%`,
@@ -166,7 +229,7 @@ export const HouseholdAuditCard: React.FC<HouseholdAuditCardProps> = ({
                     >
                       {item.label.toUpperCase()}
                       {item.count > 1 ? ` x${item.count}` : ''}
-                      <span className="opacity-70"> // SI {Math.round(item.si ?? 0)}</span>
+                      <span className="opacity-70"> - SI {Math.round(item.si ?? 0)}</span>
                     </div>
                   );
                 })}
@@ -195,20 +258,13 @@ export const HouseholdAuditCard: React.FC<HouseholdAuditCardProps> = ({
                 </div>
               )}
 
-              {/* bottom label */}
-              {!compact && (
-                <div className="absolute bottom-1.5 left-1.5 z-10 bg-black/70 backdrop-blur-md px-1.5 py-1 rounded text-center text-[8px] font-mono text-gray-300 border border-gray-700 flex items-center gap-1">
-                  <ScanSearch className="w-2.5 h-2.5 text-lime-400" />
-                  AUDIT EVIDENCE // {audit.items.length} ITEMS DETECTED
-                </div>
-              )}
             </div>
           </div>
 
           {/* Details column */}
           <div
-            className={`flex flex-col justify-center min-w-0 transition-all duration-700 ${
-              compact ? 'col-span-12 sm:col-span-10 space-y-1.5' : 'sm:col-span-6 space-y-4'
+            className={`flex flex-col min-w-0 transition-all duration-700 ${
+              compact ? 'flex-1 min-w-0 space-y-1.5' : 'w-full space-y-4'
             }`}
           >
             {compact ? (
@@ -233,47 +289,40 @@ export const HouseholdAuditCard: React.FC<HouseholdAuditCardProps> = ({
                 {/* Tier banner */}
                 <div className={`flex items-center justify-between gap-3 rounded-xl border ${faction.colors.border} ${faction.colors.bg} px-3 py-2.5 ${faction.colors.glow}`}>
                   <div className="flex items-center gap-3 min-w-0">
-                    <TierStamp caste={user_profile.caste} />
                     <div className="min-w-0">
                       <div className="font-mono text-[10px] text-gray-400 uppercase tracking-widest">CLASSIFICATION</div>
                       <div className={`font-black font-mono text-base sm:text-lg leading-tight ${faction.colors.color}`}>
                         {faction.name}
                       </div>
-                      <div className="text-[10px] font-mono text-gray-400 italic truncate">{faction.verdictLine}</div>
                     </div>
                   </div>
-                  <div className="hidden sm:flex flex-col items-end gap-1">
-                    <span className="text-[9px] font-mono text-gray-500 uppercase tracking-widest">Score {ratio}–100</span>
-                    <span className="text-[9px] font-mono text-gray-500">{faction.reticleMotif.toUpperCase()}</span>
-                  </div>
-                </div>
-
-                {/* Title */}
-                <div className="min-w-0">
-                  <div className="text-xs font-mono text-gray-400">CASE TITLE // DOMINANT HABIT</div>
-                  <div className={`font-bold font-mono text-white tracking-wide mt-0.5 text-xl sm:text-2xl break-words ${faction.colors.color}`}>
-                    {stat(reveal.titleText, 'w-2/3 h-5')}
-                  </div>
-                </div>
-
-                {/* Ratio + waste gauge */}
-                <div className="bg-black/40 p-3 rounded-lg border border-gray-800">
-                  <div className="flex items-center justify-between text-xs font-mono">
-                    <span className="text-gray-400">HOUSEHOLD SUSTAINABILITY INDEX</span>
-                    <span className={`font-black tracking-widest ${faction.colors.color}`}>
-                      {stat(reveal.ratioText, 'w-14 h-4')}
+                  <div className="flex flex-col items-end gap-1 text-right shrink-0">
+                    <span className="text-[10px] font-mono text-gray-400 uppercase tracking-widest leading-tight">Sustainability<br />Index</span>
+                    <span className={`text-4xl sm:text-5xl font-black tracking-tight ${faction.colors.color}`}>
+                      {stat(reveal.ratioText, 'w-20 h-8')}
                     </span>
                   </div>
-                  <div className="mt-2 h-2.5 rounded-full bg-gray-900 overflow-hidden border border-gray-800">
-                    <div
-                      className={`h-full rounded-full transition-all duration-700 ${faction.colors.barColor}`}
-                      style={{ width: `${reveal.isComplete ? ratio : 0}%`, transitionDelay: '300ms' }}
-                    />
-                  </div>
-                  <div className="mt-1.5 flex items-center justify-between text-[9px] font-mono text-gray-500">
-                    <span>CLEAN PROFILE</span>
-                    <span>WASTE BURDEN {wasteFill}%</span>
-                    <span>SEVERE</span>
+                </div>
+
+                {/* Category ranges */}
+                <div className="bg-black/40 p-3 rounded-lg border border-gray-800">
+                  <div className="grid grid-cols-1 gap-y-1.5 text-xs font-mono text-gray-300">
+                    {(
+                      [
+                        ['compliant', 'COMPLIANT', '75–100'],
+                        ['acceptable', 'ACCEPTABLE', '60–74.9'],
+                        ['needs-improvement', 'NEEDS IMPROVEMENT', '40–59.9'],
+                        ['non-compliant', 'NON-COMPLIANT', '0–39.9'],
+                      ] as const
+                    ).map(([status, label, range]) => (
+                      <span key={status} className="flex items-center gap-1.5 truncate">
+                        <span
+                          className="w-1.5 h-1.5 rounded-full shrink-0"
+                          style={{ backgroundColor: ITEM_STATUS_COLORS[status] }}
+                        />
+                        {label} {range}
+                      </span>
+                    ))}
                   </div>
                 </div>
 
@@ -308,7 +357,7 @@ export const HouseholdAuditCard: React.FC<HouseholdAuditCardProps> = ({
         </div>
 
         {/* Per-item cards (full mode) */}
-        {!compact && (
+        {!compact && !hideInventory && (
           <div className="mt-5 pt-4 border-t border-gray-800/80 space-y-3">
             <button
               type="button"
@@ -320,7 +369,7 @@ export const HouseholdAuditCard: React.FC<HouseholdAuditCardProps> = ({
             >
               <span className="flex items-center gap-2">
                 <Layers className="w-4 h-4 text-gray-500" />
-                AUDIT INVENTORY ({audit.items.length} ITEMS{audit.hardFails > 0 ? ` // ${audit.hardFails} FLAGGED` : ''})
+                AUDIT INVENTORY ({audit.items.length} ITEMS{audit.hardFails > 0 ? ` - ${audit.hardFails} FLAGGED` : ''})
               </span>
               {itemsOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             </button>
@@ -340,24 +389,41 @@ export const HouseholdAuditCard: React.FC<HouseholdAuditCardProps> = ({
           </div>
         )}
 
-        {/* Barcode strip */}
-        <div
-          className={`pt-2 border-t border-gray-800 flex justify-between items-center text-[10px] font-mono text-gray-500 overflow-hidden transition-all duration-500 ${
-            compact ? 'max-h-0 opacity-0 border-t-transparent' : 'max-h-10 opacity-100'
-          }`}
-        >
-          <span>CASE FILE: {payload.id ? `#${payload.id}` : 'PENDING'} // AUDIT PROTOCOL {IDENTITY.auditProtocol}</span>
-          <div className="tracking-[4px] font-bold text-gray-400">||||| | |||| ||| |</div>
-          <span>GRID-VERIFIED // ALL VALUES ARE ESTIMATES</span>
-        </div>
       </div>
+
+      {/* Fullscreen evidence viewer */}
+      {fullscreenOpen && evidenceUrl && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 cursor-zoom-out"
+          onClick={() => setFullscreenOpen(false)}
+          role="dialog"
+          aria-label="Evidence photo fullscreen"
+        >
+          <button
+            type="button"
+            onClick={() => setFullscreenOpen(false)}
+            className="absolute top-4 right-4 p-2 rounded-full bg-black/70 border border-gray-700 text-gray-300 hover:text-white cursor-pointer"
+            aria-label="Close fullscreen"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          <canvas
+            ref={fullscreenCanvasRef}
+            aria-label="Audit evidence photo with object markings"
+            className="max-h-[90vh] max-w-[92vw] object-contain rounded-lg border border-gray-700"
+            width={1280}
+            height={1280}
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 };
 
 /** One audited item card: label ×count, SI, stamp, four properties. */
 const ItemCard: React.FC<{ item: AuditItem; index: number }> = ({ item, index }) => {
-  const status = item.status ?? 'borderline';
+  const status = item.status ?? 'needs-improvement';
   const color = ITEM_STATUS_COLORS[status];
   const bars: Array<{ key: 'r' | 'd' | 'm' | 't'; label: string }> = [
     { key: 'm', label: 'MATERIAL' },
@@ -427,7 +493,7 @@ const ItemCard: React.FC<{ item: AuditItem; index: number }> = ({ item, index })
       )}
       {item.size && (
         <div className="mt-1 font-mono text-[8px] text-gray-500 uppercase tracking-wider">
-          SIZE: {item.size} // WEIGHT ×{item.size === 'small' ? '0.5' : item.size === 'large' ? '2' : '1'}
+          SIZE: {item.size} - WEIGHT ×{item.size === 'small' ? '0.5' : item.size === 'large' ? '2' : '1'}
         </div>
       )}
     </div>
