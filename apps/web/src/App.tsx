@@ -17,6 +17,9 @@ import { soundFx } from './lib/audio';
 
 const IS_DEV = import.meta.env.DEV;
 
+/** Client-side ceiling for a scan request (uploads on slow links + Gemini pass 1 + pass 2). */
+const SCAN_REQUEST_TIMEOUT_MS = 90_000;
+
 type ViewState =
   | 'intro'
   | 'scanning'
@@ -200,11 +203,18 @@ export function App() {
   const handleLockIn = async (data: { rawImage: string; category: ItemCategory | null }) => {
     setIsLoading(true);
 
+    // Hung requests would otherwise leave the panel scanning forever (and on
+    // small screens the capture panel is hidden while analyzing, so there is
+    // no retry affordance until the state clears).
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), SCAN_REQUEST_TIMEOUT_MS);
+
     try {
       const response = await fetch('/api/oracle/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ image: data.rawImage, category: data.category }),
+        signal: controller.signal,
       });
 
       if (!response.ok) {
@@ -233,9 +243,12 @@ export function App() {
       });
     } catch (err) {
       console.warn('Audit submission failed:', err);
+      // The notice banner sits at the top of the page — make sure it is seen.
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       setSystemNotice('AUDIT TRANSMISSION FAILED. THE ARBITER IS INDISPOSED. RETRY WITH ANOTHER PHOTO.');
       setTimeout(() => setSystemNotice(null), 5000);
     } finally {
+      clearTimeout(timeout);
       setIsLoading(false);
     }
   };

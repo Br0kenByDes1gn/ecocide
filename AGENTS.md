@@ -75,7 +75,7 @@ apps/server/          # Hono + SQLite (Drizzle) + Gemini + BullMQ + Better Auth
 apps/web/             # React 19 + Vite + Tailwind v4 + PWA
                       # (intro → scan → verdict → claim/appeal → vault)
 charts/               # Helm chart (placeholder branding)
-scripts/              # scan-cost audit
+scripts/              # scan-cost audit, wireframe model conversion
 ```
 
 ### packages/compliance
@@ -141,9 +141,10 @@ scripts/              # scan-cost audit
 - `src/components/HomePage.tsx` — the landing screen (terminal + paper
   dossier panel); the global app header hides on the scan screen.
 - `src/components/ObjectScanner.tsx` (+ `ScannerHeader`, `UploadPanel`,
-  `AnalysisPanel`) — capture a room (camera/upload/drag-drop) with the
-  audit-area category chips, then the in-flight analysis cinematic; no
-  client-side detection; "SCAN OBJECTS, NOT PEOPLE".
+  `EvidenceDropZone`, `AssetWireframe`, `AnalysisPanel`) — capture a room
+  (camera/upload/drag-drop) with the audit-area category chips, then the
+  in-flight analysis cinematic; no client-side detection; "SCAN OBJECTS, NOT
+  PEOPLE".
 - `src/lib/audit-lenses.ts` — the four audit lenses (art §9): neon-outline,
   evidence-photo, inspection-hud, carbon-heat — canvas renders over the
   evidence photo + item boxes.
@@ -167,6 +168,7 @@ scripts/              # scan-cost audit
 | `pnpm dev:web` / `pnpm dev:server` | Single process |
 | `pnpm test` | Vitest across packages (hermetic) |
 | `pnpm scan-costs` | Token/cost audit from the local DB |
+| `pnpm wireframes` | Convert `models-src/*.obj` → `apps/web/src/lib/asset-wireframes.ts` |
 
 Dev without AI tokens: `/debug` bench (six exhibit rooms, one per tier),
 simulated audits (no `GEMINI_API_KEY`), OTP printed to the server console,

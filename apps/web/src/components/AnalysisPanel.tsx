@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Loader2, CheckCircle, Zap, Calculator, Brain, Shield as ShieldIcon } from 'lucide-react';
 import { IDENTITY } from '@ecocide/lore';
+import { AssetWireframe } from './AssetWireframe';
 
 export type AnalysisStage = 'detection' | 'classification' | 'footprint' | 'insights';
 
@@ -51,27 +52,41 @@ const STAGE_ADVANCE_MS = 2300;
 interface AnalysisPanelProps {
   /** The captured evidence photo shown beneath the scan visualization. */
   photo: string | null;
-  /** Whether the audit request is in flight (stages advance while true). */
+  /** Whether the audit request is in flight: live scan cinematic vs. standby. */
   active: boolean;
   /** Optional room-category hint shown in the HUD. */
   category?: string | null;
+  /** Standby only: scanner status line shown in the HUD. */
+  statusText?: string;
+  /** Standby only: per-stage status driven by the capture state. */
+  idleStatusFor?: (index: number) => 'pending' | 'active' | 'complete';
 }
 
 /**
- * In-flight audit cinematic: the captured evidence under a live scan
- * visualization (grid, reticle rings, sweeping beam, inspection brackets)
- * with the analysis pipeline checklist. The four stages advance on a timer
- * while the single scan request runs; the screen unmounts on response, when
- * the app navigates to the verdict.
+ * The right-hand scan panel, shared by both states. On standby it shows the
+ * rotating asset wireframe inside the scan frame; while the audit request is in
+ * flight it swaps in the live scan visualization over the captured evidence
+ * (grid, reticle rings, sweeping beam, inspection brackets) and the analysis
+ * pipeline advances stage by stage. The app navigates to the verdict on
+ * response, so the panel only unmounts with the scanner screen.
  */
-export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ photo, active, category }) => {
+export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
+  photo,
+  active,
+  category,
+  statusText,
+  idleStatusFor,
+}) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number | null>(null);
   const [stageIndex, setStageIndex] = useState(0);
 
-  // Advance the pipeline stages while the request is in flight
+  // Advance the pipeline stages while the request is in flight. The panel
+  // persists across standby ⇄ analyzing, so reset the stage at the start of
+  // each run.
   useEffect(() => {
     if (!active) return;
+    setStageIndex(0);
     const timer = setInterval(() => {
       setStageIndex((i) => Math.min(i + 1, ANALYSIS_STAGES.length - 1));
     }, STAGE_ADVANCE_MS);
@@ -81,8 +96,10 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ photo, active, cat
   const stage = ANALYSIS_STAGES[stageIndex];
   const progress: AnalysisProgress = { stage: stage.id, isComplete: false };
 
-  // Scan visualization (adapted from the original analysis panel)
+  // Scan visualization (adapted from the original analysis panel). Only runs
+  // while the audit is in flight — the standby state shows the wireframe.
   useEffect(() => {
+    if (!active) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -211,12 +228,13 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ photo, active, cat
       window.removeEventListener('resize', resize);
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
-  }, []);
+  }, [active]);
 
-  const stageStatus = (id: AnalysisStage): 'complete' | 'active' | 'pending' => {
-    const target = ANALYSIS_STAGES.findIndex((s) => s.id === id);
-    if (target < stageIndex) return 'complete';
-    if (target === stageIndex) return 'active';
+  /** Stage status: timer-driven while analyzing, capture-driven on standby. */
+  const statusFor = (index: number): 'complete' | 'active' | 'pending' => {
+    if (!active) return idleStatusFor ? idleStatusFor(index) : 'pending';
+    if (index < stageIndex) return 'complete';
+    if (index === stageIndex) return 'active';
     return 'pending';
   };
 
@@ -225,7 +243,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ photo, active, cat
       {/* Heading */}
       <div className="px-1">
         <h2 className="text-sm font-bold font-mono text-lime-400 tracking-wider uppercase mb-0.5">
-          SCANNING HOUSEHOLD ASSETS...
+          {active ? 'SCANNING HOUSEHOLD ASSETS...' : 'AWAITING EVIDENCE'}
         </h2>
         <p className="text-[10px] font-mono text-gray-500 leading-relaxed">
           ESTIMATING EMBODIED CARBON. Every figure is an estimate with a source on file.
@@ -233,38 +251,44 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ photo, active, cat
       </div>
 
       <div className="flex flex-col lg:flex-row gap-3 min-h-0">
-        {/* Scan visualization over the evidence photo */}
+        {/* Scan frame: rotating asset wireframe on standby, live scan while analyzing */}
         <div className="lg:w-1/2 min-h-[260px] lg:min-h-[300px] relative bg-[#070a08] rounded-xl border border-lime-500/20 overflow-hidden">
-          {photo && (
-            <img
-              src={photo}
-              alt="Audit evidence under analysis"
-              className="absolute inset-0 w-full h-full object-cover opacity-40"
-            />
-          )}
-          <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" aria-label="Scan visualization" />
+          {active ? (
+            <>
+              {photo && (
+                <img
+                  src={photo}
+                  alt="Audit evidence under analysis"
+                  className="absolute inset-0 w-full h-full object-cover opacity-40"
+                />
+              )}
+              <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" aria-label="Scan visualization" />
 
-          {/* Status overlay */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center p-3 pointer-events-none">
-            <div className="text-center">
-              <div className="inline-flex items-center gap-2 px-2 py-1 rounded-full bg-black/60 border border-lime-500/40 font-mono text-xs tracking-widest text-lime-400 animate-pulse">
-                <Loader2 className="w-3 h-3 animate-spin" />
-                <span className="uppercase">ANALYZING: {progress.stage.toUpperCase()}</span>
+              {/* Status overlay */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-3 pointer-events-none">
+                <div className="text-center">
+                  <div className="inline-flex items-center gap-2 px-2 py-1 rounded-full bg-black/60 border border-lime-500/40 font-mono text-xs tracking-widest text-lime-400 animate-pulse">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <span className="uppercase">ANALYZING: {progress.stage.toUpperCase()}</span>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+            </>
+          ) : (
+            <AssetWireframe className="absolute inset-0 h-full w-full" />
+          )}
 
           {/* Top HUD */}
-          <div className="absolute top-0 left-0 right-0 p-2 flex justify-end items-start pointer-events-none">
-            <div className="bg-black/60 px-2 py-0.5 rounded border border-lime-500/40 text-[10px] font-mono text-lime-400 tracking-widest uppercase">
-              {(category || 'ROOM').toUpperCase()} EVIDENCE QUEUED
+          <div className="absolute top-0 left-0 right-0 p-2 pt-[26px] pr-[26px] flex justify-end items-start pointer-events-none">
+            <div className="bg-black/60 px-2 py-0.5 rounded border border-lime-500/40 text-[10px] font-mono text-lime-400 tracking-widest uppercase max-w-[76%] text-right">
+              {active ? `${(category || 'ROOM').toUpperCase()} EVIDENCE QUEUED` : statusText}
             </div>
           </div>
 
           {/* Bottom HUD */}
-          <div className="absolute bottom-0 left-0 right-0 p-2 flex justify-between items-end pointer-events-none">
+          <div className="absolute bottom-0 left-0 right-0 p-2 pb-[26px] pl-[26px] pr-[26px] flex justify-between items-end pointer-events-none">
             <div className="bg-black/60 px-2 py-0.5 rounded border border-lime-500/40 text-[8px] font-mono text-gray-400">
-              SCAN GRID: ACTIVE
+              {active ? 'SCAN GRID: ACTIVE' : 'SCAN GRID: STANDBY'}
             </div>
             <div className="bg-black/60 px-2 py-0.5 rounded border border-lime-500/40 text-[8px] font-mono text-gray-400">
               {IDENTITY.auditProtocol}
@@ -278,8 +302,8 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ photo, active, cat
             <h3 className="text-[10px] font-mono text-gray-500 tracking-widest uppercase mb-1">
               ANALYSIS PIPELINE
             </h3>
-            {ANALYSIS_STAGES.map((s) => {
-              const status = stageStatus(s.id);
+            {ANALYSIS_STAGES.map((s, index) => {
+              const status = statusFor(index);
               return (
                 <div
                   key={s.id}
@@ -327,10 +351,12 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ photo, active, cat
                 </div>
               );
             })}
-            <div className="pt-1 border-t border-gray-800 flex items-center gap-1.5 text-xs font-mono text-gray-400">
-              <Loader2 className="w-3 h-3 animate-spin text-lime-400" />
-              <span>VERDICT INCOMING — THE ARBITER IS WRITING.</span>
-            </div>
+            {active && (
+              <div className="pt-1 border-t border-gray-800 flex items-center gap-1.5 text-xs font-mono text-gray-400">
+                <Loader2 className="w-3 h-3 animate-spin text-lime-400" />
+                <span>VERDICT INCOMING — THE ARBITER IS WRITING.</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
