@@ -83,6 +83,20 @@ export const REGISTRY_COPY = {
     verifying: 'Verifying...',
   },
 
+  /** The environmental injunction worksheet (route `/injunction`). */
+  injunction: {
+    title: 'Environmental Injunction',
+    hint: 'Binding orders issued against this household. Comply, then check each item.',
+    cleared: 'All orders complied with. The Bureau notes your obedience.',
+    items: [
+      'Halt all single-use plastic procurement within 7 days',
+      'Divert compostables from landfill to the green bin',
+      'Switch remaining bulbs to low-draw lighting',
+      'Unplug idle electronics and chargers nightly',
+      'File proof of remediation with the Bureau',
+    ],
+  },
+
   /** The simulated payment terminal used by the claim and appeal flows. */
   terminal: {
     title: 'Carbon Registry Terminal',

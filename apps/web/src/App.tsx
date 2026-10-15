@@ -3,6 +3,7 @@ import type { OraclePayload } from '@ecocide/types';
 import confetti from 'canvas-confetti';
 import { Bug, Globe, Volume2, VolumeX, Wallet } from 'lucide-react';
 import { HomePage } from './components/HomePage';
+import { InjunctionScreen } from './components/InjunctionScreen';
 import { AppealRecordsScreen } from './components/AppealRecordsScreen';
 import { AppealScreen } from './components/AppealScreen';
 import { ArbitrationDossier } from './components/ArbitrationDossier';
@@ -29,6 +30,7 @@ type ViewState =
   | 'appeal'
   | 'appeals'
   | 'registry'
+  | 'injunction'
   | 'debug';
 
 function parseCitizenIdFromUrl(): string | null {
@@ -79,6 +81,7 @@ export function App() {
     if (typeof window === 'undefined') return 'intro';
     if (IS_DEV && window.location.pathname === '/debug') return 'debug';
     if (isRegistryPath(window.location.pathname)) return 'registry';
+    if (window.location.pathname === '/injunction') return 'injunction';
     if (parseClaimIdFromUrl()) return 'claim';
     if (parseAppealsIdFromUrl()) return 'appeals';
     if (parseAppealIdFromUrl()) return 'appeal';
@@ -119,6 +122,15 @@ export function App() {
         // Pre-rename links keep working: normalize `/vault` to `/registry`.
         if (path !== '/registry') window.history.replaceState({}, '', '/registry');
         setViewState('registry');
+        setOracleData(null);
+        setPermalinkId(null);
+        setEvidenceUrl(undefined);
+        setSessionDate(null);
+        return;
+      }
+
+      if (path === '/injunction') {
+        setViewState('injunction');
         setOracleData(null);
         setPermalinkId(null);
         setEvidenceUrl(undefined);
@@ -287,6 +299,11 @@ export function App() {
     window.history.pushState({}, '', '/registry');
   };
 
+  const goInjunction = () => {
+    setViewState('injunction');
+    window.history.pushState({}, '', '/injunction');
+  };
+
   /** Open any dossier by id (used by the registry's archive/ledger links). */
   const handleOpenDossier = async (id: string) => {
     setIsLoading(true);
@@ -449,6 +466,17 @@ export function App() {
             INTRO
           </button>
 
+          {(viewState === 'registry' || viewState === 'dossier') && (
+            <button
+              type="button"
+              onClick={goInjunction}
+              className="text-xs font-mono text-gray-400 hover:text-lime-400 border border-gray-800 hover:border-lime-500/50 px-3 py-1.5 rounded-lg bg-gray-950 transition-colors hidden md:block cursor-pointer"
+              title="Open the Environmental Injunction worksheet (/injunction)"
+            >
+              INJUNCTION
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => setIsMuted(soundFx.toggleMute())}
@@ -539,6 +567,13 @@ export function App() {
 
         {viewState === 'registry' && (
           <CarbonRegistryScreen
+            onOpenDossier={handleOpenDossier}
+            onBeginAudit={handleProceedToScan}
+          />
+        )}
+
+        {viewState === 'injunction' && (
+          <InjunctionScreen
             onOpenDossier={handleOpenDossier}
             onBeginAudit={handleProceedToScan}
           />
