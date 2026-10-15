@@ -95,6 +95,12 @@ export function createVaultRoutes(deps: VaultRouteDeps) {
     return c.json(result);
   });
 
+  app.get('/injunction-tasks', async (c) => {
+    const user = c.get('user');
+    const tasks = await deps.repositories.getInjunctionTasksByUser(user.id);
+    return c.json({ tasks });
+  });
+
   app.post('/link', async (c) => {
     const user = c.get('user');
     const body = (await c.req.json<{ dossierId?: string }>().catch(() => ({}))) as {

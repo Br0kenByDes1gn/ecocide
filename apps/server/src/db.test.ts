@@ -4,6 +4,8 @@ import os from 'os';
 import path from 'path';
 import { createRepositories, initDb, runMigrations } from './db/index.js';
 import type { Repositories } from './db/index.js';
+import type { DbConnection } from './db/client.js';
+import { user as userTable } from './db/schema.js';
 import type { OraclePayload } from '@ecocide/types';
 
 /**
@@ -15,6 +17,7 @@ import type { OraclePayload } from '@ecocide/types';
 let repositories: Repositories;
 let closeDb: () => void;
 let tempDir: string;
+let testDb: DbConnection['db'];
 
 function makePayload(overrides: Partial<OraclePayload> = {}): OraclePayload {
   return {
@@ -73,6 +76,7 @@ beforeEach(async () => {
   const conn = await initDb({ path: path.join(tempDir, 'dossiers.db') });
   await runMigrations(conn.db);
   repositories = createRepositories(conn.db);
+  testDb = conn.db;
   closeDb = conn.close;
 });
 
@@ -82,19 +86,24 @@ afterEach(() => {
 });
 
 describe('sqlite database dossier repository', () => {
-  it('caches and retrieves the injunction checklist per dossier', async () => {
+  it('appends and lists injunction tasks newest first', async () => {
     const id = await repositories.saveDossier(makePayload());
-    expect(await repositories.getCachedInjunction(id)).toBeNull();
+    testDb.insert(userTable).values({ id: 'user-1', name: '', email: 'user-1@test', emailVerified: true }).run();
+    expect(await repositories.getInjunctionTasksByUser('user-1')).toEqual([]);
 
-    const checklist = { headline: 'Six actions.', items: [], closing_line: 'Pledge on.' };
-    await repositories.saveCachedInjunction(id, 'hash-1', JSON.stringify(checklist));
-    expect(await repositories.getCachedInjunction(id)).toEqual({
-      hash: 'hash-1',
-      checklistJson: JSON.stringify(checklist),
-    });
+    await repositories.addInjunctionTasks('user-1', id, [
+      { action: 'Reuse the jar.', replaces: 'glass jar', why: 'Less waste.', category: 'reuse', impact: 'low', effort: 'easy' },
+    ]);
+    await repositories.addInjunctionTasks('user-1', id, [
+      { action: 'Retire the pods.', replaces: 'coffee pod', why: 'Less plastic.', category: 'reduce', impact: 'high', effort: 'easy' },
+    ]);
 
-    await repositories.saveCachedInjunction(id, 'hash-2', JSON.stringify(checklist));
-    expect((await repositories.getCachedInjunction(id))?.hash).toBe('hash-2');
+    const tasks = await repositories.getInjunctionTasksByUser('user-1');
+    expect(tasks).toHaveLength(2);
+    expect(tasks.map((t) => t.replaces).sort()).toEqual(['coffee pod', 'glass jar']);
+    expect(tasks[0].dossierId).toBe(id);
+    expect(tasks[0].createdAt).toBeTruthy();
+    expect(await repositories.getInjunctionTasksByUser('user-2')).toEqual([]);
   });
 
   it('saves and retrieves a household dossier by id', async () => {

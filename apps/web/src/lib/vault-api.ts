@@ -1,4 +1,5 @@
 import type {
+  InjunctionTask,
   VaultChargeResult,
   VaultLedgerPage,
   VaultLinkResult,
@@ -27,6 +28,16 @@ export async function fetchVaultLedger(limit: number, offset: number): Promise<V
     throw new Error(res.status === 401 ? 'REGISTRY LOCKED' : `LEDGER QUERY FAILED (${res.status})`);
   }
   return res.json();
+}
+
+/** Fetch the citizen's accumulated injunction tasks (newest first). */
+export async function fetchInjunctionTasks(): Promise<InjunctionTask[]> {
+  const res = await authFetch('/api/vault/injunction-tasks');
+  if (!res.ok) {
+    throw new Error(res.status === 401 ? 'REGISTRY LOCKED' : `INJUNCTION QUERY FAILED (${res.status})`);
+  }
+  const body = (await res.json()) as { tasks: InjunctionTask[] };
+  return body.tasks ?? [];
 }
 
 /** Bind a freshly-scanned dossier to the vault (charges the certification fee). */

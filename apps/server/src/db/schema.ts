@@ -188,6 +188,26 @@ export const appeals = sqliteTable(
   (t) => [index('idx_appeals_dossier_created').on(t.dossier_id, t.created_at)]
 );
 
+/** Accumulated environmental-injunction tasks, one row per action, per citizen. */
+export const injunctionTasks = sqliteTable(
+  'injunction_tasks',
+  {
+    id: text('id').primaryKey(),
+    user_id: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    dossier_id: text('dossier_id'),
+    action: text('action').notNull(),
+    replaces: text('replaces').notNull(),
+    why: text('why').notNull(),
+    category: text('category').notNull(),
+    impact: text('impact').notNull(),
+    effort: text('effort').notNull(),
+    created_at: text('created_at').notNull(),
+  },
+  (t) => [index('idx_injunction_tasks_user_created').on(t.user_id, t.created_at)]
+);
+
 export const scanApiLogs = sqliteTable(
   'scan_api_logs',
   {

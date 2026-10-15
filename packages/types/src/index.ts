@@ -143,6 +143,19 @@ export interface InjunctionChecklist {
   closing_line: string;
 }
 
+/** One stored injunction task row (accumulated per citizen across scans). */
+export interface InjunctionTask {
+  id: string;
+  action: string;
+  replaces: string;
+  why: string;
+  category: InjunctionItem['category'];
+  impact: InjunctionItem['impact'];
+  effort: InjunctionItem['effort'];
+  dossierId: string | null;
+  createdAt: string;
+}
+
 /** The full household audit result. */
 export interface HouseholdAudit {
   roomType: string | null;
