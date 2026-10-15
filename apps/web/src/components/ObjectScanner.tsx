@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, RefreshCw, Camera, Zap, House, CheckCircle, Circle, Loader2, Leaf } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Camera, Zap, CheckCircle, Circle, Loader2, Leaf } from 'lucide-react';
 import { IDENTITY, PALETTE } from '@ecocide/lore';
 import { soundFx } from '../lib/audio';
 import { ScannerHeader } from './ScannerHeader';
 import { UploadPanel, type ItemCategory } from './UploadPanel';
 import { EvidenceDropZone } from './EvidenceDropZone';
+import { AssetWireframe } from './AssetWireframe';
 import { AnalysisPanel, ANALYSIS_STAGES } from './AnalysisPanel';
 
 interface ObjectScannerProps {
@@ -447,10 +448,9 @@ export const ObjectScanner: React.FC<ObjectScannerProps> = ({
                 <span className="text-[9px] font-mono text-gray-400 tracking-wider">{scanStatus}</span>
               </div>
 
-              {/* Circular scanning illustration */}
-              <div className="relative w-40 h-40 mx-auto my-1 rounded-full border border-lime-500/30 flex items-center justify-center">
-                <House className="w-10 h-10 text-lime-400" />
-                <div className="absolute inset-x-2 top-1/2 h-px bg-lime-400/70 animate-pulse" />
+              {/* Rotating asset wireframe under a wandering inspection spotlight */}
+              <div className="relative w-40 h-40 mx-auto my-1 rounded-full border border-lime-500/30 overflow-hidden">
+                <AssetWireframe className="h-full w-full" />
               </div>
 
               <h3 className="text-center text-xs font-mono text-gray-300 tracking-wider">
