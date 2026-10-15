@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, RefreshCw, Camera, Zap } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Camera, Zap, Upload } from 'lucide-react';
 import { IDENTITY, PALETTE } from '@ecocide/lore';
 import { soundFx } from '../lib/audio';
 import { ScannerHeader } from './ScannerHeader';
@@ -71,9 +71,29 @@ export const ObjectScanner: React.FC<ObjectScannerProps> = ({
   const [scanStatus, setScanStatus] = useState('AUDIT GRID STANDBY: AWAITING EVIDENCE');
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [cameraAvailable, setCameraAvailable] = useState<boolean | null>(null);
+  const [view, setView] = useState<'camera' | 'drop'>('camera');
+  const userChoseView = useRef(false);
 
-  // Start the camera pointed at the room
+  // Default view follows camera availability until the user picks one side:
+  // a working camera lands on the scanner, no camera lands on the upload area.
   useEffect(() => {
+    if (cameraAvailable === null || userChoseView.current) return;
+    setView(cameraAvailable ? 'camera' : 'drop');
+  }, [cameraAvailable]);
+
+  /** Flip between the scanner view and the upload area. */
+  const toggleView = () => {
+    userChoseView.current = true;
+    setView((current) => (current === 'camera' ? 'drop' : 'camera'));
+  };
+
+  // Start the camera pointed at the room (only while the scanner view is shown)
+  useEffect(() => {
+    if (view !== 'camera') {
+      setCameraActive(false);
+      return;
+    }
     let active = true;
     let stream: MediaStream | null = null;
 
@@ -94,6 +114,7 @@ export const ObjectScanner: React.FC<ObjectScannerProps> = ({
             if (!active) return;
             video.play().catch(() => {});
             setCameraActive(true);
+            setCameraAvailable(true);
             setScanStatus('TARGET ACQUIRED: AUDIT OBJECTS, NOT PEOPLE');
           };
           if (video.readyState >= 2) onReady();
@@ -106,6 +127,7 @@ export const ObjectScanner: React.FC<ObjectScannerProps> = ({
         if (active) {
           console.warn('Camera unavailable:', err);
           setCameraActive(false);
+          setCameraAvailable(false);
           setScanStatus('CAMERA RESTRICTED: UPLOAD A PHOTO OF THE ROOM');
         }
       }
@@ -123,7 +145,7 @@ export const ObjectScanner: React.FC<ObjectScannerProps> = ({
       stream?.getTracks().forEach((t) => t.stop());
       setCameraActive(false);
     };
-  }, [facingMode]);
+  }, [facingMode, view]);
 
   const ingestFile = async (file: File) => {
     setIsAnalyzing(true);
@@ -186,7 +208,8 @@ export const ObjectScanner: React.FC<ObjectScannerProps> = ({
 
   const handleLockIn = () => {
     if (isLoading || isAnalyzing) return;
-    const rawImage = preview ?? captureFrame();
+    // Only the scanner view captures a live frame; the upload view needs staged evidence.
+    const rawImage = preview ?? (view === 'camera' ? captureFrame() : null);
     if (!rawImage) {
       setUploadError('NO EVIDENCE CAPTURED. POINT THE CAMERA AT THE ROOM OR UPLOAD A PHOTO.');
       return;
@@ -224,6 +247,32 @@ export const ObjectScanner: React.FC<ObjectScannerProps> = ({
     if (evidenceStaged) return 'complete';
     return cameraActive || isAnalyzing ? 'active' : 'pending';
   };
+
+  /**
+   * The single view toggle, rendered in the bottom-right corner of whichever
+   * area is showing (scanner view or upload area), so it is always at hand.
+   */
+  const viewToggle = (position: string) => (
+    <button
+      type="button"
+      onClick={toggleView}
+      disabled={isAnalyzing || isLoading}
+      className={`flex items-center gap-1.5 px-2 py-1 rounded border border-gray-600 bg-black/70 font-mono text-[9px] font-bold tracking-widest text-gray-200 hover:text-lime-300 hover:border-lime-500/50 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${position}`}
+      title={view === 'camera' ? 'Switch to the upload area' : 'Switch to the camera'}
+    >
+      {view === 'camera' ? (
+        <>
+          <Upload className="w-3 h-3 text-lime-400" />
+          UPLOAD PHOTO
+        </>
+      ) : (
+        <>
+          <Camera className="w-3 h-3 text-lime-400" />
+          USE CAMERA
+        </>
+      )}
+    </button>
+  );
 
   return (
     <div className="w-full max-w-[1200px] mx-auto flex flex-col gap-4">
@@ -272,9 +321,9 @@ export const ObjectScanner: React.FC<ObjectScannerProps> = ({
 
           {/* Evidence capture + submit */}
           <div className="flex flex-col gap-2 pt-1">
-            {/* Evidence viewport */}
+            {/* Evidence viewport (stays mounted so the stream can re-attach instantly) */}
             <div
-              className="relative w-full aspect-square rounded-lg border overflow-hidden"
+              className={`relative w-full aspect-square rounded-lg border overflow-hidden ${view === 'camera' ? '' : 'hidden'}`}
               style={{ backgroundColor: PALETTE.canvas, borderColor: `${PALETTE.accent}66`, borderWidth: 1 }}
               onDragOver={(e) => {
                 e.preventDefault();
@@ -353,15 +402,8 @@ export const ObjectScanner: React.FC<ObjectScannerProps> = ({
                 </div>
               </div>
 
-              {/* "scan objects, not people" note */}
-              <div className="absolute bottom-[18px] right-[18px] z-20">
-                <span
-                  className="text-[8px] font-mono font-bold px-1.5 py-0.5 rounded border"
-                  style={{ color: PALETTE.warning, borderColor: `${PALETTE.warning}80`, backgroundColor: 'rgba(0,0,0,0.7)' }}
-                >
-                  SCAN OBJECTS, NOT PEOPLE
-                </span>
-              </div>
+              {/* View toggle: scanner ⇄ upload area */}
+              {viewToggle('absolute bottom-[18px] right-[18px] z-20')}
 
               {/* Camera flip control (lower-left overlay) */}
               <button
@@ -384,16 +426,20 @@ export const ObjectScanner: React.FC<ObjectScannerProps> = ({
               )}
             </div>
 
-            <EvidenceDropZone
-              onFileSelected={ingestFile}
-              onUploadClick={openFilePicker}
-              selectedFileName={previewName}
-              onClearFile={retakeEvidence}
-              dragActive={dragActive}
-              onDragActivate={() => setDragActive(true)}
-              onDragDeactivate={() => setDragActive(false)}
-              isAnalyzing={isAnalyzing}
-            />
+            {/* Upload area (kept mounted; only one of the two areas is visible) */}
+            <div className={`relative ${view === 'drop' ? '' : 'hidden'}`}>
+              <EvidenceDropZone
+                onFileSelected={ingestFile}
+                onUploadClick={openFilePicker}
+                selectedFileName={previewName}
+                onClearFile={retakeEvidence}
+                dragActive={dragActive}
+                onDragActivate={() => setDragActive(true)}
+                onDragDeactivate={() => setDragActive(false)}
+                isAnalyzing={isAnalyzing}
+              />
+              {viewToggle('absolute bottom-3 right-3 z-10')}
+            </div>
 
             {/* Analyze items (submits the audit) */}
             <button
