@@ -1,17 +1,12 @@
 import React, { useEffect, useRef } from 'react';
 import { PALETTE } from '@ecocide/lore';
+import { WIREFRAME_MODELS } from '../lib/asset-wireframes';
 
 interface AssetWireframeProps {
   className?: string;
 }
 
 type Vec3 = [number, number, number];
-
-interface WireModel {
-  name: string;
-  verts: Vec3[];
-  edges: [number, number][];
-}
 
 /** Tiny seeded PRNG (mulberry32) so each mount gets a stable "personality". */
 function mulberry32(seed: number): () => number {
@@ -36,134 +31,9 @@ const SPOT_COLOR: [number, number, number] = [233, 255, 176];
 
 const rgba = (c: [number, number, number], a: number) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
 
-/** Axis-aligned box as vertices + edges (used as a building block). */
-function box(x0: number, y0: number, z0: number, x1: number, y1: number, z1: number): {
-  verts: Vec3[];
-  edges: [number, number][];
-} {
-  const verts: Vec3[] = [
-    [x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1],
-    [x0, y1, z0], [x1, y1, z0], [x1, y1, z1], [x0, y1, z1],
-  ];
-  const edges: [number, number][] = [
-    [0, 1], [1, 2], [2, 3], [3, 0],
-    [4, 5], [5, 6], [6, 7], [7, 4],
-    [0, 4], [1, 5], [2, 6], [3, 7],
-  ];
-  return { verts, edges };
-}
-
-function combine(...parts: { verts: Vec3[]; edges: [number, number][] }[]): {
-  verts: Vec3[];
-  edges: [number, number][];
-} {
-  const verts: Vec3[] = [];
-  const edges: [number, number][] = [];
-  for (const part of parts) {
-    const offset = verts.length;
-    verts.push(...part.verts);
-    edges.push(...part.edges.map(([a, b]) => [a + offset, b + offset] as [number, number]));
-  }
-  return { verts, edges };
-}
-
-/* ------------------------------------------------------------------ */
-/* Model catalog: common household items. Adding one is just data.     */
-/* ------------------------------------------------------------------ */
-
-const HOUSE: WireModel = (() => {
-  const walls = box(-0.7, -0.6, -0.7, 0.7, 0.4, 0.7);
-  const s = walls.verts.length; // 8
-  return {
-    name: 'house',
-    verts: [...walls.verts, [0, 0.95, -0.7], [0, 0.95, 0.7]],
-    edges: [...walls.edges, [4, s], [5, s], [6, s + 1], [7, s + 1], [s, s + 1]],
-  };
-})();
-
-const TV: WireModel = (() => {
-  const screen = box(-0.85, -0.15, -0.07, 0.85, 0.7, 0.07);
-  const base = box(-0.4, -0.68, -0.2, 0.4, -0.6, 0.2);
-  const core = combine(screen, base);
-  const s = core.verts.length;
-  return {
-    name: 'tv',
-    verts: [...core.verts, [0, -0.15, 0], [0, -0.6, 0]],
-    edges: [...core.edges, [s, s + 1]],
-  };
-})();
-
-const COMPUTER: WireModel = (() => {
-  const monitor = box(-0.9, -0.12, -0.06, 0.3, 0.62, 0.06);
-  const foot = box(-0.66, -0.66, -0.24, -0.06, -0.56, 0.24);
-  const tower = box(0.48, -0.66, -0.28, 0.95, 0.7, 0.28);
-  const core = combine(monitor, foot, tower);
-  const s = core.verts.length;
-  return {
-    name: 'computer',
-    verts: [...core.verts, [-0.3, -0.12, 0], [-0.3, -0.56, 0]],
-    edges: [...core.edges, [s, s + 1]],
-  };
-})();
-
-const SOFA: WireModel = (() => {
-  const seat = box(-0.95, -0.55, -0.5, 0.95, -0.1, 0.5);
-  const armL = box(-0.95, -0.1, -0.5, -0.62, 0.3, 0.5);
-  const armR = box(0.62, -0.1, -0.5, 0.95, 0.3, 0.5);
-  const core = combine(seat, armL, armR);
-  const s = core.verts.length;
-  const back: Vec3[] = [
-    [-0.95, -0.1, 0.5], [0.95, -0.1, 0.5], [0.95, 0.55, 0.3], [-0.95, 0.55, 0.3],
-  ];
-  return {
-    name: 'sofa',
-    verts: [...core.verts, ...back],
-    edges: [...core.edges, [s, s + 1], [s + 1, s + 2], [s + 2, s + 3], [s + 3, s]],
-  };
-})();
-
-const FRIDGE: WireModel = (() => {
-  const body = box(-0.5, -0.8, -0.45, 0.5, 0.75, 0.45);
-  const s = body.verts.length; // 8
-  return {
-    name: 'fridge',
-    verts: [
-      ...body.verts,
-      [-0.5, 0.25, 0.45], [0.5, 0.25, 0.45],      // door split line
-      [-0.32, 0.35, 0.5], [-0.32, 0.6, 0.5],      // upper door handle
-      [-0.32, -0.15, 0.5], [-0.32, 0.1, 0.5],     // lower door handle
-    ],
-    edges: [...body.edges, [s, s + 1], [s + 2, s + 3], [s + 4, s + 5]],
-  };
-})();
-
-const WASHER: WireModel = (() => {
-  const body = box(-0.6, -0.7, -0.45, 0.6, 0.7, 0.45);
-  const s = body.verts.length; // 8
-  const segments = 14;
-  const radius = 0.36;
-  const ring: Vec3[] = [];
-  const ringEdges: [number, number][] = [];
-  for (let i = 0; i < segments; i++) {
-    const a = (i / segments) * Math.PI * 2;
-    ring.push([Math.cos(a) * radius, -0.12 + Math.sin(a) * radius, 0.45]);
-    ringEdges.push([i, (i + 1) % segments]);
-  }
-  return {
-    name: 'washer',
-    verts: [...body.verts, ...ring, [-0.5, 0.58, 0.45], [0.5, 0.58, 0.45]],
-    edges: [
-      ...body.edges,
-      ...ringEdges.map(([a, b]) => [a + s, b + s] as [number, number]),
-      [s + segments, s + segments + 1],
-    ],
-  };
-})();
-
-const RAW_MODELS = [HOUSE, TV, COMPUTER, SOFA, FRIDGE, WASHER];
-
-/** Normalize every model to a unit bounding sphere so any of them fits the frame. */
-const MODELS = RAW_MODELS.map((model) => {
+/** Model catalog: converted from models-src/*.obj by `pnpm wireframes`. */
+const MODELS = WIREFRAME_MODELS.map((model) => {
+  // The converter already centers and unit-normalizes; re-verify as a guard.
   let maxRadius = 0;
   for (const [x, y, z] of model.verts) maxRadius = Math.max(maxRadius, Math.hypot(x, y, z));
   const scale = maxRadius > 0 ? 1 / maxRadius : 1;

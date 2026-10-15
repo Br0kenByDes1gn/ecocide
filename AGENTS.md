@@ -75,7 +75,7 @@ apps/server/          # Hono + SQLite (Drizzle) + Gemini + BullMQ + Better Auth
 apps/web/             # React 19 + Vite + Tailwind v4 + PWA
                       # (intro → scan → verdict → claim/appeal → vault)
 charts/               # Helm chart (placeholder branding)
-scripts/              # scan-cost audit
+scripts/              # scan-cost audit, wireframe model conversion
 ```
 
 ### packages/compliance
@@ -168,6 +168,7 @@ scripts/              # scan-cost audit
 | `pnpm dev:web` / `pnpm dev:server` | Single process |
 | `pnpm test` | Vitest across packages (hermetic) |
 | `pnpm scan-costs` | Token/cost audit from the local DB |
+| `pnpm wireframes` | Convert `models-src/*.obj` → `apps/web/src/lib/asset-wireframes.ts` |
 
 Dev without AI tokens: `/debug` bench (six exhibit rooms, one per tier),
 simulated audits (no `GEMINI_API_KEY`), OTP printed to the server console,
