@@ -202,7 +202,7 @@ DETECTED ITEMS (the full inventory):
 ${input.itemsSummary}
 
 ASSESSMENT PROTOCOL:
-1. Write exactly three short (1–2 sentences each) bureaucratic paragraphs, cold, precise, faintly absurd:
+1. Write exactly three short (1-2 sentences each) paragraphs. The respose should be precise, plain language, and genuinely useful, no jokes, no insults:
    - paragraph_1 (Audit Summary): Address the household, cite its Household Sustainability Index of ${input.ratio}%, and name at least two specific items from the inventory.
    ${input.paragraph2}
    ${input.paragraph3}
@@ -210,7 +210,7 @@ ASSESSMENT PROTOCOL:
 3. suggestions: 3–5 concrete, feasible improvement actions, EACH bound to a specific detected item label (the appeal tribunal will offer these to the household as pledges). Understate the numbers. Label every figure as an estimate.
 
 TONE & STYLE:
-- Official, bureaucratic, precise, faintly arch. Zero tolerance for mysticism or sentimentality.
+- Official, cold, precise, plain language, genuinely useful, and faintly arch. Zero tolerance for mysticism or sentimentality.
 - Aim the humor at habits and objects, never at people, their bodies, income or circumstances.
 - Never mention real environmental disasters; the charge is always this household's excess.
 
@@ -249,9 +249,9 @@ CLASSIFICATION FRAMEWORK (tier ids are FINAL — re-classification must use exac
 ${factionRegistryBlock()}
 
 RULING:
-Judge whether the appeal is convincing. Be bureaucratic, dry and precise. Ground your reasoning in the household's actual items. If the appeal requests a re-classification, either accept it (assigning EXACTLY one other tier id) or reject it. If no tier is requested, weigh the designation, the Index and the appeal's content.
-- If ACCEPTED: new_caste MUST be one of the framework ids and MUST differ from the current designation; craft a new formal honorific title, a new verdict headline, and exactly 3 short (1–2 sentence) bureaucratic paragraphs.
-- If REJECTED: accepted=false with a dismissive, bureaucratic reason addressing the appeal's logic, tone, or evidence.
+Judge whether the appeal is convincing. Be cold, plain language, genuinely useful, dry and precise. Ground your reasoning in the household's actual items. If the appeal requests a re-classification, either accept it (assigning EXACTLY one other tier id) or reject it. If no tier is requested, weigh the designation, the Index and the appeal's content.
+- If ACCEPTED: new_caste MUST be one of the framework ids and MUST differ from the current designation; craft a new formal honorific title, a new verdict headline, and exactly 3 short (1–2 sentence) cold, precise, plain language, and genuinely useful paragraphs.
+- If REJECTED: accepted=false with a dismissive, official, precise, and plain language reason addressing the appeal's logic, tone, or evidence.
 
 Return STRICT JSON only:
 {
@@ -301,9 +301,12 @@ CLASSIFICATION FRAMEWORK:
 ${factionRegistryBlock()}
 
 TASK (identical to the original assessment, but for the NEW designation):
-1. Write exactly three short (1–2 sentences each) bureaucratic paragraphs; paragraph_1 must acknowledge the GRANTED appeal by wryly referencing its gist — the appeal is mentioned ONLY in paragraph_1.
-2. headline: a concise official classification notice for the new designation.
-3. new_honorific_title: a formal title aligned with the new designation.
+1. Write exactly three paragraphs (3-4 sentences each) in clear, articulate, descriptive plain language. Be precise and genuinely useful, use everyday words, and avoid bureaucratic jargon.
+   - paragraph_1: acknowledge the GRANTED appeal with one dry clause that refers to the gist of the pledge (for example "Your pledge to swap bottled water for a filter was accepted"), then state the new tier and the new Compliance Ratio. Explain what changed since the original verdict and which items or habits moved the score. The appeal is mentioned ONLY in paragraph_1.
+   - paragraph_2: describe the environmental harm of the 2-3 items that still lower the score most. For each, explain in concrete terms what the material is, how long it takes to break down, whether it can be recycled, and any toxicity concern, using only the properties given. If a hard-fail item remains, name it plainly and say why it counts as one.
+   - paragraph_3: give the most effective next change, tied to a named item, and explain why it would improve the score. Add one secondary change the household could make after that. If the new tier is Compliant, say specifically what is working and give one way to improve further. Be encouraging, not flattering.
+2. headline: a clear classification notice for the new designation (maximum 14 words), stating the new tier and that it was updated after appeal. No threats and no jargon.
+3. new_honorific_title: a short formal title aligned with the new designation, in the style of "Plastic-Reduction Candidate". It must describe the household's habits or objects, never the person, and must not use termination language.
 
 Return STRICT JSON only:
 {
