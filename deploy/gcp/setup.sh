@@ -35,6 +35,8 @@ AR_REPO="${AR_REPO:-ecocide}"
 SQL_INSTANCE="${SQL_INSTANCE:-ecocide-pg}"
 SQL_DB="${SQL_DB:-ecocide}"
 SQL_USER="${SQL_USER:-ecocide}"
+# Shared-core machine type on the Enterprise edition (see the create command).
+SQL_TIER="${SQL_TIER:-db-f1-micro}"
 EVIDENCE_BUCKET="${EVIDENCE_BUCKET:-${PROJECT}-evidence}"
 RUN_SA="ecocide-run@${PROJECT}.iam.gserviceaccount.com"
 DEPLOY_SA="ecocide-deploy@${PROJECT}.iam.gserviceaccount.com"
@@ -113,12 +115,19 @@ say "Cloud SQL (PostgreSQL) — the always-on cost"
 if exists gcloud sql instances describe "$SQL_INSTANCE" --project "$PROJECT"; then
   echo "instance $SQL_INSTANCE already exists"
 else
-  # Verify the tier is available in your region before running; shared-core
-  # tiers are the cheapest option and are fine for a single-replica demo.
+  # `--edition=enterprise` is not optional: shared-core machine types exist only
+  # on the Enterprise edition, while new instances default to Enterprise Plus,
+  # which requires db-perf-optimized-N-* (roughly an order of magnitude more).
+  #
+  # Shared-core caveats, accepted for a single-replica demo:
+  #   • db-f1-micro / db-g1-small are NOT covered by the Cloud SQL SLA
+  #   • ~0.6 GB RAM and a low connection cap (the app pool is 10, cf. DB_POOL_MAX)
+  # Bump it with SQL_TIER=db-g1-small (or db-custom-1-3840) if either bites.
   gcloud sql instances create "$SQL_INSTANCE" --project "$PROJECT" \
+    --edition=enterprise \
     --database-version=POSTGRES_17 \
     --region "$REGION" \
-    --tier=db-f1-micro \
+    --tier="${SQL_TIER}" \
     --storage-size=10GB \
     --storage-type=HDD \
     --backup --enable-point-in-time-recovery \

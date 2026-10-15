@@ -240,9 +240,14 @@ status — check it by hand when anything smells off.
 - Config lives on the service, not in the repo: releases only swap the image, so a
   secret rotation reaches production on the next revision. See the `sync-env.sh`
   section above; `.env.production` is the gitignored source of truth.
-- Cloud SQL is the only always-on cost (~$9-12/mo at the smallest tier); Cloud Run scales
+- Cloud SQL is the only always-on cost (~$9-12/mo on `db-f1-micro`); Cloud Run scales
   to zero. **Set a billing budget alert** — every household scan is two paid Gemini calls
   on a public endpoint.
+- The instance is created on the **Enterprise** edition, which is what makes a shared-core
+  tier possible: new instances default to Enterprise Plus, where the cheapest tier is
+  `db-perf-optimized-N-2` (roughly 10× the price). `db-f1-micro`/`db-g1-small` are not
+  covered by the Cloud SQL SLA and have a low connection cap — bump with
+  `SQL_TIER=db-g1-small ./deploy/gcp/setup.sh` if needed.
 - Backups: Cloud SQL automated backups + PITR are enabled by `setup.sh`. The evidence
   bucket needs no backup (write-once objects); enable versioning if you want protection
   against accidental deletes.
