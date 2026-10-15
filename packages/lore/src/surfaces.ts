@@ -88,6 +88,7 @@ export const REGISTRY_COPY = {
     title: 'Environmental Injunction',
     hint: 'Binding orders issued against this household. Comply, then check each item.',
     cleared: 'All orders complied with. The Bureau notes your obedience.',
+    closing: 'Pledge these actions to lift your score, one habit at a time.',
     items: [
       'Halt all single-use plastic procurement within 7 days',
       'Divert compostables from landfill to the green bin',

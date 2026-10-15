@@ -301,8 +301,7 @@ export function App() {
 
   const goInjunction = () => {
     setViewState('injunction');
-    const query = permalinkId ? `?citizen=${permalinkId}` : '';
-    window.history.pushState({}, '', `/injunction${query}`);
+    window.history.pushState({}, '', '/injunction');
   };
 
   /** Open any dossier by id (used by the registry's archive/ledger links). */
@@ -577,7 +576,6 @@ export function App() {
           <InjunctionScreen
             onOpenDossier={handleOpenDossier}
             onBeginAudit={handleProceedToScan}
-            citizenId={new URLSearchParams(window.location.search).get('citizen')}
           />
         )}
       </main>

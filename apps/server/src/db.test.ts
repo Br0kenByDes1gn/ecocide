@@ -2,6 +2,7 @@ import { describe, expect, it, beforeAll, afterAll, beforeEach } from 'vitest';
 import { sql } from 'drizzle-orm';
 import { createRepositories, initDb, runMigrations } from './db/index.js';
 import type { DbConnection, Repositories } from './db/index.js';
+import { user as userTable } from './db/schema.js';
 import type { OraclePayload } from '@ecocide/types';
 
 /**
@@ -18,7 +19,7 @@ let conn: DbConnection;
 /** Empty every table in schema.ts between tests. */
 async function truncateAll(db: DbConnection['db']): Promise<void> {
   await db.execute(
-    sql`TRUNCATE TABLE "user", "session", "account", "verification", "wallets", "wallet_ledger", "dossiers", "appeals", "scan_api_logs" CASCADE`
+    sql`TRUNCATE TABLE "user", "session", "account", "verification", "wallets", "wallet_ledger", "dossiers", "appeals", "injunction_tasks", "scan_api_logs" CASCADE`
   );
 }
 
@@ -89,6 +90,31 @@ beforeEach(async () => {
 });
 
 describe('postgres database dossier repository', () => {
+  it('appends and lists injunction tasks newest first', async () => {
+    const id = await repositories.saveDossier(makePayload());
+    await conn.db.insert(userTable).values({
+      id: 'user-1',
+      name: '',
+      email: 'user-1@test',
+      emailVerified: true,
+    });
+    expect(await repositories.getInjunctionTasksByUser('user-1')).toEqual([]);
+
+    await repositories.addInjunctionTasks('user-1', id, [
+      { action: 'Reuse the jar.', replaces: 'glass jar', why: 'Less waste.', category: 'reuse', impact: 'low', effort: 'easy' },
+    ]);
+    await repositories.addInjunctionTasks('user-1', id, [
+      { action: 'Retire the pods.', replaces: 'coffee pod', why: 'Less plastic.', category: 'reduce', impact: 'high', effort: 'easy' },
+    ]);
+
+    const tasks = await repositories.getInjunctionTasksByUser('user-1');
+    expect(tasks).toHaveLength(2);
+    expect(tasks.map((t) => t.replaces).sort()).toEqual(['coffee pod', 'glass jar']);
+    expect(tasks[0].dossierId).toBe(id);
+    expect(tasks[0].createdAt).toBeTruthy();
+    expect(await repositories.getInjunctionTasksByUser('user-2')).toEqual([]);
+  });
+
   it('caches and retrieves the injunction checklist per dossier', async () => {
     const id = await repositories.saveDossier(makePayload());
     expect(await repositories.getCachedInjunction(id)).toBeNull();

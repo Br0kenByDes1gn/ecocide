@@ -8,6 +8,8 @@ import type {
   CensusReport,
   CitizenAppeal,
   CitizenRecord,
+  InjunctionItem,
+  InjunctionTask,
   OraclePayload,
   Prophecy,
   ScanCostSummary,
@@ -23,7 +25,7 @@ import { CASTE_ORDER } from '@ecocide/types';
 import { hardFailCount, objectCount, topOffender } from '@ecocide/compliance';
 import { evidenceUrlFor } from '../evidence.js';
 import type { DbConnection } from './client.js';
-import { appeals, dossiers, scanApiLogs, walletLedger, wallets } from './schema.js';
+import { appeals, dossiers, injunctionTasks, scanApiLogs, walletLedger, wallets } from './schema.js';
 
 /**
  * Repository layer: the whole database surface of the app.
@@ -235,6 +237,50 @@ export function createRepositories(db: DbConnection['db']) {
         .update(dossiers)
         .set({ injunction_json: checklistJson, injunction_hash: hash })
         .where(eq(dossiers.id, dossierId));
+    },
+
+    /** Appends freshly generated injunction tasks to a citizen's accumulated list. */
+    async addInjunctionTasks(
+      userId: string,
+      dossierId: string,
+      items: InjunctionItem[]
+    ): Promise<void> {
+      const createdAt = new Date().toISOString();
+      for (const item of items) {
+        await db.insert(injunctionTasks).values({
+          id: nanoid(12),
+          user_id: userId,
+          dossier_id: dossierId,
+          action: item.action,
+          replaces: item.replaces,
+          why: item.why,
+          category: item.category,
+          impact: item.impact,
+          effort: item.effort,
+          created_at: createdAt,
+        });
+      }
+    },
+
+    /** Lists a citizen's accumulated injunction tasks, newest first. */
+    async getInjunctionTasksByUser(userId: string): Promise<InjunctionTask[]> {
+      const rows = await db
+        .select()
+        .from(injunctionTasks)
+        .where(eq(injunctionTasks.user_id, userId))
+        .orderBy(desc(injunctionTasks.created_at));
+
+      return rows.map((row) => ({
+        id: row.id,
+        action: row.action,
+        replaces: row.replaces,
+        why: row.why,
+        category: row.category as InjunctionTask['category'],
+        impact: row.impact as InjunctionTask['impact'],
+        effort: row.effort as InjunctionTask['effort'],
+        dossierId: row.dossier_id,
+        createdAt: row.created_at,
+      }));
     },
 
     /** Persists an appeal filing + its ruling, linked to the original dossier. */
