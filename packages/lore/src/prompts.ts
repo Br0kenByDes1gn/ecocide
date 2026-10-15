@@ -316,3 +316,103 @@ Return STRICT JSON only:
 }
 `;
 }
+export const INJUNCTION_CATEGORIES = ['swap', 'reuse', 'repair', 'reduce', 'dispose_properly'] as const;
+export type InjunctionCategory = (typeof INJUNCTION_CATEGORIES)[number];
+export const INJUNCTION_IMPACTS = ['high', 'medium', 'low'] as const;
+export type InjunctionImpact = (typeof INJUNCTION_IMPACTS)[number];
+export const INJUNCTION_EFFORTS = ['easy', 'moderate', 'hard'] as const;
+export type InjunctionEffort = (typeof INJUNCTION_EFFORTS)[number];
+
+/** One audited item as seen by the injunction prompt (scores already computed). */
+export interface InjunctionPromptItem {
+  label: string;
+  count: number;
+  si: number | null;
+  status: string;
+  materialFamily: string | null;
+  overrides: string[];
+  ratingsSummary: string;
+}
+
+export interface InjunctionPromptInput {
+  ratio: number;
+  factionId: string;
+  roomType: string | null;
+  items: InjunctionPromptItem[];
+}
+
+export const INJUNCTION_JSON_SCHEMA = {
+  type: 'object',
+  properties: {
+    headline: { type: 'string', description: 'A short plain notice for the page (maximum 10 words).' },
+    items: {
+      type: 'array',
+      description: '6–8 checklist items ordered from highest to lowest environmental impact.',
+      items: {
+        type: 'object',
+        properties: {
+          action: { type: 'string', description: 'One short imperative sentence (maximum 14 words), tied to a specific detected item.' },
+          replaces: { type: 'string', description: 'The exact name of the detected item this action addresses.' },
+          why: { type: 'string', description: 'One short sentence explaining the environmental benefit, using only the given properties.' },
+          category: { type: 'string', enum: ['swap', 'reuse', 'repair', 'reduce', 'dispose_properly'] },
+          impact: { type: 'string', enum: ['high', 'medium', 'low'] },
+          effort: { type: 'string', enum: ['easy', 'moderate', 'hard'] },
+        },
+        required: ['action', 'replaces', 'why', 'category', 'impact', 'effort'],
+      },
+    },
+    closing_line: { type: 'string', description: 'One short encouraging sentence (maximum 18 words) about pledging these actions.' },
+  },
+  required: ['headline', 'items', 'closing_line'],
+} as const;
+
+/**
+ * INJUNCTION — corrective-action checklist prompt. Text-only: the scored
+ * inventory is the evidence. The model writes actions, never math.
+ */
+export function buildInjunctionPrompt(input: InjunctionPromptInput): string {
+  const lines = input.items.map(
+    (item) =>
+      `- x${item.count} ${item.label} // SI ${item.si ?? '?'} // ${item.status.toUpperCase()} // material: ${item.materialFamily ?? 'unknown'} // overrides: ${item.overrides.length ? item.overrides.join('+') : 'none'} // ratings: ${item.ratingsSummary}`
+  );
+  return `
+You are the ${ENTITY}, issuing a binding ENVIRONMENTAL INJUNCTION against a household. Convert the audited inventory below into a corrective-action checklist.
+
+HOUSEHOLD CONTEXT:
+- Designation (caste): ${input.factionId}
+- Household Sustainability Index: ${input.ratio}%
+- Room(s) audited: ${input.roomType ?? 'unspecified'}
+
+DETECTED ITEMS (scores already computed — do not recompute them):
+${lines.join('\n')}
+
+TASK (create a corrective action checklist for this household based on the audit result):
+Produce between 6 and 8 checklist items, ordered from highest to lowest environmental impact. Each item must be:
+action: one short imperative sentence (maximum 14 words) in plain language, tied to a specific detected item. Example shape: "Replace plastic water bottles with a metal or glass bottle."
+replaces: the exact name of the detected item this action addresses.
+why: one short sentence explaining the environmental benefit, using only the properties given (material, decomposition time, recyclability, toxicity).
+category: one of "swap", "reuse", "repair", "reduce", "dispose_properly".
+impact: "high", "medium" or "low", based on the item's Harm Score ranking in the input.
+effort: "easy", "moderate" or "hard".
+Include at least two items that cost nothing (reuse, repair, refuse or reduce), so the list does not depend on buying new products.
+If a hard-fail item is present (single-use plastic, hazardous item, landfill trap), the first item must address it. For single-use plastics and landfill traps, use a swap or reduce. For hazardous items that are NOT long-use durables, the action must be proper disposal (for example a hazardous-waste collection point), not a swap.
+If the household is Compliant, write items that maintain and extend good habits, not corrections.
+Do not repeat the same detected item in more than two checklist entries.
+headline: a short plain notice for the page (maximum 10 words), for example "Eight actions to raise your Compliance Ratio."
+closing_line: one short, encouraging sentence (maximum 18 words) that tells the user these actions can be pledged to improve their score.
+
+LONG-USE DURABLE ITEMS:
+Laptops, mobile phones, tablets, air conditioners, refrigerators, washing machines, TVs, fans, microwaves, geysers and similar appliances or electronics are long-use items. People keep them for years and do not throw them away quickly, so never tell the user to dispose of, replace or upgrade them as the first suggestion. Even when the item is hazardous or has a high Harm Score, the goal is to make it last longer and use it more sustainably.
+- Use category "repair", "reduce" or "reuse" for these items, not "dispose_properly" or "swap".
+- Suggest practical life-extending actions suited to the item, for example: replace a worn battery instead of the device, clean AC filters and fridge coils, use a protective case or screen guard, avoid overcharging, update software, service the appliance regularly, repair instead of replace, or set the AC to an efficient temperature.
+- Mention proper e-waste disposal, resale, donation or trade-in ONLY as a last resort, and only if the input says the item is broken, unrepairable or already being retired. In that case, never suggest throwing it in regular trash.
+- This rule overrides the hard-fail rule above: a hazardous long-use durable does not need to be the first item or require disposal. Put it first only if a life-extending action for it is the highest-impact entry.
+- Do not suggest buying a new or "more efficient" model unless the input states the current one is no longer functional.
+
+TONE & STYLE:
+- Plain language, genuinely useful, no jokes, no insults, no mysticism.
+- Aim the orders at habits and objects, never at people, their bodies, income or circumstances.
+
+Return STRICT JSON only, matching the schema.
+`;
+}

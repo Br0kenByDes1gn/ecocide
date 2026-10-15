@@ -154,6 +154,10 @@ export const dossiers = sqliteTable(
     items_json: text('items_json').notNull().default('[]'),
     /** Improvement suggestions offered as appeal pledges (JSON). */
     suggestions_json: text('suggestions_json').notNull().default('[]'),
+    /** Cached environmental injunction checklist (JSON). */
+    injunction_json: text('injunction_json'),
+    /** Hash of the audit items the cached checklist was built from. */
+    injunction_hash: text('injunction_hash'),
     /** Evidence photo file name on disk (apps/server/data/evidence). */
     evidence_filename: text('evidence_filename'),
     /** Owning Carbon Registry account (Better Auth user id); null while anonymous. */

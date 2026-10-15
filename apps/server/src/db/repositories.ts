@@ -212,6 +212,28 @@ export function createRepositories(db: DbConnection['db']) {
         .run();
     },
 
+    /** Reads the cached injunction checklist for a dossier, if one was stored. */
+    async getCachedInjunction(
+      dossierId: string
+    ): Promise<{ hash: string; checklistJson: string } | null> {
+      const row = db
+        .select({ injunction_json: dossiers.injunction_json, injunction_hash: dossiers.injunction_hash })
+        .from(dossiers)
+        .where(eq(dossiers.id, dossierId))
+        .get();
+      if (!row?.injunction_json || !row.injunction_hash) return null;
+      return { hash: row.injunction_hash, checklistJson: row.injunction_json };
+    },
+
+    /** Caches the injunction checklist against the audit-items hash it was built from. */
+    async saveCachedInjunction(dossierId: string, hash: string, checklistJson: string): Promise<void> {
+      await db
+        .update(dossiers)
+        .set({ injunction_json: checklistJson, injunction_hash: hash })
+        .where(eq(dossiers.id, dossierId))
+        .run();
+    },
+
     /** Persists an appeal filing + its ruling, linked to the original dossier. */
     async saveAppeal(entry: SaveAppealEntry): Promise<string> {
       const id = nanoid(12);
