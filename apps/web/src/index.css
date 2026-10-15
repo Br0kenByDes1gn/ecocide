@@ -14,6 +14,20 @@ button, [role='button'] {
 .barcode-bar {
   border-radius: 0 !important;
 }
+/* Pen-check: tick draws itself like handwriting, overshooting the checkbox */
+@keyframes pen-check-draw {
+  from {
+    stroke-dashoffset: 34;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.pen-check path {
+  stroke-dasharray: 34;
+  stroke-dashoffset: 34;
+  animation: pen-check-draw 0.35s ease-out forwards;
+}
 /* Stamp has only two corner borders in dark black */
 .stamp-corner {
   border: 0;

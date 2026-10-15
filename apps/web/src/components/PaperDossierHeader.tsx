@@ -27,6 +27,48 @@ const Barcode: React.FC<{ bars: readonly number[] }> = ({ bars }) => (
   </div>
 );
 
+function barcodeBarsFor(caseId: string | null): number[] {
+  const source = caseId || 'AUDIT';
+  const widths = new Set<number>();
+  let guard = 0;
+  while (widths.size < 16 && guard < 96) {
+    const code = source.charCodeAt(guard % source.length) || 1;
+    // fractional px widths so adjacent bars do not repeat
+    widths.add(Math.round(((code * 37 + (guard + 11) * 19) % 75 + 8) / 10 * 10) / 10);
+    guard += 1;
+  }
+  return [...widths];
+}
+
+function sessionDateTextFor(sessionDate?: string): string | null {
+  if (!sessionDate) return null;
+  const parsed = new Date(sessionDate);
+  return Number.isNaN(parsed.getTime())
+    ? null
+    : parsed.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+/** Standalone barcode + date block, shared wherever a paper header needs one. */
+export const DossierBarcode: React.FC<{
+  caseId: string | null;
+  sessionDate?: string;
+  large?: boolean;
+}> = ({ caseId, sessionDate, large = false }) => {
+  const bars = React.useMemo(() => barcodeBarsFor(caseId), [caseId]);
+  const dateText = sessionDateTextFor(sessionDate);
+  return (
+    <div className="flex flex-col items-center shrink-0">
+      <Barcode bars={bars} />
+      <span
+        className={`mt-1 ${large ? 'text-xs' : 'text-[9px]'} font-mono font-black uppercase tracking-widest text-[#6b7263] whitespace-nowrap`}
+        style={{ fontFamily: "'Special Elite', ui-monospace, monospace", letterSpacing: '1px' }}
+      >
+        {dateText ? dateText.toUpperCase() : (caseId ? `#${caseId}` : 'UNAVAILABLE')}
+      </span>
+    </div>
+  );
+};
+
 /**
  * Shared paper-dossier header used by the arbitration and citizen dossiers:
  * recycling mark, bureau titles, barcode/date block, and case ID.
@@ -39,26 +81,9 @@ export const PaperDossierHeader: React.FC<PaperDossierHeaderProps> = ({
   largeIds = false,
   subtitleBelowIds = false,
 }) => {
-  const barcodeBars = React.useMemo(() => {
-    const source = caseId || 'AUDIT';
-    const widths = new Set<number>();
-    let guard = 0;
-    while (widths.size < 16 && guard < 96) {
-      const code = source.charCodeAt(guard % source.length) || 1;
-      // fractional px widths so adjacent bars do not repeat
-      widths.add(Math.round(((code * 37 + (guard + 11) * 19) % 75 + 8) / 10 * 10) / 10);
-      guard += 1;
-    }
-    return [...widths];
-  }, [caseId]);
+  const barcodeBars = React.useMemo(() => barcodeBarsFor(caseId), [caseId]);
 
-  const sessionDateText = (() => {
-    if (!sessionDate) return null;
-    const parsed = new Date(sessionDate);
-    return Number.isNaN(parsed.getTime())
-      ? null
-      : parsed.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
-  })();
+  const sessionDateText = sessionDateTextFor(sessionDate);
 
   return (
     <>

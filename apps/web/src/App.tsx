@@ -510,6 +510,7 @@ export function App() {
           <AppealScreen
             payload={oracleData}
             permalinkId={permalinkId || undefined}
+            sessionDate={sessionDate || undefined}
             onSubmitted={handleAppealSubmitted}
           />
         )}
