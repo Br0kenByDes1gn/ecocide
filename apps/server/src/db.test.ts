@@ -89,6 +89,22 @@ beforeEach(async () => {
 });
 
 describe('postgres database dossier repository', () => {
+  it('caches and retrieves the injunction checklist per dossier', async () => {
+    const id = await repositories.saveDossier(makePayload());
+    expect(await repositories.getCachedInjunction(id)).toBeNull();
+
+    const checklist = { headline: 'Six actions.', items: [], closing_line: 'Pledge on.' };
+    await repositories.saveCachedInjunction(id, 'hash-1', JSON.stringify(checklist));
+    expect(await repositories.getCachedInjunction(id)).toEqual({
+      hash: 'hash-1',
+      checklistJson: JSON.stringify(checklist),
+    });
+
+    await repositories.saveCachedInjunction(id, 'hash-2', JSON.stringify(checklist));
+    expect((await repositories.getCachedInjunction(id))?.hash).toBe('hash-2');
+  });
+
+
   it('saves and retrieves a household dossier by id', async () => {
     const payload = makePayload();
 

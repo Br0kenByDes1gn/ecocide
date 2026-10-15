@@ -435,3 +435,123 @@ export function generateSimulatedReArbitrationCopy(input: SimReArbitrationInput)
     ],
   };
 }
+/** One scored item as seen by the simulated injunction builder. */
+export interface SimScoredItem {
+  label: string;
+  count: number;
+  si: number | null;
+  status: string;
+  materialFamily: string;
+  overrides: string[];
+}
+
+export interface SimInjunctionItem {
+  action: string;
+  replaces: string;
+  why: string;
+  category: 'swap' | 'reuse' | 'repair' | 'reduce' | 'dispose_properly';
+  impact: 'high' | 'medium' | 'low';
+  effort: 'easy' | 'moderate' | 'hard';
+}
+
+export interface SimInjunctionChecklist {
+  headline: string;
+  items: SimInjunctionItem[];
+  closing_line: string;
+}
+
+/**
+ * Deterministic offline injunction checklist: worst items first, hard fails
+ * first, hazardous items sent to proper disposal, maintenance tone when the
+ * household is already Compliant. 6–8 entries, no item more than twice.
+ */
+export function generateSimulatedInjunction(
+  items: SimScoredItem[],
+  ratio: number,
+  seedKey: string
+): SimInjunctionChecklist {
+  const material = (m: string) => m.replace(/-/g, ' ');
+  const impactOf = (si: number | null): SimInjunctionItem['impact'] =>
+    si == null || si < 40 ? 'high' : si < 60 ? 'medium' : 'low';
+
+  const ranked = [...items].sort((a, b) => {
+    const aHard = a.overrides.length > 0 ? 0 : 1;
+    const bHard = b.overrides.length > 0 ? 0 : 1;
+    if (aHard !== bHard) return aHard - bHard;
+    return (a.si ?? 0) - (b.si ?? 0);
+  });
+
+  const compliant = ratio >= 75;
+  const cycle: SimInjunctionItem['category'][] = ['reuse', 'swap', 'reduce', 'repair'];
+  const out: SimInjunctionItem[] = [];
+  const uses = new Map<string, number>();
+  let ci = fnv1a(`injunction::${seedKey}`) % cycle.length;
+
+  const pushFor = (item: SimScoredItem): void => {
+    if ((uses.get(item.label) ?? 0) >= 2) return;
+    uses.set(item.label, (uses.get(item.label) ?? 0) + 1);
+    const has = (rule: string) => item.overrides.includes(rule);
+    let category: SimInjunctionItem['category'];
+    let action: string;
+    if (has('hazardous')) {
+      category = 'dispose_properly';
+      action = `Take ${item.label} to a hazardous-waste collection point.`;
+    } else if (has('single-use-plastic')) {
+      category = 'reduce';
+      action = compliant
+        ? `Keep refusing ${item.label} and log each refill.`
+        : `Stop buying ${item.label} and switch to a reusable alternative.`;
+    } else if (has('landfill-trap')) {
+      category = 'dispose_properly';
+      action = `Sort ${item.label} out of landfill into the correct stream.`;
+    } else {
+      category = cycle[ci % cycle.length];
+      ci += 1;
+      const alt = category;
+      if (compliant) {
+        action =
+          alt === 'reuse'
+            ? `Keep reusing ${item.label} instead of replacing it.`
+            : alt === 'repair'
+            ? `Repair ${item.label} at the first sign of wear.`
+            : alt === 'reduce'
+            ? `Keep ${item.label} use minimal and share spares.`
+            : `Keep a durable replacement ready for ${item.label}.`;
+      } else {
+        action =
+          alt === 'reuse'
+            ? `Reuse ${item.label} instead of buying a new one.`
+            : alt === 'repair'
+            ? `Repair ${item.label} rather than throwing it away.`
+            : alt === 'reduce'
+            ? `Cut ${item.label} use in half starting this week.`
+            : `Swap ${item.label} for a durable reusable version.`;
+      }
+    }
+    out.push({
+      action,
+      replaces: item.label,
+      why: `${material(item.materialFamily)} waste harms soil and water when discarded carelessly.`,
+      category,
+      impact: impactOf(item.si),
+      effort: category === 'dispose_properly' ? 'moderate' : 'easy',
+    });
+  };
+
+  for (const item of ranked) {
+    if (out.length >= 8) break;
+    pushFor(item);
+  }
+  // Pad to at least 6 entries by revisiting the worst items (max two uses each).
+  let ri = 0;
+  while (out.length < 6 && ri < ranked.length * 2 + 8) {
+    pushFor(ranked[ri % Math.max(1, ranked.length)]);
+    ri += 1;
+  }
+
+  return {
+    headline: `${out.length} actions to raise your Compliance Ratio.`,
+    items: out,
+    closing_line: 'Pledge these actions to lift your score, one habit at a time.',
+  };
+}

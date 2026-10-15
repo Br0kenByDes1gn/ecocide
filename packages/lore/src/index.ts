@@ -36,16 +36,26 @@ export {
   dimensionRubricBlock,
   INVENTORY_JSON_SCHEMA,
   VERDICT_JSON_SCHEMA,
+  INJUNCTION_JSON_SCHEMA,
+  INJUNCTION_CATEGORIES,
+  INJUNCTION_IMPACTS,
+  INJUNCTION_EFFORTS,
   buildInventoryPrompt,
   buildVerdictPrompt,
   buildAppealPrompt,
   buildReArbitrationPrompt,
+  buildInjunctionPrompt,
 } from './prompts.js';
 export type {
   VerdictPromptInput,
   AppealPromptDossier,
   ReArbitrationPromptDossier,
   ReArbitrationPromptAppeal,
+  InjunctionCategory,
+  InjunctionImpact,
+  InjunctionEffort,
+  InjunctionPromptItem,
+  InjunctionPromptInput,
 } from './prompts.js';
 export {
   fnv1a,
@@ -58,6 +68,7 @@ export {
   generateSimulatedSuggestions,
   generateSimulatedAppealRuling,
   generateSimulatedReArbitrationCopy,
+  generateSimulatedInjunction,
 } from './simulate.js';
 export type {
   SimItem,
@@ -69,4 +80,7 @@ export type {
   SimAppealRuling,
   SimReArbitrationInput,
   SimReArbitrationCopy,
+  SimScoredItem,
+  SimInjunctionItem,
+  SimInjunctionChecklist,
 } from './simulate.js';

@@ -8,6 +8,7 @@ import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
 import { HonoAdapter } from '@bull-board/hono';
 import path from 'path';
 import fs from 'fs';
+import { createHash } from 'crypto';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { nanoid } from 'nanoid';
@@ -18,8 +19,10 @@ import {
   generateAppealVerdict,
   generateHouseholdInventory,
   generateHouseholdVerdict,
+  generateInjunctionChecklist,
   generateReArbitrationVerdict,
   generateSimulatedAppealVerdict,
+  generateSimulatedInjunctionChecklist,
   generateSimulatedReArbitration,
   type InventoryResult,
   type ReArbitrationVerdict,
@@ -381,6 +384,54 @@ app.post('/api/citizen/:id/appeal', async (c) => {
   } catch (error: any) {
     console.error('[Appeal Error]', error);
     return c.json({ error: error.message || 'Internal appeal error' }, 500);
+  }
+});
+
+// Environmental injunction checklist (generated from the stored audit items)
+app.post('/api/citizen/:id/injunction', async (c) => {
+  try {
+    const id = c.req.param('id');
+    const record = await repositories.getDossier(id);
+    if (!record) {
+      return c.json({ error: 'Citizen record not found' }, 404);
+    }
+
+    // Serve the cached checklist unless the underlying audit changed: a new
+    // scan (new dossier id) or a re-arbitration (new caste/ratio) busts it.
+    const profile = record.user_profile || record.profile;
+    const fingerprint = createHash('sha1')
+      .update(
+        JSON.stringify({
+          items: record.audit?.items ?? [],
+          caste: profile.caste,
+          ratio: profile.biocarbon_ratio,
+        })
+      )
+      .digest('hex');
+
+    const cached = await repositories.getCachedInjunction(id);
+    if (cached && cached.hash === fingerprint) {
+      try {
+        return c.json({ ...JSON.parse(cached.checklistJson), id, cached: true });
+      } catch {
+        // Corrupt cache entry — fall through and regenerate.
+      }
+    }
+
+    let checklist;
+    if (geminiConfigured()) {
+      const result = await generateInjunctionChecklist(record);
+      checklist = result.checklist;
+    } else {
+      console.warn('[Injunction] Gemini engine offline, using simulated checklist.');
+      checklist = generateSimulatedInjunctionChecklist(record);
+    }
+
+    await repositories.saveCachedInjunction(id, fingerprint, JSON.stringify(checklist));
+    return c.json({ ...checklist, id, cached: false });
+  } catch (error: any) {
+    console.error('[Injunction Error]', error);
+    return c.json({ error: error.message || 'Internal injunction error' }, 500);
   }
 });
 

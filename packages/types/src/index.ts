@@ -126,6 +126,23 @@ export interface Suggestion {
   impact_pct: number;
 }
 
+/** One corrective action on the environmental injunction checklist. */
+export interface InjunctionItem {
+  action: string;
+  replaces: string;
+  why: string;
+  category: 'swap' | 'reuse' | 'repair' | 'reduce' | 'dispose_properly';
+  impact: 'high' | 'medium' | 'low';
+  effort: 'easy' | 'moderate' | 'hard';
+}
+
+/** The environmental injunction checklist for one household. */
+export interface InjunctionChecklist {
+  headline: string;
+  items: InjunctionItem[];
+  closing_line: string;
+}
+
 /** The full household audit result. */
 export interface HouseholdAudit {
   roomType: string | null;

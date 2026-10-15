@@ -227,3 +227,56 @@ describe('re-arbitration', () => {
     expect(first.scripture[2]).not.toContain('petition');
   });
 });
+describe('injunction', () => {
+  it('builds an injunction prompt input from the stored dossier items', async () => {
+    const { buildInjunctionPromptInput } = await import('./gemini.js');
+    const input = buildInjunctionPromptInput(makeRecord());
+    expect(input.ratio).toBe(42);
+    expect(input.items).toHaveLength(2);
+    expect(input.items[0].label).toBe('coffee pod');
+    expect(input.items[0].overrides).toEqual(['single-use-plastic']);
+  });
+
+  it('simulated checklist is deterministic, 6-8 shaped items, hard fail first', async () => {
+    const { generateSimulatedInjunctionChecklist } = await import('./gemini.js');
+    const record = makeRecord();
+    record.audit?.items.push(
+      {
+        label: 'plastic bag',
+        category: 'packaging',
+        count: 5,
+        ratings: { m: 5, r: 2, l: 4 },
+        materialFamily: 'plastic',
+        size: 'small',
+        overrides: ['landfill-trap'],
+        si: 30,
+        status: 'non-compliant',
+      },
+      {
+        label: 'glass jar',
+        category: 'food',
+        count: 2,
+        ratings: { m: 2 },
+        materialFamily: 'glass',
+        size: 'small',
+        si: 80,
+        status: 'compliant',
+      }
+    );
+    const a = generateSimulatedInjunctionChecklist(record);
+    const b = generateSimulatedInjunctionChecklist(record);
+    expect(a).toEqual(b);
+    expect(a.items.length).toBeGreaterThanOrEqual(6);
+    expect(a.items.length).toBeLessThanOrEqual(8);
+    expect(a.items[0].replaces).toBe('coffee pod');
+    for (const item of a.items) {
+      expect(item.action).toBeTruthy();
+      expect(item.why).toBeTruthy();
+      expect(['swap', 'reuse', 'repair', 'reduce', 'dispose_properly']).toContain(item.category);
+      expect(['high', 'medium', 'low']).toContain(item.impact);
+      expect(['easy', 'moderate', 'hard']).toContain(item.effort);
+    }
+    expect(a.headline.split(' ').length).toBeLessThanOrEqual(10);
+    expect(a.closing_line.split(' ').length).toBeLessThanOrEqual(18);
+  });
+});
