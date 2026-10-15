@@ -381,4 +381,50 @@ describe('vault routes', () => {
   it('rejects unauthenticated ledger access', async () => {
     expect((await makeApp(null).request('/api/vault/ledger')).status).toBe(401);
   });
+
+  it('confirms injunction tasks with impact x effort points, idempotently', async () => {
+    const app = makeApp(USER_A);
+    await repositories.addInjunctionTasks(USER_A, 'dossier-1', [
+      { action: 'A', replaces: 'x', why: 'W', category: 'reduce', impact: 'medium', effort: 'easy' },
+      { action: 'B', replaces: 'y', why: 'W', category: 'swap', impact: 'high', effort: 'hard' },
+    ]);
+    await repositories.addInjunctionTasks(USER_B, 'dossier-2', [
+      { action: 'C', replaces: 'z', why: 'W', category: 'reuse', impact: 'low', effort: 'easy' },
+    ]);
+    const own = await repositories.getInjunctionTasksByUser(USER_A);
+    const foreign = (await repositories.getInjunctionTasksByUser(USER_B))[0];
+
+    const res = await app.request('/api/vault/injunction-confirm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ taskIds: [...own.map((t) => t.id), foreign.id, 'nope'] }),
+    });
+    const body = await res.json();
+    // medium(4) x easy(2) = 8; high(8) x hard(8) = 64; foreign + unknown ignored.
+    expect(body.confirmed).toHaveLength(2);
+    expect(body.bonusTotal).toBe(72);
+    expect(body.effectiveIndex).toBeLessThanOrEqual(100);
+
+    // Idempotent: confirming again yields nothing new.
+    const again = await (
+      await app.request('/api/vault/injunction-confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskIds: own.map((t) => t.id) }),
+      })
+    ).json();
+    expect(again.confirmed).toHaveLength(0);
+    expect(again.bonusTotal).toBe(72);
+
+    // Empty selection is a 400.
+    expect(
+      (
+        await app.request('/api/vault/injunction-confirm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ taskIds: [] }),
+        })
+      ).status
+    ).toBe(400);
+  });
 });

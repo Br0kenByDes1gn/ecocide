@@ -1,4 +1,4 @@
-import { desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import type {
   ApiCallLog,
@@ -280,7 +280,49 @@ export function createRepositories(db: DbConnection['db']) {
         effort: row.effort as InjunctionTask['effort'],
         dossierId: row.dossier_id,
         createdAt: row.created_at,
+        completed: row.completed,
+        completedAt: row.completed_at,
+        points: row.points,
       }));
+    },
+
+    /**
+     * Marks tasks completed (idempotent per row): only pending rows owned by
+     * the citizen flip. Returns the newly completed ids with their points.
+     */
+    async confirmInjunctionTasks(
+      userId: string,
+      confirmed: Array<{ id: string; points: number }>
+    ): Promise<Array<{ id: string; points: number }>> {
+      const done: Array<{ id: string; points: number }> = [];
+      if (confirmed.length === 0) return done;
+      const completedAt = new Date().toISOString();
+      const pending = await db
+        .select({ id: injunctionTasks.id })
+        .from(injunctionTasks)
+        .where(and(eq(injunctionTasks.user_id, userId), eq(injunctionTasks.completed, false)))
+        .all();
+      const pendingIds = new Set(pending.map((row) => row.id));
+      for (const { id, points } of confirmed) {
+        if (!pendingIds.has(id)) continue;
+        await db
+          .update(injunctionTasks)
+          .set({ completed: true, completed_at: completedAt, points })
+          .where(eq(injunctionTasks.id, id))
+          .run();
+        done.push({ id, points });
+      }
+      return done;
+    },
+
+    /** Sums every completed point a citizen has banked. */
+    async getInjunctionBonusTotal(userId: string): Promise<number> {
+      const rows = db
+        .select({ points: injunctionTasks.points })
+        .from(injunctionTasks)
+        .where(and(eq(injunctionTasks.user_id, userId), eq(injunctionTasks.completed, true)))
+        .all();
+      return rows.reduce((sum, row) => sum + row.points, 0);
     },
 
     /** Persists an appeal filing + its ruling, linked to the original dossier. */

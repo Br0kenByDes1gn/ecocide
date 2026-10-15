@@ -31,6 +31,8 @@ interface RegistrySidePanelProps {
   onBeginAudit: () => void;
   /** Open a linked assessment (ledger record links). */
   onOpenDossier: (id: string) => void;
+  /** Completed-order bonus points added to the pooled index (injunction page). */
+  bonus?: number;
 }
 
 /**
@@ -41,6 +43,7 @@ export const RegistrySidePanel: React.FC<RegistrySidePanelProps> = ({
   vault,
   onBeginAudit,
   onOpenDossier,
+  bonus = 0,
 }) => {
   const { logout } = useVault();
   const [entries, setEntries] = useState<WalletLedgerEntry[]>([]);
@@ -80,10 +83,12 @@ export const RegistrySidePanel: React.FC<RegistrySidePanelProps> = ({
   const allowancePct = Math.max(0, Math.min(1, wallet.credits / VAULT_ALLOWANCE));
   const hasMore = entries.length < stats.transactionCount;
 
-  const standingCaste = getCasteFromScore(standing.index);
-  const standingFaction = getFaction(standingCaste);
-  const standingColors = CASTE_COLORS[standingCaste];
   const hasRecord = standing.assessmentCount > 0;
+  // Honored injunction orders lift the pooled index (capped at 100).
+  const effectiveIndex = Math.min(100, standing.index + Math.max(0, bonus));
+  const effectiveCaste = getCasteFromScore(effectiveIndex);
+  const effectiveFaction = getFaction(effectiveCaste);
+  const effectiveColors = CASTE_COLORS[effectiveCaste];
 
   return (
     <div className="space-y-3 min-w-0">
@@ -98,15 +103,20 @@ export const RegistrySidePanel: React.FC<RegistrySidePanelProps> = ({
                 </div>
                 <div className="flex items-end gap-2 mt-1">
                   <span className="font-mono text-5xl font-black text-teal-300 tracking-wide">
-                    {standing.index}
+                    {effectiveIndex}
                   </span>
                   <span className="font-mono text-lg text-teal-500 pb-1">%</span>
                   <span
-                    className={`font-mono text-xs font-bold uppercase tracking-widest pb-2 ${standingColors.text}`}
+                    className={`font-mono text-xs font-bold uppercase tracking-widest pb-2 ${effectiveColors.text}`}
                   >
-                    {standingFaction.name}
+                    {effectiveFaction.name}
                   </span>
                 </div>
+                {bonus > 0 && (
+                  <span className="mt-1 inline-block text-[10px] font-mono text-emerald-300 border border-emerald-500/40 rounded-lg px-2 py-0.5 bg-emerald-950/40 uppercase tracking-widest">
+                    +{bonus} honored orders
+                  </span>
+                )}
               </div>
 
               <div className="flex flex-col items-start gap-2">
