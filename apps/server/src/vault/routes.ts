@@ -4,6 +4,8 @@ import {
   VAULT_ALLOWANCE,
   appealFeeUnits,
   claimFeeUnits,
+  injunctionRewardUnits,
+  injunctionTaskPoints,
   getCasteFromScore,
   type VaultChargeResult,
   type VaultDossierSummary,
@@ -122,21 +124,39 @@ export function createVaultRoutes(deps: VaultRouteDeps) {
       return c.json({ error: 'No tasks selected' }, 400);
     }
 
-    const IMPACT_POINTS: Record<string, number> = { low: 2, medium: 4, high: 8 };
-    const EFFORT_POINTS: Record<string, number> = { easy: 2, moderate: 4, hard: 8 };
     const owned = await deps.repositories.getInjunctionTasksByUser(user.id);
     const pendingById = new Map(owned.filter((t) => !t.completed).map((t) => [t.id, t]));
+    // Both figures come from the same two ratings: the standing that lifts the
+    // index, and the credits the action is worth (a property of the chore, so a
+    // second household doing the same thing is paid identically).
     const confirmed = taskIds
       .filter((id) => pendingById.has(id))
       .map((id) => {
         const task = pendingById.get(id)!;
         return {
           id,
-          points: (IMPACT_POINTS[task.impact] ?? 0) * (EFFORT_POINTS[task.effort] ?? 0),
+          points: injunctionTaskPoints(task.impact, task.effort),
+          rewardUnits: injunctionRewardUnits(task.impact, task.effort, task.action),
         };
       });
 
-    await deps.repositories.confirmInjunctionTasks(user.id, confirmed);
+    const banked = await deps.repositories.confirmInjunctionTasks(user.id, confirmed);
+    const rewardUnits = banked.reduce((sum, task) => sum + task.rewardUnits, 0);
+
+    // Paying for completed paperwork is the one movement that *credits* a wallet.
+    let wallet = await deps.repositories.getWalletByUser(user.id);
+    if (rewardUnits > 0) {
+      wallet =
+        wallet ?? (await deps.repositories.createWalletForUser(user.id, VAULT_ALLOWANCE));
+      wallet = (
+        await deps.repositories.applyWalletDelta({
+          userId: user.id,
+          delta: rewardUnits,
+          reason: 'injunction_reward',
+        })
+      ).wallet;
+    }
+
     const bonusTotal = await deps.repositories.getInjunctionBonusTotal(user.id);
 
     const rows = await deps.repositories.getVaultAssessmentRows(user.id);
@@ -145,7 +165,9 @@ export function createVaultRoutes(deps: VaultRouteDeps) {
     );
     const effectiveIndex = Math.min(100, standing.index + bonusTotal);
     return c.json({
-      confirmed,
+      confirmed: banked,
+      rewardUnits,
+      wallet,
       bonusTotal,
       effectiveIndex,
       effectiveCaste: getCasteFromScore(effectiveIndex),

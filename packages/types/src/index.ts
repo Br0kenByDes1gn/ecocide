@@ -175,7 +175,10 @@ export interface InjunctionTask {
   createdAt: string;
   completed: boolean;
   completedAt: string | null;
+  /** Standing banked at confirmation (0 while pending). */
   points: number;
+  /** Credits banked at confirmation, in credit units (0 while pending). */
+  rewardUnits: number;
 }
 
 /** The full household audit result. */
@@ -494,6 +497,13 @@ export {
   referenceLoad,
   claimFeeUnits,
   appealFeeUnits,
+  INJUNCTION_IMPACT_POINTS,
+  INJUNCTION_EFFORT_POINTS,
+  INJUNCTION_REWARD_MIN_UNITS,
+  INJUNCTION_REWARD_MAX_UNITS,
+  INJUNCTION_REWARD_JITTER,
+  injunctionTaskPoints,
+  injunctionRewardUnits,
 } from './economy.js';
 
 /** Auditable reasons a wallet balance can move. */

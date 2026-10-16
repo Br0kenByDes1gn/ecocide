@@ -13,6 +13,9 @@ import { FACTIONS, FACTIONS as TIERS, simulateTierRoom, type Caste } from './ind
 import {
   AUDIT_FACTOR_MAX,
   AUDIT_FACTOR_MIN,
+  INJUNCTION_REWARD_JITTER,
+  INJUNCTION_REWARD_MAX_UNITS,
+  INJUNCTION_REWARD_MIN_UNITS,
   CREDIT_UNITS_PER_CREDIT,
   KG_CO2E_PER_CREDIT,
   VAULT_ALLOWANCE,
@@ -22,6 +25,8 @@ import {
   referenceLoad,
   unitsToCredits,
   unitsToKg,
+  injunctionRewardUnits,
+  injunctionTaskPoints,
 } from './economy.js';
 import type { AuditItem } from './index.js';
 
@@ -114,6 +119,63 @@ describe('fee schedule', () => {
     for (const caste of tierIds) {
       expect(referenceLoad(caste)).toBeGreaterThan(0);
     }
+  });
+
+  it('pays a completed order between a twentieth and half a credit', () => {
+    // Every rating pair, always with the same chore.
+    for (const impact of ['low', 'medium', 'high']) {
+      for (const effort of ['easy', 'moderate', 'hard']) {
+        const units = injunctionRewardUnits(impact, effort, 'Halve the plastic bottle count');
+        expect(units).toBeGreaterThanOrEqual(INJUNCTION_REWARD_MIN_UNITS);
+        expect(units).toBeLessThanOrEqual(INJUNCTION_REWARD_MAX_UNITS);
+        expect(Number.isInteger(units)).toBe(true);
+      }
+    }
+    // The ends of the range land exactly where the ratings say they should.
+    expect(injunctionRewardUnits('low', 'easy', 'Halve the plastic bottle count')).toBe(
+      INJUNCTION_REWARD_MIN_UNITS
+    );
+    expect(unitsToCredits(INJUNCTION_REWARD_MIN_UNITS)).toBe(0.05);
+    expect(unitsToCredits(INJUNCTION_REWARD_MAX_UNITS)).toBe(0.5);
+  });
+
+  it('pays more for impact and effort, monotonically', () => {
+    const chore = 'Route the copper pot set to recycling';
+    const at = (impact: string, effort: string) =>
+      injunctionRewardUnits(impact, effort, `${chore} (${impact}/${effort})`);
+    // Effort climbs within an impact, and impact climbs within an effort.
+    expect(at('high', 'hard')).toBeGreaterThan(at('high', 'easy'));
+    expect(at('high', 'hard')).toBeGreaterThan(at('low', 'hard'));
+    expect(at('medium', 'moderate')).toBeGreaterThan(at('low', 'easy'));
+    // And the standing that rides with it uses the same weights.
+    expect(injunctionTaskPoints('high', 'hard')).toBeGreaterThan(injunctionTaskPoints('low', 'easy'));
+  });
+
+  it('pays a chore the same amount every time, and jitters only a little', () => {
+    // The payout is a property of the action, not of the moment or the household.
+    const first = injunctionRewardUnits('medium', 'moderate', 'Halve the reusable tote bag count');
+    const again = injunctionRewardUnits('medium', 'moderate', 'Halve the reusable tote bag count');
+    expect(again).toBe(first);
+
+    // Two different chores of the same standing may differ, but stay close and in range.
+    const others = ['Retire the kettle', 'Recycle the polyester shirts', 'Fix the microwave'];
+    const base = first;
+    for (const action of others) {
+      const units = injunctionRewardUnits('medium', 'moderate', action);
+      expect(units).toBeGreaterThanOrEqual(INJUNCTION_REWARD_MIN_UNITS);
+      expect(units).toBeLessThanOrEqual(INJUNCTION_REWARD_MAX_UNITS);
+      expect(Math.abs(units - base)).toBeLessThanOrEqual(
+        Math.ceil(base * INJUNCTION_REWARD_JITTER) + 1
+      );
+    }
+  });
+
+  it('never overpays an unreadable rating', () => {
+    // A missing or unknown rating is priced as the cheapest pair the Bureau knows.
+    const floor = INJUNCTION_REWARD_MIN_UNITS;
+    expect(injunctionTaskPoints(undefined, undefined)).toBe(4);
+    expect(injunctionTaskPoints('enormous', 'trivial')).toBe(4);
+    expect(injunctionRewardUnits(undefined, undefined, 'Anything at all')).toBe(floor);
   });
 
   it('falls back to the worst tier for an unknown classification', () => {

@@ -1,7 +1,14 @@
 import { describe, expect, it, beforeAll, afterAll, beforeEach } from 'vitest';
 import { sql } from 'drizzle-orm';
 import { Hono } from 'hono';
-import { VAULT_ALLOWANCE, appealFeeUnits, claimFeeUnits, type OraclePayload } from '@ecocide/types';
+import {
+  INJUNCTION_REWARD_MAX_UNITS,
+  INJUNCTION_REWARD_MIN_UNITS,
+  VAULT_ALLOWANCE,
+  appealFeeUnits,
+  claimFeeUnits,
+  type OraclePayload,
+} from '@ecocide/types';
 import { createRepositories, initDb, runMigrations, type DbConnection, type Repositories } from '../db/index.js';
 import { user } from '../db/schema.js';
 import type { Auth } from '../auth/index.js';
@@ -513,6 +520,38 @@ describe('vault routes', () => {
     expect(body.bonusTotal).toBe(72);
     expect(body.effectiveIndex).toBeLessThanOrEqual(100);
 
+    // Each confirmed order also pays credits, from the action's own ratings.
+    const paidUnits = body.confirmed.reduce(
+      (sum: number, task: { rewardUnits: number }) => sum + task.rewardUnits,
+      0
+    );
+    expect(body.rewardUnits).toBe(paidUnits);
+    expect(paidUnits).toBeGreaterThan(0);
+    for (const task of body.confirmed as Array<{ rewardUnits: number }>) {
+      expect(task.rewardUnits).toBeGreaterThanOrEqual(INJUNCTION_REWARD_MIN_UNITS);
+      expect(task.rewardUnits).toBeLessThanOrEqual(INJUNCTION_REWARD_MAX_UNITS);
+    }
+    // The heavier chore pays more than the lighter one (looked up by rating, not
+    // by list order — tasks come back newest first).
+    const byId = new Map(
+      (body.confirmed as Array<{ id: string; rewardUnits: number }>).map((t) => [t.id, t.rewardUnits])
+    );
+    const heavy = own.find((t) => t.impact === 'high')!;
+    const light = own.find((t) => t.impact === 'medium')!;
+    expect(byId.get(heavy.id)!).toBeGreaterThan(byId.get(light.id)!);
+
+    // The wallet was credited (provisioned with the allowance if it was new).
+    expect(body.wallet.credits).toBe(VAULT_ALLOWANCE + paidUnits);
+    const rewardEntries = (await repositories.getWalletLedger(USER_A)).filter(
+      (e) => e.reason === 'injunction_reward'
+    );
+    expect(rewardEntries).toHaveLength(1);
+    expect(rewardEntries[0].delta).toBe(paidUnits);
+    expect(rewardEntries[0].balanceAfter).toBe(VAULT_ALLOWANCE + paidUnits);
+    // And the payout is recorded on the task, not only in the ledger.
+    const stored = await repositories.getInjunctionTasksByUser(USER_A);
+    expect(stored.reduce((sum, t) => sum + t.rewardUnits, 0)).toBe(paidUnits);
+
     // Idempotent: confirming again yields nothing new.
     const again = await (
       await app.request('/api/vault/injunction-confirm', {
@@ -523,6 +562,12 @@ describe('vault routes', () => {
     ).json();
     expect(again.confirmed).toHaveLength(0);
     expect(again.bonusTotal).toBe(72);
+    // No second payout, and no second ledger entry.
+    expect(again.rewardUnits).toBe(0);
+    expect(again.wallet.credits).toBe(VAULT_ALLOWANCE + paidUnits);
+    expect(
+      (await repositories.getWalletLedger(USER_A)).filter((e) => e.reason === 'injunction_reward')
+    ).toHaveLength(1);
 
     // Empty selection is a 400.
     expect(

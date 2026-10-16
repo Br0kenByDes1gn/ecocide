@@ -1,0 +1,1 @@
+ALTER TABLE "injunction_tasks" ADD COLUMN "reward_units" integer DEFAULT 0 NOT NULL;

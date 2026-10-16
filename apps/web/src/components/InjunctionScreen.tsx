@@ -3,9 +3,9 @@ import type { InjunctionTask } from '@ecocide/types';
 import { REGISTRY_COPY } from '@ecocide/lore';
 import { ClipboardList, Loader2, Square, SquareCheckBig, Wallet } from 'lucide-react';
 import { useVault } from '../lib/useVault';
-import { splitWorksheet } from '../lib/injunction-worksheet';
+import { splitWorksheet, taskRewardUnits } from '../lib/injunction-worksheet';
 import { confirmInjunctionTasks, fetchInjunctionTasks } from '../lib/vault-api';
-import { formatVaultDate } from '../lib/vault-format';
+import { formatCarbonCredits, formatVaultDate } from '../lib/vault-format';
 import { registryPhase } from '../lib/registry-phase';
 import { RegistryFailedPanel, RegistryLoadingPanel } from './RegistryStatusPanel';
 import { RegistryUnlock } from './RegistryUnlock';
@@ -105,7 +105,7 @@ export const InjunctionScreen: React.FC<InjunctionScreenProps> = ({
   const tasks = state.status === 'ready' ? state.tasks : [];
   // The filter is a view concern; the bonus is pooled from every order on file
   // (see splitWorksheet for why they are derived together).
-  const { visible, bonusTotal } = splitWorksheet(tasks, dossierFilter);
+  const { visible, bonusTotal, earnedUnits, boardUnits } = splitWorksheet(tasks, dossierFilter);
   const pendingSelected = visible.filter((t) => !t.completed && checked.has(t.id));
 
   const handleConfirm = async () => {
@@ -212,6 +212,17 @@ export const InjunctionScreen: React.FC<InjunctionScreenProps> = ({
               <p className="px-5 pt-1 font-mono text-[11px] text-gray-500 uppercase tracking-widest">
                 {REGISTRY_COPY.injunction.hint}
               </p>
+              {/* Confirmed orders pay carbon credits; the quote for what is still
+                  outstanding comes from the same rule the server pays by. */}
+              <p className="px-5 pt-2 font-mono text-[11px] uppercase tracking-widest text-teal-300/90">
+                {formatCarbonCredits(earnedUnits)} {REGISTRY_COPY.account.unit} banked
+                {boardUnits > 0 && (
+                  <span className="text-gray-500">
+                    {' '}
+                    · {formatCarbonCredits(boardUnits)} {REGISTRY_COPY.account.unit} on the board
+                  </span>
+                )}
+              </p>
               <ul className="p-5 space-y-2">
                 {visible.map((task) => {
                   const done = task.completed || checked.has(task.id);
@@ -241,8 +252,13 @@ export const InjunctionScreen: React.FC<InjunctionScreenProps> = ({
                               {task.why}
                             </span>
                             <span className="block mt-1 text-[10px] uppercase tracking-widest text-gray-500">
-                              Target: {task.replaces} · {task.category.replace(/_/g, ' ')} · Added {formatVaultDate(task.createdAt)}
-                              {task.completed && task.points > 0 ? ` · +${task.points}` : ''}
+                              Target: {task.replaces} · {task.category.replace(/_/g, ' ')} · Added{' '}
+                              {formatVaultDate(task.createdAt)}
+                              {' · '}
+                              <span className="text-teal-300/90">
+                                +{formatCarbonCredits(taskRewardUnits(task))} CR
+                              </span>
+                              {task.completed && task.points > 0 ? ` · +${task.points} standing` : ''}
                             </span>
                           </span>
                           <span className="flex flex-col gap-1 shrink-0 text-right">

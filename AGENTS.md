@@ -159,14 +159,26 @@ apps/server/scripts/  # scan-cost audit
   better tier more. `/link` prices the claim, and `/api/vault/charge` derives the
   appeal fee from the dossier it is given — an amount sent for `claim_fee` /
   `appeal_fee` is ignored. Scans cost nothing: an audit can run with no account to
-  charge, and the money moves at the two acts that need one.
+  charge, and the money moves at the two acts that need one — then back again when
+  a completed order is confirmed (below).
 - `GET /api/vault`, `POST /api/vault/link`, `POST /api/vault/charge`,
   `GET /api/vault/ledger`, `GET /api/vault/injunction-tasks`,
   `POST /api/vault/injunction-confirm`, `/api/auth/*` (Better Auth email-OTP).
   These are the Carbon Registry endpoints — the storage path keeps its `vault`
-  name. `/link` is the acceptance; `/injunction-confirm` banks impact × effort
-  points, which lift the pooled index on read (`min(100, standing + bonus)`) —
-  the stored per-audit SI is never rewritten.
+  name. `/link` is the acceptance.
+- **Completing an order pays.** `/injunction-confirm` banks the standing
+  (impact × effort points, which lift the pooled index on read as
+  `min(100, standing + bonus)` — the stored per-audit SI is never rewritten) **and
+  credits the wallet** with `injunctionRewardUnits`, one `injunction_reward` ledger
+  entry per batch with the per-task amounts recorded on the task rows
+  (`reward_units`, written at confirmation like `points`, so retuning the schedule
+  cannot rewrite what a past confirmation paid). The payout is 0.05–0.50 credits,
+  `Math.log2`-spread over the same impact × effort product so the extremes land on
+  the ends of the range, then jittered ±10% by a hash of the **action text** — a
+  chore is worth the same on every dossier, for every household, and an unreadable
+  rating is priced at the floor rather than overpaid. `injunctionTaskPoints` and
+  `injunctionRewardUnits` live in `types/economy.ts` and are shared with the
+  worksheet, which has to quote a figure before any stored points exist.
 - `GET /admin/queues` Bull Board (BullMQ mode + Basic auth only).
 - Prompt assembly is thin in `src/gemini.ts` (wraps lore builders, parses
   JSON, sanitizes model output); world copy comes from the pack.

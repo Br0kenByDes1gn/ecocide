@@ -221,6 +221,12 @@ export const injunctionTasks = pgTable(
     created_at: text('created_at').notNull(),
     completed: boolean('completed').notNull().default(false),
     completed_at: text('completed_at'),
+    /**
+     * Credits banked when this action was confirmed, in credit units (1/100 of a
+     * carbon credit). Recorded rather than recomputed so a later change to the
+     * reward schedule cannot rewrite what a past confirmation actually paid.
+     */
+    reward_units: integer('reward_units').notNull().default(0),
     points: integer('points').notNull().default(0),
   },
   (t) => [

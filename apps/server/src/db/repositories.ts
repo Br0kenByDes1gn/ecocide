@@ -194,6 +194,7 @@ function mapInjunctionTaskRow(row: InjunctionTaskRow): InjunctionTask {
     completed: row.completed,
     completedAt: row.completed_at,
     points: row.points,
+    rewardUnits: row.reward_units,
   };
 }
 
@@ -326,9 +327,9 @@ export function createRepositories(db: DbConnection['db']) {
      */
     async confirmInjunctionTasks(
       userId: string,
-      confirmed: Array<{ id: string; points: number }>
-    ): Promise<Array<{ id: string; points: number }>> {
-      const done: Array<{ id: string; points: number }> = [];
+      confirmed: Array<{ id: string; points: number; rewardUnits: number }>
+    ): Promise<Array<{ id: string; points: number; rewardUnits: number }>> {
+      const done: Array<{ id: string; points: number; rewardUnits: number }> = [];
       if (confirmed.length === 0) return done;
       const completedAt = new Date().toISOString();
       const pending = await db
@@ -336,13 +337,13 @@ export function createRepositories(db: DbConnection['db']) {
         .from(injunctionTasks)
         .where(and(eq(injunctionTasks.user_id, userId), eq(injunctionTasks.completed, false)));
       const pendingIds = new Set(pending.map((row) => row.id));
-      for (const { id, points } of confirmed) {
+      for (const { id, points, rewardUnits } of confirmed) {
         if (!pendingIds.has(id)) continue;
         await db
           .update(injunctionTasks)
-          .set({ completed: true, completed_at: completedAt, points })
+          .set({ completed: true, completed_at: completedAt, points, reward_units: rewardUnits })
           .where(eq(injunctionTasks.id, id));
-        done.push({ id, points });
+        done.push({ id, points, rewardUnits });
       }
       return done;
     },

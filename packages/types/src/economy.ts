@@ -13,7 +13,7 @@
 // the packages that own them.
 import type { AuditItem, Caste } from './index.js';
 import { auditLoad } from '@ecocide/compliance';
-import { FACTION_IDS, FACTIONS, buildSimulatedRoom } from '@ecocide/lore';
+import { FACTION_IDS, FACTIONS, buildSimulatedRoom, fnv1a } from '@ecocide/lore';
 
 /**
  * The ledger counts **credit units**: 1 carbon credit = 1 tonne CO₂e = 100 units,
@@ -105,4 +105,90 @@ export function appealFeeUnits(caste: Caste | string, items?: readonly AuditItem
 function factionFor(caste: Caste | string) {
   // Unknown ids resolve to the worst tier, exactly as everywhere else.
   return FACTIONS.find((f) => f.id === caste) ?? FACTIONS[FACTIONS.length - 1];
+}
+
+// ---------------------------------------------------------------------------
+// What an injunction action pays back.
+//
+// Doing the Bureau's paperwork is the one place the citizen is on the receiving
+// end: confirming a completed action banks both standing (the points that lift
+// the pooled index) and carbon credits. The points stay the index's business;
+// the credits are money and live here, derived from the same two ratings.
+// ---------------------------------------------------------------------------
+
+/** Standing awarded per impact rating (`low`…`high`). Also the reward's weight. */
+export const INJUNCTION_IMPACT_POINTS: Readonly<Record<string, number>> = {
+  low: 2,
+  medium: 4,
+  high: 8,
+};
+
+/** Standing awarded per effort rating (`easy`…`hard`). Also the reward's weight. */
+export const INJUNCTION_EFFORT_POINTS: Readonly<Record<string, number>> = {
+  easy: 2,
+  moderate: 4,
+  hard: 8,
+};
+
+/**
+ * Standing for one action: impact × effort, i.e. 4 (low/easy) up to 64
+ * (high/hard). Shared by the confirmation endpoint and the worksheet, which has
+ * to show a figure before the task is confirmed and therefore before any stored
+ * points exist.
+ */
+export function injunctionTaskPoints(
+  impact: string | undefined,
+  effort: string | undefined
+): number {
+  // Unknown ratings fall to the *lowest* pair: the Bureau does not overpay for
+  // paperwork it cannot read.
+  return (
+    (INJUNCTION_IMPACT_POINTS[impact ?? ''] ?? INJUNCTION_IMPACT_POINTS.low) *
+    (INJUNCTION_EFFORT_POINTS[effort ?? ''] ?? INJUNCTION_EFFORT_POINTS.easy)
+  );
+}
+
+/** A completed action pays between a twentieth and half a credit. */
+export const INJUNCTION_REWARD_MIN_UNITS = Math.round(0.05 * CREDIT_UNITS_PER_CREDIT);
+export const INJUNCTION_REWARD_MAX_UNITS = Math.round(0.5 * CREDIT_UNITS_PER_CREDIT);
+
+/** How far the deterministic jitter may move a payout, either way. */
+export const INJUNCTION_REWARD_JITTER = 0.1;
+
+/** Lowest and highest point pairs, which anchor the scale. */
+const POINTS_MIN = 4;
+const POINTS_MAX = 64;
+
+/**
+ * What one completed action is worth, in credit units.
+ *
+ * The payout is a property of the chore, not of the moment: the amount is derived
+ * from the impact and effort ratings and a hash of the action text, so "Halve the
+ * plastic bottle count" is worth the same on every dossier, for every household,
+ * forever. That keeps the ledger auditable against a rule (nothing is a dice roll)
+ * while still giving two chores of equal standing slightly different payouts.
+ *
+ * Doubling the impact × effort product adds about an eighth of the range, so the
+ * ends land exactly on the extremes: a low-impact, easy task pays the floor and a
+ * high-impact, hard one pays the ceiling. The jitter is clamped, so nothing can
+ * escape the advertised range.
+ */
+export function injunctionRewardUnits(
+  impact: string | undefined,
+  effort: string | undefined,
+  action: string
+): number {
+  const points = injunctionTaskPoints(impact, effort);
+  const spread = Math.log2(POINTS_MAX) - Math.log2(POINTS_MIN);
+  const progress = (Math.log2(Math.max(POINTS_MIN, points)) - Math.log2(POINTS_MIN)) / spread;
+  const base = INJUNCTION_REWARD_MIN_UNITS + progress * (INJUNCTION_REWARD_MAX_UNITS - INJUNCTION_REWARD_MIN_UNITS);
+
+  // −1 … +1, from the chore itself.
+  const noise = ((fnv1a(action) % 2001) - 1000) / 1000;
+  const jittered = Math.round(base * (1 + noise * INJUNCTION_REWARD_JITTER));
+
+  return Math.max(
+    INJUNCTION_REWARD_MIN_UNITS,
+    Math.min(INJUNCTION_REWARD_MAX_UNITS, jittered)
+  );
 }

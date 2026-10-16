@@ -85,6 +85,8 @@ export const REGISTRY_COPY = {
       seed: 'Universal Basic Allowance',
       claim_fee: 'Verdict Certification Fee',
       appeal_fee: 'Appeal Filing Fee',
+      /** Paid to the citizen when a completed order is confirmed. */
+      injunction_reward: 'Compliance Credit',
       adjustment: 'System Adjustment',
     },
   },
