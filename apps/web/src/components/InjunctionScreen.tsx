@@ -105,7 +105,7 @@ export const InjunctionScreen: React.FC<InjunctionScreenProps> = ({
   const tasks = state.status === 'ready' ? state.tasks : [];
   // The filter is a view concern; the bonus is pooled from every order on file
   // (see splitWorksheet for why they are derived together).
-  const { visible, bonusTotal, earnedUnits, boardUnits } = splitWorksheet(tasks, dossierFilter);
+  const { visible, earnedUnits, boardUnits } = splitWorksheet(tasks, dossierFilter);
   const pendingSelected = visible.filter((t) => !t.completed && checked.has(t.id));
 
   const handleConfirm = async () => {
@@ -290,7 +290,7 @@ export const InjunctionScreen: React.FC<InjunctionScreenProps> = ({
           )}
         </div>
 
-        <RegistrySidePanel vault={vault} onBeginAudit={onBeginAudit} onOpenDossier={onOpenDossier} bonus={bonusTotal} />
+        <RegistrySidePanel vault={vault} onBeginAudit={onBeginAudit} onOpenDossier={onOpenDossier} />
       </div>
     </div>
   );

@@ -66,7 +66,13 @@ export async function fetchInjunctionTasksForDossier(
 
 export interface InjunctionConfirmResult {
   confirmed: Array<{ id: string; points: number }>;
-  bonusTotal: number;
+  /** Pooled from the archived verdicts alone. */
+  verdictIndex: number;
+  /** Raw standing points banked from orders (impact × effort). */
+  points: number;
+  ordersHonored: number;
+  /** What those orders add to the index (0 … the cap). */
+  bonus: number;
   effectiveIndex: number;
   effectiveCaste: string;
 }

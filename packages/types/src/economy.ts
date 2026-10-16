@@ -192,3 +192,58 @@ export function injunctionRewardUnits(
     Math.min(INJUNCTION_REWARD_MAX_UNITS, jittered)
   );
 }
+
+// ---------------------------------------------------------------------------
+// How much honoring orders is worth on the index.
+//
+// Weighted far below a verdict, on purpose. An order is a chore the Bureau asked
+// for; a verdict is what the Bureau measured independently, and the index is a
+// record of measurements. Selling index points for chores would let a household
+// audit-proof its own standing, so the paperwork's contribution is bounded,
+// diminishes with every additional order, and can never approach a pass.
+// ---------------------------------------------------------------------------
+
+/**
+ * Most index points all the honored orders in the world are worth: about one
+ * verdict's move, and never enough to carry a household up a tier on its own.
+ */
+export const INJUNCTION_INDEX_CAP = 10;
+
+/**
+ * Standing points at which half the cap is earned. An average order is worth
+ * about twenty points (impact × effort), so this is roughly thirty orders.
+ */
+export const INJUNCTION_INDEX_HALF_POINTS = 600;
+
+/**
+ * Index points contributed by honored orders: `cap × T/(T + half)`.
+ *
+ * Zero with nothing banked, monotone, and asymptotic — the tenth order helps and
+ * the two-hundredth barely does. Not rounded: the components are shown to the
+ * citizen next to the verdict index, and one decimal is the difference between
+ * "orders do nothing" and "orders count, slowly".
+ */
+export function injunctionIndexBonus(totalPoints: number): number {
+  const points = Math.max(0, totalPoints);
+  if (points === 0) return 0;
+  return (INJUNCTION_INDEX_CAP * points) / (points + INJUNCTION_INDEX_HALF_POINTS);
+}
+
+/** The two numbers a citizen is shown, and the one they add up to. */
+export interface InjunctionStanding {
+  /** Pooled from the archived verdicts alone — the record of what was measured. */
+  verdictIndex: number;
+  /** What honored orders add to it (0 … `INJUNCTION_INDEX_CAP`). */
+  bonus: number;
+  /** What the registry certifies, `min(100, verdicts + orders)`. */
+  effectiveIndex: number;
+}
+
+export function injunctionStanding(verdictIndex: number, totalPoints: number): InjunctionStanding {
+  const bonus = injunctionIndexBonus(totalPoints);
+  return {
+    verdictIndex,
+    bonus,
+    effectiveIndex: Math.min(100, Math.round(verdictIndex + bonus)),
+  };
+}

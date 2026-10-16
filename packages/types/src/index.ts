@@ -504,7 +504,12 @@ export {
   INJUNCTION_REWARD_JITTER,
   injunctionTaskPoints,
   injunctionRewardUnits,
+  INJUNCTION_INDEX_CAP,
+  INJUNCTION_INDEX_HALF_POINTS,
+  injunctionIndexBonus,
+  injunctionStanding,
 } from './economy.js';
+export type { InjunctionStanding } from './economy.js';
 
 /** Auditable reasons a wallet balance can move. */
 export type WalletLedgerReason = 'seed' | 'claim_fee' | 'appeal_fee' | 'adjustment' | string;
@@ -568,13 +573,32 @@ export interface VaultLedgerPage {
   offset: number;
 }
 
+/** What honored orders are worth on the index, and how much of it is paperwork. */
+export interface InjunctionStandingSummary {
+  /** Raw standing points banked from completed orders (impact × effort). */
+  points: number;
+  /** How many orders have been honored. */
+  ordersHonored: number;
+  /** Index points those orders contribute (0 … `INJUNCTION_INDEX_CAP`). */
+  bonus: number;
+  /** `min(100, round(verdicts + orders))` — what the registry certifies. */
+  effectiveIndex: number;
+  effectiveCaste: Caste;
+}
+
 /** Fully-hydrated vault state returned by `GET /api/vault`. */
 export interface VaultState {
   user: VaultUser;
   wallet: Wallet;
   stats: VaultStats;
-  /** The citizen-level carbon standing pooled from the archived assessments. */
+  /**
+   * The citizen-level carbon standing pooled from the archived assessments —
+   * verdicts only. `injunction` carries what the honored orders add to it, so the
+   * two are always shown as the two different numbers they are.
+   */
   standing: RegistryStanding;
+  /** The paperwork's contribution to the index. */
+  injunction: InjunctionStandingSummary;
   /** Lightweight summaries of dossiers linked to this vault (newest first). */
   dossiers: VaultDossierSummary[];
   /** Most recent ledger page. */

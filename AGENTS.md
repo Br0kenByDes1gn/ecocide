@@ -166,10 +166,8 @@ apps/server/scripts/  # scan-cost audit
   `POST /api/vault/injunction-confirm`, `/api/auth/*` (Better Auth email-OTP).
   These are the Carbon Registry endpoints — the storage path keeps its `vault`
   name. `/link` is the acceptance.
-- **Completing an order pays.** `/injunction-confirm` banks the standing
-  (impact × effort points, which lift the pooled index on read as
-  `min(100, standing + bonus)` — the stored per-audit SI is never rewritten) **and
-  credits the wallet** with `injunctionRewardUnits`, one `injunction_reward` ledger
+- **Completing an order pays, slowly.** `/injunction-confirm` banks standing points
+  (impact × effort) **and credits the wallet** with `injunctionRewardUnits`, one `injunction_reward` ledger
   entry per batch with the per-task amounts recorded on the task rows
   (`reward_units`, written at confirmation like `points`, so retuning the schedule
   cannot rewrite what a past confirmation paid). The payout is 0.05–0.50 credits,
@@ -179,6 +177,17 @@ apps/server/scripts/  # scan-cost audit
   rating is priced at the floor rather than overpaid. `injunctionTaskPoints` and
   `injunctionRewardUnits` live in `types/economy.ts` and are shared with the
   worksheet, which has to quote a figure before any stored points exist.
+- **The index is measured, not earned.** Standing is the pooled verdicts
+  (`registryStanding`) plus a bounded contribution from honored orders:
+  `injunctionStanding` → `bonus = INJUNCTION_INDEX_CAP × T/(T + halfPoints)` (cap
+  +10, half of it at 600 points ≈ thirty orders), so paperwork can nudge the index
+  but never carry a household up a tier, and 216 honored orders read +8.8 rather
+  than the +4,320 the raw point sum used to add. Both numbers are exposed together
+  — `VaultState.standing.index` (verdicts) and `VaultState.injunction`
+  (points, ordersHonored, bonus, effectiveIndex, effectiveCaste) — because the
+  bonus used to be pooled client-side on one screen only, which made `/registry`
+  and `/injunction` disagree about the same account. The lift is derived on read:
+  the stored per-audit SI is never rewritten.
 - `GET /admin/queues` Bull Board (BullMQ mode + Basic auth only).
 - Prompt assembly is thin in `src/gemini.ts` (wraps lore builders, parses
   JSON, sanitizes model output); world copy comes from the pack.

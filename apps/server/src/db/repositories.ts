@@ -348,6 +348,15 @@ export function createRepositories(db: DbConnection['db']) {
       return done;
     },
 
+    /** How many orders this citizen has honored (the index's paperwork count). */
+    async getInjunctionCompletedCount(userId: string): Promise<number> {
+      const rows = await db
+        .select({ id: injunctionTasks.id })
+        .from(injunctionTasks)
+        .where(and(eq(injunctionTasks.user_id, userId), eq(injunctionTasks.completed, true)));
+      return rows.length;
+    },
+
     /** Sums every completed point a citizen has banked. */
     async getInjunctionBonusTotal(userId: string): Promise<number> {
       const rows = await db

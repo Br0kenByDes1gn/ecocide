@@ -2,6 +2,7 @@ import { describe, expect, it, beforeAll, afterAll, beforeEach } from 'vitest';
 import { sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 import {
+  INJUNCTION_INDEX_CAP,
   INJUNCTION_REWARD_MAX_UNITS,
   INJUNCTION_REWARD_MIN_UNITS,
   VAULT_ALLOWANCE,
@@ -517,8 +518,16 @@ describe('vault routes', () => {
     const body = await res.json();
     // medium(4) x easy(2) = 8; high(8) x hard(8) = 64; foreign + unknown ignored.
     expect(body.confirmed).toHaveLength(2);
-    expect(body.bonusTotal).toBe(72);
+    expect(body.points).toBe(72);
+    expect(body.ordersHonored).toBe(2);
+    // The index keeps the two components apart, and the paperwork's share is
+    // capped and diminishing: 72 points is worth about one index point, nowhere
+    // near the 72 the raw sum used to add.
+    expect(body.effectiveIndex).toBe(Math.min(100, Math.round(body.verdictIndex + body.bonus)));
+    expect(body.bonus).toBeGreaterThan(0);
+    expect(body.bonus).toBeLessThanOrEqual(INJUNCTION_INDEX_CAP);
     expect(body.effectiveIndex).toBeLessThanOrEqual(100);
+    expect(INJUNCTION_INDEX_CAP + body.verdictIndex).toBeGreaterThanOrEqual(body.effectiveIndex);
 
     // Each confirmed order also pays credits, from the action's own ratings.
     const paidUnits = body.confirmed.reduce(
@@ -561,7 +570,8 @@ describe('vault routes', () => {
       })
     ).json();
     expect(again.confirmed).toHaveLength(0);
-    expect(again.bonusTotal).toBe(72);
+    expect(again.points).toBe(72);
+    expect(again.bonus).toBe(body.bonus);
     // No second payout, and no second ledger entry.
     expect(again.rewardUnits).toBe(0);
     expect(again.wallet.credits).toBe(VAULT_ALLOWANCE + paidUnits);

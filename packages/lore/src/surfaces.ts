@@ -34,6 +34,9 @@ export const REGISTRY_COPY = {
   standing: {
     label: 'Carbon Neutrality Index',
     caption: 'Pooled from every assessment on file',
+    /** The two components the hero names: measured verdicts, honored chores. */
+    fromVerdicts: 'from verdicts',
+    fromOrders: 'from honored orders',
     /** Trend chip when nothing older exists to compare against. */
     noTrend: 'First assessment on file',
     /** Stat strip labels. */

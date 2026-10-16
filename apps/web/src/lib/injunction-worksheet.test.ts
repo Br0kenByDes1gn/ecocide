@@ -31,7 +31,7 @@ describe('splitWorksheet', () => {
    * verdict. The citizen's index is pooled from every completed order, so viewing
    * a single verdict must never look like it cost them points.
    */
-  it('narrows the list without moving the bonus', () => {
+  it('narrows the list without touching the totals', () => {
     const tasks = [
       task({ id: 'a1', dossierId: 'dossier-a', completed: true, points: 8 }),
       task({ id: 'a2', dossierId: 'dossier-a' }),
@@ -39,11 +39,8 @@ describe('splitWorksheet', () => {
     ];
 
     const filtered = splitWorksheet(tasks, 'dossier-a');
-    const all = splitWorksheet(tasks);
 
     expect(filtered.visible.map((t) => t.id)).toEqual(['a1', 'a2']);
-    expect(filtered.bonusTotal).toBe(72); // a1 + b1, even though b1 is not shown
-    expect(filtered.bonusTotal).toBe(all.bonusTotal);
   });
 
   it('shows everything when there is no filter', () => {
@@ -54,13 +51,11 @@ describe('splitWorksheet', () => {
   it('handles a verdict with no orders of its own', () => {
     const filtered = splitWorksheet([task({ id: 'a1', points: 4, completed: true })], 'dossier-empty');
     expect(filtered.visible).toEqual([]);
-    expect(filtered.bonusTotal).toBe(4);
   });
 
   it('is empty-ready', () => {
     expect(splitWorksheet([], 'dossier-a')).toEqual({
       visible: [],
-      bonusTotal: 0,
       earnedUnits: 0,
       boardUnits: 0,
     });

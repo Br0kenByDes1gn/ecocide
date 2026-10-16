@@ -5,6 +5,7 @@ import {
   appealFeeUnits,
   claimFeeUnits,
   injunctionRewardUnits,
+  injunctionStanding,
   injunctionTaskPoints,
   getCasteFromScore,
   type VaultChargeResult,
@@ -56,10 +57,12 @@ export function createVaultRoutes(deps: VaultRouteDeps) {
       (await deps.repositories.getWalletByUser(user.id)) ??
       (await deps.repositories.createWalletForUser(user.id, VAULT_ALLOWANCE));
 
-    const [stats, rows, page] = await Promise.all([
+    const [stats, rows, page, points, ordersHonored] = await Promise.all([
       deps.repositories.getWalletStats(user.id),
       deps.repositories.getVaultAssessmentRows(user.id),
       deps.repositories.getWalletLedgerPage(user.id, { limit: LEDGER_PAGE_SIZE, offset: 0 }),
+      deps.repositories.getInjunctionBonusTotal(user.id),
+      deps.repositories.getInjunctionCompletedCount(user.id),
     ]);
 
     // The pooled standing comes from the archived items; the client only ever
@@ -79,11 +82,23 @@ export function createVaultRoutes(deps: VaultRouteDeps) {
       evidenceUrl: row.evidenceUrl,
     }));
 
+    const certified = injunctionStanding(standing.index, points);
+
     const state: VaultState = {
       user: { id: user.id, email: user.email, name: user.name },
       wallet,
       stats,
       standing,
+      // Honored orders lift the index, but slowly and with a ceiling — a chore is
+      // not a measurement (see injunctionStanding). Computed here so every surface
+      // shows the same two numbers.
+      injunction: {
+        points,
+        ordersHonored,
+        bonus: certified.bonus,
+        effectiveIndex: certified.effectiveIndex,
+        effectiveCaste: getCasteFromScore(certified.effectiveIndex),
+      },
       dossiers,
       ledger: page.entries,
     };
@@ -157,20 +172,26 @@ export function createVaultRoutes(deps: VaultRouteDeps) {
       ).wallet;
     }
 
-    const bonusTotal = await deps.repositories.getInjunctionBonusTotal(user.id);
+    const [points, ordersHonored] = await Promise.all([
+      deps.repositories.getInjunctionBonusTotal(user.id),
+      deps.repositories.getInjunctionCompletedCount(user.id),
+    ]);
 
     const rows = await deps.repositories.getVaultAssessmentRows(user.id);
     const standing = registryStanding(
       rows.map((row) => ({ createdAt: row.createdAt, items: row.items }))
     );
-    const effectiveIndex = Math.min(100, standing.index + bonusTotal);
+    const certified = injunctionStanding(standing.index, points);
     return c.json({
       confirmed: banked,
       rewardUnits,
       wallet,
-      bonusTotal,
-      effectiveIndex,
-      effectiveCaste: getCasteFromScore(effectiveIndex),
+      verdictIndex: certified.verdictIndex,
+      points,
+      ordersHonored,
+      bonus: certified.bonus,
+      effectiveIndex: certified.effectiveIndex,
+      effectiveCaste: getCasteFromScore(certified.effectiveIndex),
     });
   });
 

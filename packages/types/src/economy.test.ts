@@ -13,6 +13,8 @@ import { FACTIONS, FACTIONS as TIERS, simulateTierRoom, type Caste } from './ind
 import {
   AUDIT_FACTOR_MAX,
   AUDIT_FACTOR_MIN,
+  INJUNCTION_INDEX_CAP,
+  INJUNCTION_INDEX_HALF_POINTS,
   INJUNCTION_REWARD_JITTER,
   INJUNCTION_REWARD_MAX_UNITS,
   INJUNCTION_REWARD_MIN_UNITS,
@@ -27,6 +29,8 @@ import {
   unitsToKg,
   injunctionRewardUnits,
   injunctionTaskPoints,
+  injunctionIndexBonus,
+  injunctionStanding,
 } from './economy.js';
 import type { AuditItem } from './index.js';
 
@@ -176,6 +180,50 @@ describe('fee schedule', () => {
     expect(injunctionTaskPoints(undefined, undefined)).toBe(4);
     expect(injunctionTaskPoints('enormous', 'trivial')).toBe(4);
     expect(injunctionRewardUnits(undefined, undefined, 'Anything at all')).toBe(floor);
+  });
+
+  it('cannot be inflated by honored orders alone', () => {
+    // The regression this exists for: an account with 216 honored orders was
+    // pinned at 100% because every order's points were added straight to the
+    // index. Paperwork must never carry a household up a tier.
+    const orders = 216;
+    const points = orders * 20; // an average order is worth about twenty points
+    const standing = injunctionStanding(58, points);
+
+    expect(standing.verdictIndex).toBe(58);
+    expect(standing.bonus).toBeLessThanOrEqual(INJUNCTION_INDEX_CAP);
+    expect(standing.bonus).toBeLessThan(10);
+    expect(standing.effectiveIndex).toBeLessThan(70);
+    // Even a spotless verdict record plus endless paperwork stops short of a pass.
+    expect(injunctionStanding(95, points * 100).effectiveIndex).toBe(100);
+    expect(injunctionStanding(88, points).effectiveIndex).toBeLessThan(100);
+  });
+
+  it('adds nothing until something is honored, then slows down', () => {
+    expect(injunctionIndexBonus(0)).toBe(0);
+    expect(injunctionIndexBonus(-50)).toBe(0);
+
+    // Monotone: more honored orders always help.
+    const rungs = [20, 200, 600, 2000, 20000].map(injunctionIndexBonus);
+    for (let i = 1; i < rungs.length; i++) {
+      expect(rungs[i]).toBeGreaterThan(rungs[i - 1]);
+    }
+    // Diminishing: the *same* amount of paperwork is worth less the later it comes.
+    const early = injunctionIndexBonus(200) - injunctionIndexBonus(0);
+    const later = injunctionIndexBonus(1200) - injunctionIndexBonus(1000);
+    expect(later).toBeLessThan(early);
+    // Half the cap lands at the half-point by construction.
+    expect(injunctionIndexBonus(INJUNCTION_INDEX_HALF_POINTS)).toBeCloseTo(INJUNCTION_INDEX_CAP / 2, 6);
+    // And it never reaches the cap, however much paperwork is filed.
+    expect(injunctionIndexBonus(1_000_000)).toBeLessThan(INJUNCTION_INDEX_CAP);
+  });
+
+  it('keeps the two numbers a citizen sees consistent', () => {
+    const s = injunctionStanding(74, 900);
+    expect(s.verdictIndex).toBe(74);
+    expect(s.effectiveIndex).toBe(Math.min(100, Math.round(74 + s.bonus)));
+    // The certified figure is never below the measured one.
+    expect(s.effectiveIndex).toBeGreaterThanOrEqual(s.verdictIndex);
   });
 
   it('falls back to the worst tier for an unknown classification', () => {
