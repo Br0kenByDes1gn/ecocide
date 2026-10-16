@@ -123,17 +123,18 @@ export const REGISTRY_COPY = {
     ],
   },
 
-  /** The simulated payment terminal used by the claim and appeal flows. */
+  /** The payment terminal used by the claim and appeal flows. */
   terminal: {
-    title: 'Carbon Registry Terminal',
+    title: 'Planetary Carbon Bank',
     secChannel: 'SEC-CHANNEL : 9',
     drawnFrom: 'Drawn from your registry account',
     unlocked: 'Registry unlocked',
-    authorize: 'Authorize payment',
+    authorize: 'Authorize carbon debit',
     binding: 'Binding assessment to your registry...',
     debiting: 'Debiting registry ledger...',
-    paid: 'Payment authorized',
-    simulation: 'Simulation terminal | no real charge will be made',
+    paid: 'Carbon transfer authorized',
+    /** The terminal's footer: what this institution actually settles in. */
+    settlement: 'Settled in carbon credits — the only currency that matters',
     balance: 'Balance',
     /** The fee line is quoted in credits, with the tonne equivalent beneath. */
     feeNote: 'One credit is one tonne of CO₂e',

@@ -497,14 +497,6 @@ export function App() {
             <span className="hidden sm:inline">{REGISTRY_COPY.navLabel.toUpperCase()}</span>
           </button>
 
-          <button
-            type="button"
-            onClick={handleNavigateHome}
-            className="text-xs font-mono text-gray-400 hover:text-lime-400 border border-gray-800 hover:border-lime-500/50 px-3 py-1.5 rounded-lg bg-gray-950 transition-colors hidden md:block cursor-pointer"
-          >
-            INTRO
-          </button>
-
           {(viewState === 'registry' || viewState === 'dossier') && (
             <button
               type="button"

@@ -174,7 +174,7 @@ export const RegistryPayment: React.FC<RegistryPaymentProps> = ({
       )}
 
       <p className="text-center text-[10px] font-mono text-gray-600 mt-4 uppercase">
-        {REGISTRY_COPY.terminal.simulation}
+        {REGISTRY_COPY.terminal.settlement}
       </p>
     </div>
   );
