@@ -90,6 +90,25 @@ describe('tier taxonomy (art §7)', () => {
     expect(getFaction('disaster-zone').disposition.icons).toEqual(['skull', 'recycle']);
   });
 
+  // What the Bureau charges is part of the taxonomy: it is derived from the same
+  // bands, and the calibration (one allowance buys about twenty audits at the
+  // bottom of the scale) is asserted against the exhibit rooms in economy.test.ts,
+  // which is the only place that can also see the audit math.
+  it('charges the worst tiers the most, and an appeal more than a claim', () => {
+    for (const f of FACTIONS) {
+      expect(Number.isInteger(f.tariff.claimUnits), `${f.id} claim fee`).toBe(true);
+      expect(Number.isInteger(f.tariff.appealUnits), `${f.id} appeal fee`).toBe(true);
+      expect(f.tariff.claimUnits).toBeGreaterThan(0);
+      // Filing an appeal is the larger act of bureaucracy.
+      expect(f.tariff.appealUnits).toBeGreaterThan(f.tariff.claimUnits);
+    }
+    // FACTIONS is ordered best → worst, so the tariff must rise down the list.
+    for (let i = 1; i < FACTIONS.length; i++) {
+      expect(FACTIONS[i].tariff.claimUnits).toBeGreaterThan(FACTIONS[i - 1].tariff.claimUnits);
+      expect(FACTIONS[i].tariff.appealUnits).toBeGreaterThan(FACTIONS[i - 1].tariff.appealUnits);
+    }
+  });
+
   it('household titles are deterministic and driven by material / dimension / ratio', () => {
     // Plastic material or shedding dominates
     expect(householdTitle({ ratio: 20, dominant: 'm', dominantMaterial: 'plastic' })).toBe('Petroleum Hoarder');

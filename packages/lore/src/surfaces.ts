@@ -34,6 +34,9 @@ export const REGISTRY_COPY = {
   standing: {
     label: 'Carbon Neutrality Index',
     caption: 'Pooled from every assessment on file',
+    /** The two components the hero names: measured verdicts, honored chores. */
+    fromVerdicts: 'from verdicts',
+    fromOrders: 'from honored orders',
     /** Trend chip when nothing older exists to compare against. */
     noTrend: 'First assessment on file',
     /** Stat strip labels. */
@@ -60,18 +63,35 @@ export const REGISTRY_COPY = {
     roomUnknown: 'Unspecified area',
   },
 
-  /** The demoted token account panel on the registry page. */
+  /** The demoted carbon account panel on the registry page. */
   account: {
-    title: 'Token Account',
+    title: 'Carbon Account',
     balance: 'Available balance',
     credited: 'Credited',
     spent: 'Spent',
     transactions: 'Transactions',
-    allowance: 'Allocated line of credit',
+    /**
+     * The allowance is one year of an average citizen's footprint (the real
+     * average is about 6.6 tonnes; the Bureau rounds up).
+     */
+    allowance: 'Yearly allowance',
+    allowanceNote: 'One year of an average citizen footprint, rounded up',
+    /** What the balance is denominated in: one credit is one tonne of CO₂e. */
+    unit: 'carbon credits',
+    unitRate: '1 credit = 1 tonne CO₂e',
     openAccount: 'Open account',
     ledgerTitle: 'Transaction Ledger',
     ledgerEmpty: 'No transactions logged.',
     loadOlder: 'Load older transactions',
+    /** Ledger reason labels (keyed by the stored reason). */
+    reasons: {
+      seed: 'Universal Basic Allowance',
+      claim_fee: 'Verdict Certification Fee',
+      appeal_fee: 'Appeal Filing Fee',
+      /** Paid to the citizen when a completed order is confirmed. */
+      injunction_reward: 'Compliance Credit',
+      adjustment: 'System Adjustment',
+    },
   },
 
   /** Identity unlock (email OTP) for the registry account. */
@@ -113,6 +133,8 @@ export const REGISTRY_COPY = {
     paid: 'Payment authorized',
     simulation: 'Simulation terminal | no real charge will be made',
     balance: 'Balance',
+    /** The fee line is quoted in credits, with the tonne equivalent beneath. */
+    feeNote: 'One credit is one tonne of CO₂e',
   },
 } as const;
 
@@ -122,6 +144,28 @@ export function standingTrendLabel(delta: number): string {
   const sign = delta > 0 ? '+' : '−';
   return `${sign}${Math.abs(delta)} vs prior record`;
 }
+
+/**
+ * The remediation-orders block on a dossier: the pledges offered against the
+ * verdict, split into the ones the tribunal granted and the ones still unpledged.
+ * The footer changes once acceptance has closed the file — after that there is no
+ * appeal left to file, so the block must not go on offering one.
+ */
+export const REMEDIATION_COPY = {
+  title: 'Remediation orders',
+  /** Group heads. */
+  pledged: 'Pledged',
+  unpledged: 'Unpledged',
+  /** Precedes a granted pledge's date. */
+  granted: 'Granted',
+  /** Footer while the verdict can still be appealed. */
+  footerOpen: 'All values are estimates - source on file - file an appeal to pledge these orders',
+  /** Footer once acceptance has made the ruling final. */
+  footerFinal: 'All values are estimates - source on file - verdict final, pledges on file stand',
+  /** Audit-card tile, before and after acceptance. */
+  tileAvailable: 'Pledges available',
+  tileOnFile: 'Pledges on file',
+} as const;
 
 /**
  * The disposition mark's file — what the Bureau intends to do with the household,

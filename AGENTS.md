@@ -128,6 +128,15 @@ apps/server/scripts/  # scan-cost audit
   — the `ACCEPT VERDICT` claim — the classification is frozen and both appeal
   endpoints refuse with 409. These permalink endpoints are public, so the rule is
   enforced server-side, not just by hiding the buttons.
+- **Pledges** are persisted when an appeal is *filed* (`appeals.pledges_json`, a
+  `PledgeRef[]`), and the **server composes** the `PLEDGES OFFERED: …` block into
+  the stored appeal text — the tribunal reads the prose, the record keeps the list,
+  and one composer keeps them equal. Phrase and impact are stored, not a suggestion
+  index: applying a granted appeal re-arbitrates the dossier and replaces its
+  suggestions, so an index would point at a list that no longer exists.
+  `GET /api/citizen/:id` returns `acceptedPledges`, derived from **granted** appeals
+  only (de-duplicated by phrase) — a rejected filing offered pledges it never had
+  accepted. Rows filed before that column exist read as `[]`.
 - The **environmental injunction** (`src/injunction.ts`) is issued at acceptance,
   from the frozen verdict (including any granted appeal), exactly once per
   accepted verdict: the dossier's items are hashed, a cached checklist is reused
@@ -137,12 +146,47 @@ apps/server/scripts/  # scan-cost audit
   banked points; they are never re-issued.
 - `GET /api/census` — live audited-household counts per tier (display gate:
   only once ≥50 audits exist, art §7). `GET /api/evidence/:name`.
+- **Money is carbon credits.** One credit is one tonne of CO₂e; the ledger counts
+  *credit units* (1/100 of a credit = 10 kg) so it can stay integer, and every
+  user-facing figure is credits with two decimals. A new account is minted one
+  year's average citizen footprint (≈6.6 t, rounded to 7.00) as its allowance.
+- **The Bureau prices fees; the client never does.** Each tier carries a `tariff`
+  (`claimUnits` / `appealUnits`) and the audit modulates it — a harm-weighted load
+  over the items, normalised so the tier's own exhibit room scores exactly 1.0,
+  clamped to 0.6–1.8 and capped at half the allowance. The calibration lives in
+  `packages/types/src/economy.ts` and is asserted by `economy.test.ts`: the
+  disaster zone affords **20 audits + 1 appeal** out of the allowance, and every
+  better tier more. `/link` prices the claim, and `/api/vault/charge` derives the
+  appeal fee from the dossier it is given — an amount sent for `claim_fee` /
+  `appeal_fee` is ignored. Scans cost nothing: an audit can run with no account to
+  charge, and the money moves at the two acts that need one — then back again when
+  a completed order is confirmed (below).
 - `GET /api/vault`, `POST /api/vault/link`, `POST /api/vault/charge`,
   `GET /api/vault/ledger`, `GET /api/vault/injunction-tasks`,
   `POST /api/vault/injunction-confirm`, `/api/auth/*` (Better Auth email-OTP).
   These are the Carbon Registry endpoints — the storage path keeps its `vault`
-  name. `/link` is the acceptance; `/injunction-confirm` banks impact × effort
-  points, which lift the pooled index on read (`min(100, standing + bonus)`) —
+  name. `/link` is the acceptance.
+- **Completing an order pays, slowly.** `/injunction-confirm` banks standing points
+  (impact × effort) **and credits the wallet** with `injunctionRewardUnits`, one `injunction_reward` ledger
+  entry per batch with the per-task amounts recorded on the task rows
+  (`reward_units`, written at confirmation like `points`, so retuning the schedule
+  cannot rewrite what a past confirmation paid). The payout is 0.05–0.50 credits,
+  `Math.log2`-spread over the same impact × effort product so the extremes land on
+  the ends of the range, then jittered ±10% by a hash of the **action text** — a
+  chore is worth the same on every dossier, for every household, and an unreadable
+  rating is priced at the floor rather than overpaid. `injunctionTaskPoints` and
+  `injunctionRewardUnits` live in `types/economy.ts` and are shared with the
+  worksheet, which has to quote a figure before any stored points exist.
+- **The index is measured, not earned.** Standing is the pooled verdicts
+  (`registryStanding`) plus a bounded contribution from honored orders:
+  `injunctionStanding` → `bonus = INJUNCTION_INDEX_CAP × T/(T + halfPoints)` (cap
+  +10, half of it at 600 points ≈ thirty orders), so paperwork can nudge the index
+  but never carry a household up a tier, and 216 honored orders read +8.8 rather
+  than the +4,320 the raw point sum used to add. Both numbers are exposed together
+  — `VaultState.standing.index` (verdicts) and `VaultState.injunction`
+  (points, ordersHonored, bonus, effectiveIndex, effectiveCaste) — because the
+  bonus used to be pooled client-side on one screen only, which made `/registry`
+  and `/injunction` disagree about the same account. The lift is derived on read:
   the stored per-audit SI is never rewritten.
 - `GET /admin/queues` Bull Board (BullMQ mode + Basic auth only).
 - Prompt assembly is thin in `src/gemini.ts` (wraps lore builders, parses
@@ -177,8 +221,11 @@ apps/server/scripts/  # scan-cost audit
   override flags), barcode.
 - `src/components/CarbonRegistryScreen.tsx` (+ `RegistryUnlock`,
   `RegistryPayment`) — `/registry`: the pooled carbon standing hero, the
-  assessment archive and the demoted token account. Payment terminals charge
-  via `lib/vault-api.ts` (API/storage names keep their `vault` spellings).
+  assessment archive and the demoted carbon account. The payment terminal quotes
+  the fee in carbon credits with its kg CO₂e equivalent and sends only the filing
+  (`lib/vault-api.ts`; `RegistryPayment` takes `amountUnits` for display while the
+  server charges its own price), and API/storage names keep their `vault`
+  spellings.
   `/registry` and `/injunction` decide what to render through
   `lib/registry-phase.ts`, gated on `useVault().sessionReady` — **never on
   better-auth's `isPending`**. That flag is `data === null` sampled at each
@@ -220,6 +267,22 @@ apps/server/scripts/  # scan-cost audit
   previous canvas painter described an older page within a day and had to go. The
   typewriter face is self-hosted (`apps/web/public/fonts/`) so the export is
   deterministic and the PWA keeps its face offline.
+- `src/components/PaperDossierPanel.tsx` — the paper half of a dossier. Its
+  remediation block always lists the pledges, split into `PLEDGED` (from
+  `acceptedPledges`, in pledge green with the grant date) and `UNPLEDGED` (the
+  verdict's suggestions minus any already granted, matched by phrase so nothing is
+  listed twice). The split comes from `lib/pledges.ts`; the copy from
+  `REMEDIATION_COPY`. Once acceptance has closed the file the footer stops inviting
+  an appeal, and the audit card's tile counts the group its label names
+  (`Pledges available` = still unpledged, `Pledges on file` = granted).
+- `src/components/PaperDossierHeader.tsx` — the paper header shared by the
+  arbitration and citizen dossiers (and the PNG export). Everything collapses under
+  `sm:` — the recycling mark, the bureau title, the case/citizen ids and the
+  barcode — and **the title block is `min-h`, never a fixed height**: a fixed box
+  let three wrapped lines spill out of the header and over the case-ID row beneath.
+  The ids `break-all` instead of clipping, because a citizen id is a full email
+  address. The arbitration page's classification stamp scales down and wraps for the
+  same reason: a `shrink-0` block in a non-wrapping row can only be cut off.
 - Copy: all world strings live in the lore pack; inline UI strings are
   generic chrome, not story.
 
@@ -233,6 +296,7 @@ apps/server/scripts/  # scan-cost audit
 | `pnpm dev:web` / `pnpm dev:server` | Single process |
 | `pnpm test` | Vitest across packages (hermetic) |
 | `pnpm scan-costs` | Token/cost audit from the local DB |
+| `pnpm --filter @ecocide/server db:reset-allowance` | One-off repair: re-base every wallet onto the current allowance, writing a reconciling ledger entry |
 | `pnpm wireframes` | Convert `models-src/*.obj` → `apps/web/src/lib/asset-wireframes.ts` |
 | `pnpm --filter @ecocide/server db:generate` | drizzle-kit generate (schema → `apps/server/drizzle`) |
 

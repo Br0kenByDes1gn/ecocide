@@ -2,7 +2,11 @@ import { Hono } from 'hono';
 import { registryStanding } from '@ecocide/compliance';
 import {
   VAULT_ALLOWANCE,
-  VAULT_CLAIM_FEE,
+  appealFeeUnits,
+  claimFeeUnits,
+  injunctionRewardUnits,
+  injunctionStanding,
+  injunctionTaskPoints,
   getCasteFromScore,
   type VaultChargeResult,
   type VaultDossierSummary,
@@ -53,10 +57,12 @@ export function createVaultRoutes(deps: VaultRouteDeps) {
       (await deps.repositories.getWalletByUser(user.id)) ??
       (await deps.repositories.createWalletForUser(user.id, VAULT_ALLOWANCE));
 
-    const [stats, rows, page] = await Promise.all([
+    const [stats, rows, page, points, ordersHonored] = await Promise.all([
       deps.repositories.getWalletStats(user.id),
       deps.repositories.getVaultAssessmentRows(user.id),
       deps.repositories.getWalletLedgerPage(user.id, { limit: LEDGER_PAGE_SIZE, offset: 0 }),
+      deps.repositories.getInjunctionBonusTotal(user.id),
+      deps.repositories.getInjunctionCompletedCount(user.id),
     ]);
 
     // The pooled standing comes from the archived items; the client only ever
@@ -76,11 +82,23 @@ export function createVaultRoutes(deps: VaultRouteDeps) {
       evidenceUrl: row.evidenceUrl,
     }));
 
+    const certified = injunctionStanding(standing.index, points);
+
     const state: VaultState = {
       user: { id: user.id, email: user.email, name: user.name },
       wallet,
       stats,
       standing,
+      // Honored orders lift the index, but slowly and with a ceiling — a chore is
+      // not a measurement (see injunctionStanding). Computed here so every surface
+      // shows the same two numbers.
+      injunction: {
+        points,
+        ordersHonored,
+        bonus: certified.bonus,
+        effectiveIndex: certified.effectiveIndex,
+        effectiveCaste: getCasteFromScore(certified.effectiveIndex),
+      },
       dossiers,
       ledger: page.entries,
     };
@@ -121,33 +139,59 @@ export function createVaultRoutes(deps: VaultRouteDeps) {
       return c.json({ error: 'No tasks selected' }, 400);
     }
 
-    const IMPACT_POINTS: Record<string, number> = { low: 2, medium: 4, high: 8 };
-    const EFFORT_POINTS: Record<string, number> = { easy: 2, moderate: 4, hard: 8 };
     const owned = await deps.repositories.getInjunctionTasksByUser(user.id);
     const pendingById = new Map(owned.filter((t) => !t.completed).map((t) => [t.id, t]));
+    // Both figures come from the same two ratings: the standing that lifts the
+    // index, and the credits the action is worth (a property of the chore, so a
+    // second household doing the same thing is paid identically).
     const confirmed = taskIds
       .filter((id) => pendingById.has(id))
       .map((id) => {
         const task = pendingById.get(id)!;
         return {
           id,
-          points: (IMPACT_POINTS[task.impact] ?? 0) * (EFFORT_POINTS[task.effort] ?? 0),
+          points: injunctionTaskPoints(task.impact, task.effort),
+          rewardUnits: injunctionRewardUnits(task.impact, task.effort, task.action),
         };
       });
 
-    await deps.repositories.confirmInjunctionTasks(user.id, confirmed);
-    const bonusTotal = await deps.repositories.getInjunctionBonusTotal(user.id);
+    const banked = await deps.repositories.confirmInjunctionTasks(user.id, confirmed);
+    const rewardUnits = banked.reduce((sum, task) => sum + task.rewardUnits, 0);
+
+    // Paying for completed paperwork is the one movement that *credits* a wallet.
+    let wallet = await deps.repositories.getWalletByUser(user.id);
+    if (rewardUnits > 0) {
+      wallet =
+        wallet ?? (await deps.repositories.createWalletForUser(user.id, VAULT_ALLOWANCE));
+      wallet = (
+        await deps.repositories.applyWalletDelta({
+          userId: user.id,
+          delta: rewardUnits,
+          reason: 'injunction_reward',
+        })
+      ).wallet;
+    }
+
+    const [points, ordersHonored] = await Promise.all([
+      deps.repositories.getInjunctionBonusTotal(user.id),
+      deps.repositories.getInjunctionCompletedCount(user.id),
+    ]);
 
     const rows = await deps.repositories.getVaultAssessmentRows(user.id);
     const standing = registryStanding(
       rows.map((row) => ({ createdAt: row.createdAt, items: row.items }))
     );
-    const effectiveIndex = Math.min(100, standing.index + bonusTotal);
+    const certified = injunctionStanding(standing.index, points);
     return c.json({
-      confirmed,
-      bonusTotal,
-      effectiveIndex,
-      effectiveCaste: getCasteFromScore(effectiveIndex),
+      confirmed: banked,
+      rewardUnits,
+      wallet,
+      verdictIndex: certified.verdictIndex,
+      points,
+      ordersHonored,
+      bonus: certified.bonus,
+      effectiveIndex: certified.effectiveIndex,
+      effectiveCaste: getCasteFromScore(certified.effectiveIndex),
     });
   });
 
@@ -179,10 +223,16 @@ export function createVaultRoutes(deps: VaultRouteDeps) {
       // Charge the certification fee exactly once per dossier.
       const alreadyCharged = await deps.repositories.getWalletLedgerByRef(user.id, dossierId, 'claim_fee');
       if (!alreadyCharged) {
+        // Priced from the dossier, never from the client: the tier's rate scaled
+        // by what the audit actually found.
+        const feeUnits = claimFeeUnits(
+          (dossier.user_profile || dossier.profile).caste,
+          dossier.audit?.items
+        );
         wallet = (
           await deps.repositories.applyWalletDelta({
             userId: user.id,
-            delta: -VAULT_CLAIM_FEE,
+            delta: -feeUnits,
             reason: 'claim_fee',
             ref: dossierId,
           })
@@ -217,25 +267,48 @@ export function createVaultRoutes(deps: VaultRouteDeps) {
     return c.json(result);
   });
 
-  // Generic fee: draw a fixed amount from the vault and record it in the ledger.
-  // Used by every payment screen that is not the dossier-claim bind (e.g. the
-  // appeal filing fee).
+  // Fee drawn from the vault and recorded in the ledger.
+  //
+  // A *priced* reason ('claim_fee', 'appeal_fee') is never trusted from the
+  // client: the price belongs to the Bureau, so the dossier is looked up and the
+  // amount derived from its tier and its audit. Any other reason takes an explicit
+  // amount — this endpoint only ever debits, so that is a spend, not a mint, and it
+  // stays bounded by the allowance.
   app.post('/charge', async (c) => {
     const user = c.get('user');
     const body = (await c.req
       .json<{ amount?: unknown; reason?: unknown; ref?: unknown }>()
       .catch(() => ({}))) as { amount?: unknown; reason?: unknown; ref?: unknown };
 
-    const amount = Number(body.amount);
-    if (!Number.isInteger(amount) || amount <= 0 || amount > VAULT_ALLOWANCE) {
-      return c.json({ error: 'amount must be a positive integer (credits)' }, 400);
-    }
-
     const reason = typeof body.reason === 'string' ? body.reason.trim() : '';
     if (!/^[a-z][a-z0-9_]{2,31}$/.test(reason)) {
       return c.json({ error: 'a valid ledger reason is required' }, 400);
     }
     const ref = typeof body.ref === 'string' && body.ref.trim() ? body.ref.trim() : undefined;
+
+    let amount: number;
+    if (reason === 'claim_fee' || reason === 'appeal_fee') {
+      if (!ref) {
+        return c.json({ error: `a dossier reference is required to price a ${reason}` }, 400);
+      }
+      const priced = await deps.repositories.getDossier(ref);
+      if (!priced) {
+        return c.json({ error: 'Subject dossier not found in the registry archives' }, 404);
+      }
+      const caste = (priced.user_profile || priced.profile).caste;
+      amount =
+        reason === 'claim_fee'
+          ? claimFeeUnits(caste, priced.audit?.items)
+          : appealFeeUnits(caste, priced.audit?.items);
+    } else {
+      amount = Number(body.amount);
+      if (!Number.isInteger(amount) || amount <= 0 || amount > VAULT_ALLOWANCE) {
+        return c.json(
+          { error: 'amount must be a positive integer in credit units, within the allowance' },
+          400
+        );
+      }
+    }
 
     // Ensure the allowance exists before the first-ever charge against a vault.
     const existing = await deps.repositories.getWalletByUser(user.id);

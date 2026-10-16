@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { formatCredits, formatRoomType, formatVaultDate, isCredit, ledgerReasonLabel } from './vault-format';
+import {
+  formatCarbonCredits,
+  formatCarbonKg,
+  formatRoomType,
+  formatVaultDate,
+  isCredit,
+  ledgerReasonLabel,
+} from './vault-format';
 
 describe('ledger reason labels', () => {
   it('maps known reasons to readable labels', () => {
@@ -23,12 +30,21 @@ describe('credit direction', () => {
   });
 });
 
-describe('credit formatting', () => {
-  it('adds thousands separators and keeps the sign', () => {
-    expect(formatCredits(999750)).toBe('999,750');
-    expect(formatCredits(1_000_000)).toBe('1,000,000');
-    expect(formatCredits(-250)).toBe('-250');
-    expect(formatCredits(0)).toBe('0');
+describe('carbon credit formatting', () => {
+  it('renders stored units as credits, two decimals', () => {
+    // One credit is a hundred units and one tonne of CO2e.
+    expect(formatCarbonCredits(700)).toBe('7.00');
+    expect(formatCarbonCredits(30)).toBe('0.30');
+    expect(formatCarbonCredits(3)).toBe('0.03');
+    expect(formatCarbonCredits(0)).toBe('0.00');
+    expect(formatCarbonCredits(-45)).toBe('−0.45');
+  });
+
+  it('renders the same amount in kilograms of CO2e', () => {
+    expect(formatCarbonKg(700)).toBe('7,000 kg CO₂e');
+    expect(formatCarbonKg(30)).toBe('300 kg CO₂e');
+    expect(formatCarbonKg(1)).toBe('10 kg CO₂e');
+    expect(formatCarbonKg(0)).toBe('0 kg CO₂e');
   });
 });
 

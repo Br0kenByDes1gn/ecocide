@@ -19,6 +19,7 @@ import {
   dominantMaterialFamily,
   evaluateOverrides,
   hardFailCount,
+  auditLoad,
   harmScore,
   householdRatio,
   itemOverrides,
@@ -266,5 +267,21 @@ describe('input sanitization', () => {
 
   it('drops empty labels when deduping', () => {
     expect(dedupeItems([{ label: '   ', count: 1, ratings: {} }])).toHaveLength(0);
+  });
+
+  it('measures an audit load that grows with repeats, size and harm', () => {
+    const item = (count: number, size: 'small' | 'medium' | 'large', harm: number): RatedItem => ({
+      label: 'thing',
+      count,
+      ratings: { m: harm, r: harm, d: harm, c: harm, l: harm, t: harm, p: harm, e: harm },
+      size,
+    });
+    const base = auditLoad([item(1, 'medium', 3)]);
+    expect(auditLoad([item(2, 'medium', 3)])).toBeGreaterThan(base);
+    expect(auditLoad([item(1, 'large', 3)])).toBeGreaterThan(base);
+    expect(auditLoad([item(1, 'small', 3)])).toBeLessThan(base);
+    expect(auditLoad([item(1, 'medium', 5)])).toBeGreaterThan(base);
+    // An empty room costs nothing to process.
+    expect(auditLoad([])).toBe(0);
   });
 });

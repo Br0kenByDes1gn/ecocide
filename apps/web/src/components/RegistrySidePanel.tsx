@@ -17,7 +17,8 @@ import {
 import { useVault } from '../lib/useVault';
 import { fetchVaultLedger } from '../lib/vault-api';
 import {
-  formatCredits,
+  formatCarbonCredits,
+  formatCarbonKg,
   formatVaultDate,
   isCredit,
   ledgerReasonLabel,
@@ -31,8 +32,6 @@ interface RegistrySidePanelProps {
   onBeginAudit: () => void;
   /** Open a linked assessment (ledger record links). */
   onOpenDossier: (id: string) => void;
-  /** Completed-order bonus points added to the pooled index (injunction page). */
-  bonus?: number;
 }
 
 /**
@@ -43,7 +42,6 @@ export const RegistrySidePanel: React.FC<RegistrySidePanelProps> = ({
   vault,
   onBeginAudit,
   onOpenDossier,
-  bonus = 0,
 }) => {
   const { logout } = useVault();
   const [entries, setEntries] = useState<WalletLedgerEntry[]>([]);
@@ -79,13 +77,14 @@ export const RegistrySidePanel: React.FC<RegistrySidePanelProps> = ({
     }
   }, [logout]);
 
-  const { wallet, stats, standing } = vault;
+  const { wallet, stats, standing, injunction } = vault;
   const allowancePct = Math.max(0, Math.min(1, wallet.credits / VAULT_ALLOWANCE));
   const hasMore = entries.length < stats.transactionCount;
 
   const hasRecord = standing.assessmentCount > 0;
-  // Honored injunction orders lift the pooled index (capped at 100).
-  const effectiveIndex = Math.min(100, standing.index + Math.max(0, bonus));
+  // The server owns both numbers: the index comes from the verdicts, and honored
+  // orders add a capped, diminishing amount (see injunctionStanding).
+  const effectiveIndex = injunction.effectiveIndex;
   const effectiveCaste = getCasteFromScore(effectiveIndex);
   const effectiveFaction = getFaction(effectiveCaste);
   const effectiveColors = CASTE_COLORS[effectiveCaste];
@@ -112,11 +111,19 @@ export const RegistrySidePanel: React.FC<RegistrySidePanelProps> = ({
                     {effectiveFaction.name}
                   </span>
                 </div>
-                {bonus > 0 && (
-                  <span className="mt-1 inline-block text-[10px] font-mono text-emerald-300 border border-emerald-500/40 rounded-lg px-2 py-0.5 bg-emerald-950/40 uppercase tracking-widest">
-                    +{bonus} honored orders
+                {/* The two numbers the index is made of: measured verdicts, and
+                    the capped, diminishing contribution of honored chores. */}
+                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[10px] uppercase tracking-widest">
+                  <span className="text-gray-400">
+                    {REGISTRY_COPY.standing.fromVerdicts} {standing.index}%
                   </span>
-                )}
+                  {injunction.ordersHonored > 0 && (
+                    <span className="text-emerald-300 border border-emerald-500/40 rounded-lg px-2 py-0.5 bg-emerald-950/40">
+                      +{injunction.bonus.toFixed(1)} {REGISTRY_COPY.standing.fromOrders} (
+                      {injunction.ordersHonored})
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div className="flex flex-col items-start gap-2">
@@ -246,7 +253,7 @@ export const RegistrySidePanel: React.FC<RegistrySidePanelProps> = ({
             {REGISTRY_COPY.account.title}
             {!accountOpen && (
               <span className="text-gray-500">
-                - {formatCredits(wallet.credits)} CREDITS
+                - {formatCarbonCredits(wallet.credits)} {REGISTRY_COPY.account.unit}
               </span>
             )}
           </span>
@@ -268,13 +275,19 @@ export const RegistrySidePanel: React.FC<RegistrySidePanelProps> = ({
                   <div className="flex items-center gap-2 mt-1">
                     <Coins className="w-7 h-7 text-cyan-400" />
                     <span className="font-mono text-3xl font-black text-cyan-300 tracking-wide">
-                      {formatCredits(wallet.credits)}
+                      {formatCarbonCredits(wallet.credits)}
                     </span>
-                    <span className="font-mono text-sm text-cyan-500">CREDITS</span>
+                    <span className="font-mono text-sm text-cyan-500">
+                      {REGISTRY_COPY.account.unit.toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="mt-1 font-mono text-[10px] text-gray-600 uppercase">
+                    {formatCarbonKg(wallet.credits)} — {REGISTRY_COPY.account.unitRate}
                   </div>
                 </div>
                 <div className="font-mono text-[10px] text-gray-600 uppercase">
-                  {REGISTRY_COPY.account.allowance}: {formatCredits(VAULT_ALLOWANCE)} CREDITS
+                  {REGISTRY_COPY.account.allowance}: {formatCarbonCredits(VAULT_ALLOWANCE)}{' '}
+                  {REGISTRY_COPY.account.unit}
                 </div>
               </div>
 
@@ -288,7 +301,7 @@ export const RegistrySidePanel: React.FC<RegistrySidePanelProps> = ({
               <div className="grid grid-cols-3 gap-3 text-center">
                 <div className="bg-black/40 border border-gray-800 rounded-xl py-2.5">
                   <div className="font-mono text-sm font-bold text-emerald-300">
-                    +{formatCredits(stats.totalCredited)}
+                    +{formatCarbonCredits(stats.totalCredited)}
                   </div>
                   <div className="font-mono text-[9px] text-gray-500 uppercase tracking-widest">
                     {REGISTRY_COPY.account.credited}
@@ -296,7 +309,7 @@ export const RegistrySidePanel: React.FC<RegistrySidePanelProps> = ({
                 </div>
                 <div className="bg-black/40 border border-gray-800 rounded-xl py-2.5">
                   <div className="font-mono text-sm font-bold text-red-300">
-                    −{formatCredits(stats.totalSpent)}
+                    −{formatCarbonCredits(stats.totalSpent)}
                   </div>
                   <div className="font-mono text-[9px] text-gray-500 uppercase tracking-widest">
                     {REGISTRY_COPY.account.spent}
@@ -372,10 +385,10 @@ export const RegistrySidePanel: React.FC<RegistrySidePanelProps> = ({
                             }`}
                           >
                             {credit ? '+' : '−'}
-                            {formatCredits(Math.abs(entry.delta))}
+                            {formatCarbonCredits(Math.abs(entry.delta))}
                           </div>
                           <div className="font-mono text-[10px] text-gray-500">
-                            BAL {formatCredits(entry.balanceAfter)}
+                            BAL {formatCarbonCredits(entry.balanceAfter)}
                           </div>
                         </div>
                       </div>

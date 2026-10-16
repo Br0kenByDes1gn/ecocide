@@ -1,6 +1,7 @@
 import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import type {
+  AcceptedPledge,
   ApiCallLog,
   ApiCallType,
   AuditItem,
@@ -11,6 +12,7 @@ import type {
   InjunctionItem,
   InjunctionTask,
   OraclePayload,
+  PledgeRef,
   Prophecy,
   ScanCostSummary,
   Suggestion,
@@ -59,6 +61,8 @@ export interface AppealUpdateFields {
 }
 
 export interface SaveAppealEntry {
+  /** Pledges offered with the filing, as selected on the appeal screen. */
+  pledges?: PledgeRef[];
   dossierId: string;
   appealText: string;
   accepted: boolean;
@@ -190,6 +194,7 @@ function mapInjunctionTaskRow(row: InjunctionTaskRow): InjunctionTask {
     completed: row.completed,
     completedAt: row.completed_at,
     points: row.points,
+    rewardUnits: row.reward_units,
   };
 }
 
@@ -322,9 +327,9 @@ export function createRepositories(db: DbConnection['db']) {
      */
     async confirmInjunctionTasks(
       userId: string,
-      confirmed: Array<{ id: string; points: number }>
-    ): Promise<Array<{ id: string; points: number }>> {
-      const done: Array<{ id: string; points: number }> = [];
+      confirmed: Array<{ id: string; points: number; rewardUnits: number }>
+    ): Promise<Array<{ id: string; points: number; rewardUnits: number }>> {
+      const done: Array<{ id: string; points: number; rewardUnits: number }> = [];
       if (confirmed.length === 0) return done;
       const completedAt = new Date().toISOString();
       const pending = await db
@@ -332,15 +337,24 @@ export function createRepositories(db: DbConnection['db']) {
         .from(injunctionTasks)
         .where(and(eq(injunctionTasks.user_id, userId), eq(injunctionTasks.completed, false)));
       const pendingIds = new Set(pending.map((row) => row.id));
-      for (const { id, points } of confirmed) {
+      for (const { id, points, rewardUnits } of confirmed) {
         if (!pendingIds.has(id)) continue;
         await db
           .update(injunctionTasks)
-          .set({ completed: true, completed_at: completedAt, points })
+          .set({ completed: true, completed_at: completedAt, points, reward_units: rewardUnits })
           .where(eq(injunctionTasks.id, id));
-        done.push({ id, points });
+        done.push({ id, points, rewardUnits });
       }
       return done;
+    },
+
+    /** How many orders this citizen has honored (the index's paperwork count). */
+    async getInjunctionCompletedCount(userId: string): Promise<number> {
+      const rows = await db
+        .select({ id: injunctionTasks.id })
+        .from(injunctionTasks)
+        .where(and(eq(injunctionTasks.user_id, userId), eq(injunctionTasks.completed, true)));
+      return rows.length;
     },
 
     /** Sums every completed point a citizen has banked. */
@@ -361,6 +375,7 @@ export function createRepositories(db: DbConnection['db']) {
         id,
         dossier_id: entry.dossierId,
         appeal_text: entry.appealText,
+        pledges_json: JSON.stringify(entry.pledges ?? []),
         accepted: entry.accepted,
         new_caste: entry.newCaste || null,
         new_honorific_title: entry.newHonorificTitle || null,
@@ -396,6 +411,7 @@ export function createRepositories(db: DbConnection['db']) {
           id: row.id,
           dossierId: row.dossier_id,
           appealText: row.appeal_text,
+          pledges: parseJson<PledgeRef[]>(row.pledges_json, []),
           accepted: row.accepted,
           newCaste: row.new_caste as Caste | undefined,
           newHonorificTitle: row.new_honorific_title || undefined,
@@ -413,6 +429,36 @@ export function createRepositories(db: DbConnection['db']) {
       const [row] = await db.select().from(dossiers).where(eq(dossiers.id, id)).limit(1);
       if (!row) return null;
       return mapRowToRecord(row);
+    },
+
+    /**
+     * Pledges the tribunal granted on a dossier, in the order they were granted and
+     * de-duplicated by pledge phrase.
+     *
+     * Only *accepted* appeals count: a rejected filing offered pledges it never had
+     * granted, so counting them would put words in the Bureau's mouth. Kept as its
+     * own query (rather than folded into `getDossier`) because the permalink
+     * endpoint is the only caller that needs it, and a scan or an appeal should not
+     * pay for it.
+     */
+    async getAcceptedPledges(dossierId: string): Promise<AcceptedPledge[]> {
+      const rows = await db
+        .select({ pledges_json: appeals.pledges_json, created_at: appeals.created_at })
+        .from(appeals)
+        .where(and(eq(appeals.dossier_id, dossierId), eq(appeals.accepted, true)))
+        .orderBy(appeals.created_at);
+
+      const seen = new Set<string>();
+      const accepted: AcceptedPledge[] = [];
+      for (const row of rows) {
+        for (const pledge of parseJson<PledgeRef[]>(row.pledges_json, [])) {
+          const key = pledge.pledge?.trim().toLowerCase();
+          if (!key || seen.has(key)) continue;
+          seen.add(key);
+          accepted.push({ ...pledge, grantedAt: row.created_at });
+        }
+      }
+      return accepted;
     },
 
     async getRecentDossiers(limit: number = 10): Promise<CitizenRecord[]> {

@@ -42,6 +42,7 @@ formula: **`compliance_formula.md`**.
 | `colors` | 11 Tailwind/hex tokens (text/border/bg/badge/bar/dot/glow) — **complete literal class strings** (Tailwind v4 scans sources; `index.css` includes `@source` for lore) |
 | `stampText` / `stampInk` | EXEMPLARY…FINAL NOTICE + paper-layer ink hex (art §3.4/§7) |
 | `verdictLine` | the Arbiter's one-liner (art §7 verdict table) |
+| `tariff` | what the Bureau charges this tier per bureaucratic act (`claimUnits`, `appealUnits`, in credit units — 1 unit = 1/100 carbon credit = 10 kg CO₂e). The audit modulates the charge, so these are base rates: the disaster zone affords about twenty audits and one appeal out of a year's allowance, every better tier more |
 | `disposition` | the household's **disposition mark**: `label` (short stamped phrase, authored in caps), `icons` (one or two **icon keys** — `sprout` / `file-clock` / `chart-column` / `eye` / `recycle` / `skull` — resolved in web by `apps/web/src/lib/lore-icons.ts`, like `topics.icon`), and `detail` — the file the mark opens, saying what the Bureau intends to do with the household |
 | `reticleMotif` | per-tier reticle flavor key (art §7 lore) |
 | `censusDescription` | tier lore — the case-file scene (art §3 "Per-Tier Visual Lore") |

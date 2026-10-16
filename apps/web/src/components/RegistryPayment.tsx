@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { CheckCircle2, CreditCard, Loader2, Lock, ShieldCheck } from 'lucide-react';
 import { REGISTRY_COPY } from '@ecocide/lore';
+import { formatCarbonCredits, formatCarbonKg } from '../lib/vault-format';
 import { useVault } from '../lib/useVault';
 import { chargeVault, linkDossierToVault } from '../lib/vault-api';
 import { RegistryUnlock } from './RegistryUnlock';
@@ -8,8 +9,11 @@ import { RegistryUnlock } from './RegistryUnlock';
 interface RegistryPaymentProps {
   /** Fee caption, e.g. "APPEAL FILING FEE". */
   feeLabel: string;
-  /** Credits drawn from the registry account. */
-  amount: number;
+  /**
+   * The quoted fee in credit units, from `claimFeeUnits` / `appealFeeUnits`.
+   * Display only: the server prices the charge from the dossier itself.
+   */
+  amountUnits: number;
   /** Ledger reason for a plain charge, e.g. "appeal_fee". */
   reason: string;
   /** Ledger reference for a plain charge (e.g. the dossier id). */
@@ -37,7 +41,7 @@ type Stage = 'unlock' | 'confirm' | 'working' | 'done';
  */
 export const RegistryPayment: React.FC<RegistryPaymentProps> = ({
   feeLabel,
-  amount,
+  amountUnits,
   reason,
   chargeRef,
   bindDossierId,
@@ -61,7 +65,9 @@ export const RegistryPayment: React.FC<RegistryPaymentProps> = ({
       if (bindDossierId) {
         await linkDossierToVault(bindDossierId);
       } else {
-        await chargeVault(amount, reason, chargeRef);
+        // No amount: the server prices the fee from the dossier, so a client
+        // cannot underpay its own bill.
+        await chargeVault(reason, chargeRef);
       }
       await refresh();
       setStage('done');
@@ -73,7 +79,7 @@ export const RegistryPayment: React.FC<RegistryPaymentProps> = ({
       setPayError(e instanceof Error ? e.message : 'PAYMENT FAILED');
       setStage('confirm');
     }
-  }, [bindDossierId, amount, reason, chargeRef, refresh, onPaid]);
+  }, [bindDossierId, reason, chargeRef, refresh, onPaid]);
 
   return (
     <div className="w-full max-w-md mx-auto bg-[#0e1510] rounded-2xl border-2 border-cyan-500/40 p-6 shadow-2xl">
@@ -90,8 +96,11 @@ export const RegistryPayment: React.FC<RegistryPaymentProps> = ({
       <div className="text-center mb-5">
         <div className="text-[11px] font-mono text-gray-400 uppercase tracking-wider">{feeLabel}</div>
         <div className="text-4xl font-black font-mono text-cyan-300 tracking-wide mt-1">
-          {amount.toLocaleString()}
-          <span className="text-lg text-cyan-500"> CREDITS</span>
+          {formatCarbonCredits(amountUnits)}
+          <span className="text-lg text-cyan-500"> {REGISTRY_COPY.account.unit.toUpperCase()}</span>
+        </div>
+        <div className="text-[10px] font-mono text-gray-500 mt-1 uppercase">
+          {formatCarbonKg(amountUnits)} — {REGISTRY_COPY.terminal.feeNote}
         </div>
         <div className="text-[10px] font-mono text-gray-500 mt-1 uppercase">
           {REGISTRY_COPY.terminal.drawnFrom}
@@ -111,7 +120,8 @@ export const RegistryPayment: React.FC<RegistryPaymentProps> = ({
           {vault && (
             <p className="text-center font-mono text-[11px] text-gray-500 uppercase">
               {REGISTRY_COPY.terminal.balance}:{' '}
-              <span className="text-cyan-300">{vault.wallet.credits.toLocaleString()}</span> CREDITS
+              <span className="text-cyan-300">{formatCarbonCredits(vault.wallet.credits)}</span>{' '}
+                {REGISTRY_COPY.account.unit}
             </p>
           )}
           <button
@@ -142,7 +152,8 @@ export const RegistryPayment: React.FC<RegistryPaymentProps> = ({
           {vault && (
             <p className="font-mono text-xs text-gray-400 uppercase">
               {REGISTRY_COPY.terminal.balance}:{' '}
-              <span className="text-cyan-300">{vault.wallet.credits.toLocaleString()}</span> CREDITS
+              <span className="text-cyan-300">{formatCarbonCredits(vault.wallet.credits)}</span>{' '}
+                {REGISTRY_COPY.account.unit}
             </p>
           )}
         </div>

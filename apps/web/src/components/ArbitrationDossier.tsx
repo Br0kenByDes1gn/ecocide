@@ -160,15 +160,20 @@ export const ArbitrationDossier: React.FC<ArbitrationDossierProps> = ({
           <PaperDossierHeader caseId={caseId} sessionDate={sessionDate} largeIds />
 
           {/* Overall classification — the tier resolved from the audit score */}
-          <div className="relative mt-1 flex items-center gap-2">
+          <div className="relative mt-1 flex flex-wrap items-center gap-2">
             <span className="text-base font-mono uppercase tracking-widest text-[#6b7263]">
               Classification
             </span>
+            {/*
+              The stamp scales down and wraps on a phone: at its desktop size a
+              long tier name is wider than the paper, and a `shrink-0` block in a
+              non-wrapping row can only be clipped.
+            */}
             <span
-              className="relative shrink-0 px-4 py-2 text-2xl font-black uppercase tracking-widest rounded-sm rotate-[-2deg]"
+              className="relative shrink-0 max-w-full break-words px-2 py-1 text-xs sm:px-4 sm:py-2 sm:text-2xl font-black uppercase tracking-widest rounded-sm rotate-[-2deg] border-[3px] sm:border-[6px]"
               style={{
                 color: '#c2322b',
-                border: '6px solid #c2322b',
+                borderColor: '#c2322b',
                 fontWeight: 'bold',
               }}
             >

@@ -126,6 +126,25 @@ export interface Suggestion {
   impact_pct: number;
 }
 
+/**
+ * A pledge a household offered with an appeal.
+ *
+ * Persisted on the appeal at filing (as text, not a suggestion index, so it
+ * survives the re-arbitration that rewrites the dossier's suggestions).
+ */
+export interface PledgeRef {
+  /** The remediation action it came from. */
+  text: string;
+  /** The short commitment phrase the tribunal reads, e.g. "Retire 1 per week". */
+  pledge: string;
+  impact_pct: number;
+}
+
+/** A pledge the tribunal granted, with the date it entered the file. */
+export interface AcceptedPledge extends PledgeRef {
+  grantedAt: string;
+}
+
 /** One corrective action on the environmental injunction checklist. */
 export interface InjunctionItem {
   action: string;
@@ -156,7 +175,10 @@ export interface InjunctionTask {
   createdAt: string;
   completed: boolean;
   completedAt: string | null;
+  /** Standing banked at confirmation (0 while pending). */
   points: number;
+  /** Credits banked at confirmation, in credit units (0 while pending). */
+  rewardUnits: number;
 }
 
 /** The full household audit result. */
@@ -196,6 +218,8 @@ export interface OraclePayload {
   evidenceUrl?: string;
   /** Set once the citizen accepts the verdict — acceptance is terminal. */
   acceptedAt?: string;
+  /** Pledges granted on appeal, from `CitizenRecord.acceptedPledges`. */
+  acceptedPledges?: AcceptedPledge[];
 }
 
 export interface CitizenRecord {
@@ -206,6 +230,12 @@ export interface CitizenRecord {
   prophecy: Prophecy;
   audit: HouseholdAudit;
   suggestions: Suggestion[];
+  /**
+   * Pledges the tribunal granted on this dossier, in the order they were granted
+   * (populated by the permalink endpoint; derived from accepted appeals, so the
+   * dossier never has to reconstruct them from appeal prose).
+   */
+  acceptedPledges?: AcceptedPledge[];
   /** Served URL of the archived evidence photo (`/api/evidence/<id>.jpg`). */
   evidenceUrl?: string;
   /** Owning Carbon Registry account id (null/undefined while anonymous). */
@@ -229,6 +259,12 @@ export type ApiCallType = 'oracle_inventory' | 'oracle_classify';
 
 export interface AppealRequest {
   appeal: string;
+  /**
+   * Pledges offered with this filing. The server composes them into the stored
+   * appeal text, so the prose the tribunal reads and the record of what was
+   * offered can never disagree.
+   */
+  pledges?: PledgeRef[];
   /** Optional address to deliver the appeal ruling to by email. Not persisted. */
   email?: string;
 }
@@ -248,6 +284,8 @@ export interface CitizenAppeal {
   id: string;
   dossierId: string;
   appealText: string;
+  /** Pledges offered with this filing, in the order they were selected. */
+  pledges: PledgeRef[];
   accepted: boolean;
   newCaste?: Caste;
   newHonorificTitle?: string;
@@ -441,14 +479,37 @@ export function simulateTierRoom(caste: Caste): SimulatedScan {
 // OTP). Storage/API names deliberately keep their `vault` spelling.
 // ---------------------------------------------------------------------------
 
-/** Token allowance minted into a freshly created Carbon Registry. */
-export const VAULT_ALLOWANCE = 1_000_000;
-
-/** Certification fee deducted from the vault when a dossier is claimed. */
-export const VAULT_CLAIM_FEE = 250;
-
-/** Appeal filing fee deducted from the vault. */
-export const VAULT_APPEAL_FEE = 500;
+/**
+ * The wallet, the allowance and the fee schedule live in `economy.ts`: the unit is
+ * a hundredth of a carbon credit, the allowance is one year's average footprint,
+ * and each tier's prices are modulated by the audit itself.
+ */
+export {
+  CREDIT_UNITS_PER_CREDIT,
+  KG_CO2E_PER_CREDIT,
+  KG_CO2E_PER_CREDIT_UNIT,
+  VAULT_ALLOWANCE,
+  AUDIT_FACTOR_MIN,
+  AUDIT_FACTOR_MAX,
+  unitsToCredits,
+  unitsToKg,
+  auditFactor,
+  referenceLoad,
+  claimFeeUnits,
+  appealFeeUnits,
+  INJUNCTION_IMPACT_POINTS,
+  INJUNCTION_EFFORT_POINTS,
+  INJUNCTION_REWARD_MIN_UNITS,
+  INJUNCTION_REWARD_MAX_UNITS,
+  INJUNCTION_REWARD_JITTER,
+  injunctionTaskPoints,
+  injunctionRewardUnits,
+  INJUNCTION_INDEX_CAP,
+  INJUNCTION_INDEX_HALF_POINTS,
+  injunctionIndexBonus,
+  injunctionStanding,
+} from './economy.js';
+export type { InjunctionStanding } from './economy.js';
 
 /** Auditable reasons a wallet balance can move. */
 export type WalletLedgerReason = 'seed' | 'claim_fee' | 'appeal_fee' | 'adjustment' | string;
@@ -512,13 +573,32 @@ export interface VaultLedgerPage {
   offset: number;
 }
 
+/** What honored orders are worth on the index, and how much of it is paperwork. */
+export interface InjunctionStandingSummary {
+  /** Raw standing points banked from completed orders (impact × effort). */
+  points: number;
+  /** How many orders have been honored. */
+  ordersHonored: number;
+  /** Index points those orders contribute (0 … `INJUNCTION_INDEX_CAP`). */
+  bonus: number;
+  /** `min(100, round(verdicts + orders))` — what the registry certifies. */
+  effectiveIndex: number;
+  effectiveCaste: Caste;
+}
+
 /** Fully-hydrated vault state returned by `GET /api/vault`. */
 export interface VaultState {
   user: VaultUser;
   wallet: Wallet;
   stats: VaultStats;
-  /** The citizen-level carbon standing pooled from the archived assessments. */
+  /**
+   * The citizen-level carbon standing pooled from the archived assessments —
+   * verdicts only. `injunction` carries what the honored orders add to it, so the
+   * two are always shown as the two different numbers they are.
+   */
   standing: RegistryStanding;
+  /** The paperwork's contribution to the index. */
+  injunction: InjunctionStandingSummary;
   /** Lightweight summaries of dossiers linked to this vault (newest first). */
   dossiers: VaultDossierSummary[];
   /** Most recent ledger page. */

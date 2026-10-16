@@ -28,6 +28,7 @@ const BASE_TASK: InjunctionTask = {
   completed: false,
   completedAt: null,
   points: 0,
+  rewardUnits: 0,
 };
 
 function task(overrides: Partial<InjunctionTask> = {}): InjunctionTask {

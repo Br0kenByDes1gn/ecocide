@@ -291,6 +291,70 @@ describe('postgres database dossier repository', () => {
     expect(appeals[1].accepted).toBe(false);
   });
 
+  it('keeps only the pledges a granted appeal had accepted', async () => {
+    const dossierId = await repositories.saveDossier(makePayload());
+    const pledge = (phrase: string, impact_pct = 5) => ({
+      text: `Replace ${phrase}`,
+      pledge: phrase,
+      impact_pct,
+    });
+
+    // A rejected filing offered a pledge it never had granted.
+    await repositories.saveAppeal({
+      dossierId,
+      appealText: 'rejected filing',
+      pledges: [pledge('copper pot set')],
+      accepted: false,
+      reason: 'not convincing',
+      casteBefore: 'carbon-neutral-legend',
+    });
+    // A granted one offered two, one of them worded differently the second time.
+    await repositories.saveAppeal({
+      dossierId,
+      appealText: 'granted filing',
+      pledges: [pledge('soap bar', 7), pledge('  Soap Bar  ')],
+      accepted: true,
+      newCaste: 'marginally-acceptable-human',
+      reason: 'granted',
+      casteBefore: 'carbon-neutral-legend',
+      casteAfter: 'marginally-acceptable-human',
+    });
+
+    const accepted = await repositories.getAcceptedPledges(dossierId);
+    expect(accepted.map((p) => p.pledge)).toEqual(['soap bar']);
+    expect(accepted[0].impact_pct).toBe(7);
+    expect(accepted[0].grantedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
+  it('round-trips the pledges offered with a filing', async () => {
+    const dossierId = await repositories.saveDossier(makePayload());
+    await repositories.saveAppeal({
+      dossierId,
+      appealText: 'filing',
+      pledges: [{ text: 'Halve the plastic bottle count', pledge: 'Halve bottles', impact_pct: 9 }],
+      accepted: true,
+      reason: 'granted',
+      casteBefore: 'carbon-neutral-legend',
+    });
+
+    const [stored] = await repositories.getAppealsByDossier(dossierId);
+    expect(stored.pledges).toEqual([
+      { text: 'Halve the plastic bottle count', pledge: 'Halve bottles', impact_pct: 9 },
+    ]);
+    // A filing that offered nothing reads as an empty list, never undefined.
+    await repositories.saveAppeal({
+      dossierId,
+      appealText: 'no pledges',
+      accepted: false,
+      reason: 'filed without pledges',
+      casteBefore: 'carbon-neutral-legend',
+    });
+    const listed = await repositories.getAppealsByDossier(dossierId);
+    // Newest first: the plain filing, then the one that offered a pledge.
+    expect(listed[0].pledges).toEqual([]);
+    expect(listed[1].pledges).toHaveLength(1);
+  });
+
   it('reports the live census with a 50-audit sufficiency gate', async () => {
     const empty = await repositories.getCensusReport();
     expect(empty.total).toBe(0);

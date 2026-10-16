@@ -183,6 +183,7 @@ export function App() {
           id: record.id,
           evidenceUrl: record.evidenceUrl,
           acceptedAt: record.acceptedAt,
+          acceptedPledges: record.acceptedPledges ?? [],
         };
         setOracleData(payload);
         setEvidenceUrl(record.evidenceUrl);
@@ -330,6 +331,7 @@ export function App() {
         id: record.id,
         evidenceUrl: record.evidenceUrl,
         acceptedAt: record.acceptedAt,
+        acceptedPledges: record.acceptedPledges ?? [],
       };
       setOracleData(payload);
       setEvidenceUrl(record.evidenceUrl);

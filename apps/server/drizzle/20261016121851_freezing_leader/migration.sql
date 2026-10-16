@@ -1,0 +1,1 @@
+ALTER TABLE "appeals" ADD COLUMN "pledges_json" text DEFAULT '[]' NOT NULL;
