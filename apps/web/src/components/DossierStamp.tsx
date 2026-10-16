@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import type { LucideIcon } from 'lucide-react';
 
 export interface DossierStampProps {
   /** Ink for the lettering — the art bible's matte ink, not the UI colour. */
@@ -7,8 +8,12 @@ export interface DossierStampProps {
   borderColor?: string;
   /** The stamped phrase (the pack supplies it). */
   label: string;
-  /** Optional glyph that rides the stamp, e.g. a disposition emoji. */
-  emoji?: string;
+  /**
+   * Optional glyphs riding the stamp's left edge, e.g. a disposition mark's
+   * `icons` already resolved from their pack keys. Decorative: the label carries
+   * the meaning, so they are hidden from assistive tech.
+   */
+  icons?: LucideIcon[];
   /** Optional second line under the label, e.g. "FILED 2026-10-16". */
   subline?: string;
   /** Tooltip. */
@@ -23,8 +28,8 @@ export interface DossierStampProps {
  *
  * Both marks on the dossier use this: the injunction stamp (archive ink, a file
  * date, clickable through to the worksheet) and the caste disposition mark (the
- * tier's colour, an emoji, no date, opens its own file). Keeping one component
- * is the only reason the two can't drift apart.
+ * tier's colour, line icons in the tier's ink, the detail's open control). Keeping
+ * one component is the only reason the two can't drift apart.
  *
  * It lands with a short press (`stamp-land` in index.css); the global
  * reduced-motion rule flattens that for citizens who ask for less motion. The
@@ -35,7 +40,7 @@ export const DossierStamp: React.FC<DossierStampProps> = ({
   ink,
   borderColor,
   label,
-  emoji,
+  icons,
   subline,
   title,
   onClick,
@@ -67,7 +72,15 @@ export const DossierStamp: React.FC<DossierStampProps> = ({
   const body = (
     <>
       <span className="flex items-center gap-1.5 text-[13px] leading-none">
-        {emoji && <span aria-hidden="true">{emoji}</span>}
+        {icons && icons.length > 0 && (
+          <span aria-hidden="true" className="flex items-center gap-0.5">
+            {icons.map((Icon, i) => (
+              // Heavier stroke than lucide's default: at 14px next to the black
+              // mono caps, a 2px stroke thins out and the glyph reads as a smudge.
+              <Icon key={i} className="h-3.5 w-3.5" strokeWidth={2.5} />
+            ))}
+          </span>
+        )}
         <span>{label}</span>
       </span>
       {subline && <span className="mt-1 block text-[9px] font-bold opacity-80">{subline}</span>}

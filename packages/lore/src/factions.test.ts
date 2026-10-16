@@ -61,24 +61,33 @@ describe('tier taxonomy (art §7)', () => {
   });
 
   // The disposition mark is the second stamp on a dossier (opposite the
-  // injunction's): a short stamped phrase, an emoji, and the file detail it
-  // opens. A tier without one would render an empty mark in the UI.
-  it('every tier carries a unique disposition mark (label, emoji, detail)', () => {
+  // injunction's): a short stamped phrase, line-icon glyph keys, and the file
+  // detail it opens. A tier without one would render an empty mark in the UI.
+  it('every tier carries a unique disposition mark (label, icon keys, detail)', () => {
     const labels = new Set<string>();
-    const emoji = new Set<string>();
     for (const f of FACTIONS) {
-      const { label, emoji: glyph, detail } = f.disposition;
+      const { label, icons, detail } = f.disposition;
       expect(label.length, `${f.id} disposition label`).toBeGreaterThan(0);
       // Stamped like `stampText`, so it is authored in caps in the pack.
       expect(label, `${f.id} disposition label is stamped`).toBe(label.toUpperCase());
-      expect(glyph.length, `${f.id} disposition emoji`).toBeGreaterThan(0);
       expect(detail.length, `${f.id} disposition detail`).toBeGreaterThan(40);
+      // Keys, not components — the web resolves them (`lib/lore-icons.ts`).
+      expect(icons.length, `${f.id} disposition icons`).toBeGreaterThan(0);
+      for (const key of icons) {
+        expect(key, `${f.id} icon key is a kebab-case key`).toMatch(/^[a-z][a-z-]*$/);
+      }
+      // The mark is a stamp, not a poster: one glyph, or two at most.
+      expect(icons.length, `${f.id} has at most two glyphs`).toBeLessThanOrEqual(2);
       labels.add(label);
-      emoji.add(glyph);
     }
     // Distinct marks, or the stamp stops telling tiers apart.
     expect(labels.size).toBe(FACTIONS.length);
-    expect(emoji.size).toBe(FACTIONS.length);
+  });
+
+  it('marks the two handled tiers with the recycling sign, worst with a skull', () => {
+    // The Bureau stops grading these households and starts handling them.
+    expect(getFaction('power-grid-liability').disposition.icons).toEqual(['recycle']);
+    expect(getFaction('disaster-zone').disposition.icons).toEqual(['skull', 'recycle']);
   });
 
   it('household titles are deterministic and driven by material / dimension / ratio', () => {

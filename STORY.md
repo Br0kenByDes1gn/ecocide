@@ -42,7 +42,7 @@ formula: **`compliance_formula.md`**.
 | `colors` | 11 Tailwind/hex tokens (text/border/bg/badge/bar/dot/glow) — **complete literal class strings** (Tailwind v4 scans sources; `index.css` includes `@source` for lore) |
 | `stampText` / `stampInk` | EXEMPLARY…FINAL NOTICE + paper-layer ink hex (art §3.4/§7) |
 | `verdictLine` | the Arbiter's one-liner (art §7 verdict table) |
-| `disposition` | the household's **disposition mark**: `label` (short stamped phrase, authored in caps), `emoji`, and `detail` — the file the mark opens, saying what the Bureau intends to do with the household |
+| `disposition` | the household's **disposition mark**: `label` (short stamped phrase, authored in caps), `icons` (one or two **icon keys** — `sprout` / `file-clock` / `chart-column` / `eye` / `recycle` / `skull` — resolved in web by `apps/web/src/lib/lore-icons.ts`, like `topics.icon`), and `detail` — the file the mark opens, saying what the Bureau intends to do with the household |
 | `reticleMotif` | per-tier reticle flavor key (art §7 lore) |
 | `censusDescription` | tier lore — the case-file scene (art §3 "Per-Tier Visual Lore") |
 | `topics.p2/p3` | paragraph topic chips: `icon` key (web maps keys → lucide icons in `apps/web/src/lib/prophecyTopics.ts`) + `label` |
@@ -55,12 +55,16 @@ opposite the injunction's. It carries no date, because it is not a filing — it
 a statement of what the Bureau intends to *do* with the household. Read best →
 worst it is one escalating joke: the Bureau stops judging you and starts handling
 you (MODEL CITIZEN → PROVISIONALLY KEPT → STATISTICALLY FILED → UNDER OBSERVATION
-→ HELD FOR PARTS → MARKED FOR RECYCLING). Conventions: the label is authored in
-caps (it is stamped, like `stampText`); label and emoji must be **unique per
-tier** (`factions.test.ts` enforces it); the `detail` is written in the Bureau's
-flat second person and should be derivable from that tier's own copy
-(`verdictLine` / `simulated.title` / `censusDescription`). The web reads it as
-`getFaction(caste).disposition` and opens `detail` in a modal
+→ HELD FOR PARTS → MARKED FOR RECYCLING). The two handled tiers both carry the
+recycling sign (the household has become material), and the worst adds a skull.
+Conventions: the label is authored in caps (it is stamped, like `stampText`);
+labels must be **unique per tier** and each tier needs one or two icon keys
+(`factions.test.ts` enforces both, and `apps/web/src/lib/lore-icons.test.ts`
+enforces that every key actually resolves). Glyphs are **line icons, never
+colour emoji** — they inherit the stamp's matte ink (art §3.2). The `detail` is
+written in the Bureau's flat second person and should be derivable from that
+tier's own copy (`verdictLine` / `simulated.title` / `censusDescription`). The web
+reads it as `getFaction(caste).disposition` and opens `detail` in a modal
 (`apps/web/src/components/DispositionStamp.tsx` + `DispositionModal.tsx`); the
 surrounding chrome is `DISPOSITION_COPY` in `surfaces.ts`.
 

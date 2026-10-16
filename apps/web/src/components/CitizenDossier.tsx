@@ -62,9 +62,17 @@ export const CitizenDossier: React.FC<CitizenDossierProps> = ({
   return (
     <div className="w-full max-w-7xl mx-auto px-4 sm:px-6">
       <div className="grid gap-3 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:items-start">
-        <HouseholdAuditCard payload={payload} evidenceUrl={evidenceUrl} reveal={reveal} hideInventory />
+        {/*
+          `min-w-0` on both columns: a grid item defaults to `min-width: auto`,
+          which is its min-content. The audit card's lens canvas carries an
+          intrinsic width (the evidence photo's pixels), so without this the single
+          column can never shrink below it and the paper overflows a phone screen.
+        */}
+        <div className="min-w-0">
+          <HouseholdAuditCard payload={payload} evidenceUrl={evidenceUrl} reveal={reveal} hideInventory />
+        </div>
 
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           <div className="paper-layer relative rounded-xl border border-[#d9cfb6] p-4 flex flex-col min-w-0 overflow-hidden">
             <div
               className="absolute inset-0 opacity-10 pointer-events-none"

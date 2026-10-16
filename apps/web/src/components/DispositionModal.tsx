@@ -1,7 +1,8 @@
 import React, { useEffect } from 'react';
 import { CASTE_ORDER, getFaction } from '@ecocide/types';
 import { DISPOSITION_COPY } from '@ecocide/lore';
-import { FileText, X } from 'lucide-react';
+import { FileText, X, type LucideIcon } from 'lucide-react';
+import { loreIcon } from '../lib/lore-icons';
 import { soundFx } from '../lib/audio';
 
 interface DispositionModalProps {
@@ -18,9 +19,11 @@ interface DispositionModalProps {
  *
  * Opened from the caste stamp on the dossier, which is only a label — the detail
  * is here. Everything rendered comes from the pack: the tier's name colours and
- * one-line verdict, and its `disposition` (label, emoji, detail). The band is
- * derived from the tiers' own `minScore` bounds rather than hard-coded, so a
- * taxonomy change cannot leave a stale range on screen.
+ * one-line verdict, and its `disposition` (label, icon keys, detail). The glyphs
+ * are line icons resolved from those keys, so they take the tier's ink rather than
+ * carrying a colour of their own. The band is derived from the tiers' own
+ * `minScore` bounds rather than hard-coded, so a taxonomy change cannot leave a
+ * stale range on screen.
  */
 export const DispositionModal: React.FC<DispositionModalProps> = ({
   isOpen,
@@ -43,7 +46,8 @@ export const DispositionModal: React.FC<DispositionModalProps> = ({
   if (!isOpen) return null;
 
   const faction = getFaction(caste);
-  const { label, emoji, detail } = faction.disposition;
+  const { label, detail, icons } = faction.disposition;
+  const Glyphs = icons.map(loreIcon).filter((Icon): Icon is LucideIcon => Boolean(Icon));
 
   const handleClose = () => {
     soundFx.playClick();
@@ -97,17 +101,19 @@ export const DispositionModal: React.FC<DispositionModalProps> = ({
         {/* Body */}
         <div className="relative z-10 flex-1 space-y-5 overflow-y-auto p-4 sm:p-6 font-mono">
           <div className="flex items-center gap-3">
-            <span className="text-2xl" aria-hidden="true">
-              {emoji}
-            </span>
             <span
-              className="rounded-sm px-3 py-1.5 text-sm font-black uppercase tracking-widest"
+              className="flex items-center gap-1.5 rounded-sm px-3 py-1.5 text-sm font-black uppercase tracking-widest"
               style={{
                 color: faction.stampInk,
                 border: `2px solid ${faction.colors.hex}`,
                 backgroundColor: `color-mix(in srgb, ${faction.colors.hex} 10%, transparent)`,
               }}
             >
+              <span aria-hidden="true" className="flex items-center gap-1">
+                {Glyphs.map((Icon, i) => (
+                  <Icon key={i} className="h-4 w-4" strokeWidth={2.5} />
+                ))}
+              </span>
               {label}
             </span>
           </div>

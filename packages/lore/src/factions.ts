@@ -48,8 +48,13 @@ export interface FactionSimulated {
 export interface FactionDisposition {
   /** Short stamped phrase, e.g. `MARKED FOR RECYCLING`. */
   label: string;
-  /** Emoji glyph that rides the stamp. */
-  emoji: string;
+  /**
+   * Glyph keys that ride the stamp, in the order they are drawn (one or two).
+   * Keys, not components: the pack stays dependency-free and the web maps them
+   * (`apps/web/src/lib/lore-icons.ts`), exactly like `topics[].icon`. They are
+   * line icons in the stamp's own ink — colour emoji are never used on the paper.
+   */
+  icons: readonly string[];
   /** The Bureau's fuller intent, shown when the mark is opened. */
   detail: string;
 }
@@ -73,8 +78,8 @@ export interface FactionDef {
   verdictLine: string;
   /**
    * What the Bureau intends to do with this household: the short mark stamped on
-   * the dossier, its emoji, and the file detail behind it (the mark opens those).
-   * Labels + emoji must be unique across tiers (see factions.test.ts).
+   * the dossier, the glyphs that ride it, and the file detail behind it (the mark
+   * opens those). Labels must be unique across tiers (see factions.test.ts).
    */
   disposition: FactionDisposition;
   /** Per-tier reticle motif key (art §7 lore; web may animate it). */
@@ -201,7 +206,7 @@ export const FACTIONS = [
     verdictLine: 'Suspiciously perfect. The Bureau is double-checking.',
     disposition: {
       label: 'MODEL CITIZEN',
-      emoji: '🌱',
+      icons: ['sprout'],
       detail:
         'Your household has been filed as a model of restraint. The Bureau finds almost nothing to object to, which it finds suspicious, and will keep double-checking. Continue to consume nothing worth auditing.',
     },
@@ -251,7 +256,7 @@ export const FACTIONS = [
     verdictLine: 'Good habits. Keep going.',
     disposition: {
       label: 'PROVISIONALLY KEPT',
-      emoji: '🤏',
+      icons: ['file-clock'],
       detail:
         'You are kept on file, provisionally. Your habits are acceptable at the margin, and the margin is narrow: one more plastic bag and this file reopens.',
     },
@@ -301,7 +306,7 @@ export const FACTIONS = [
     verdictLine: 'Some good choices, some bad ones. Acceptable.',
     disposition: {
       label: 'STATISTICALLY FILED',
-      emoji: '📊',
+      icons: ['chart-column'],
       detail:
         'You pollute at exactly the rate the Bureau expects, which is the problem. Retained as a data point: your habits are the baseline against which better households are measured.',
     },
@@ -351,7 +356,7 @@ export const FACTIONS = [
     verdictLine: 'You know better, and the bin knows it.',
     disposition: {
       label: 'UNDER OBSERVATION',
-      emoji: '👀',
+      icons: ['eye'],
       detail:
         "You know better, and the bin knows it. Your file is under observation and your waste is counted as it is produced. The Bureau's magnifier does not blink.",
     },
@@ -401,7 +406,7 @@ export const FACTIONS = [
     verdictLine: 'A lot of waste. Review pending.',
     disposition: {
       label: 'HELD FOR PARTS',
-      emoji: '🔧',
+      icons: ['recycle'],
       detail:
         'Your household draws more than it returns and has been held for parts. The appliances still work; you do not. Expect the Bureau to recover what it can.',
     },
@@ -451,7 +456,7 @@ export const FACTIONS = [
     verdictLine: 'Termination notice issued. Appeals accepted in pledges.',
     disposition: {
       label: 'MARKED FOR RECYCLING',
-      emoji: '♻️',
+      icons: ['skull', 'recycle'],
       detail:
         'Your wasteful carbon existence can no longer be supported. You have drawn far beyond your allowance, and you will be recycled to recoup the damage. Appeals are accepted in pledges.',
     },

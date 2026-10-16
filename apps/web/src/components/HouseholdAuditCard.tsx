@@ -149,7 +149,7 @@ export const HouseholdAuditCard: React.FC<HouseholdAuditCardProps> = ({
     text ? <>{text}</> : <Placeholder className={placeholderClassName} />;
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <div
         onClick={clickable ? onExpand : undefined}
         role={clickable ? 'button' : undefined}
