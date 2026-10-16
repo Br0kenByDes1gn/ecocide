@@ -3,6 +3,7 @@ import type { InjunctionTask } from '@ecocide/types';
 import { REGISTRY_COPY } from '@ecocide/lore';
 import { ClipboardList, Loader2, Square, SquareCheckBig, Wallet } from 'lucide-react';
 import { useVault } from '../lib/useVault';
+import { splitWorksheet } from '../lib/injunction-worksheet';
 import { confirmInjunctionTasks, fetchInjunctionTasks } from '../lib/vault-api';
 import { formatVaultDate } from '../lib/vault-format';
 import { RegistryUnlock } from './RegistryUnlock';
@@ -13,6 +14,10 @@ interface InjunctionScreenProps {
   onOpenDossier: (id: string) => void;
   /** Start a fresh audit from the empty standing state. */
   onBeginAudit: () => void;
+  /** Show only this verdict's orders (arrived from the injunction stamp). */
+  dossierFilter?: string;
+  /** Drop the verdict filter and show the whole worksheet. */
+  onClearFilter: () => void;
 }
 
 type TaskState =
@@ -31,6 +36,8 @@ type TaskState =
 export const InjunctionScreen: React.FC<InjunctionScreenProps> = ({
   onOpenDossier,
   onBeginAudit,
+  dossierFilter,
+  onClearFilter,
 }) => {
   const { session, isPending, vault, refresh } = useVault();
   const [checked, setChecked] = useState<Set<string>>(new Set());
@@ -101,8 +108,10 @@ export const InjunctionScreen: React.FC<InjunctionScreenProps> = ({
   };
 
   const tasks = state.status === 'ready' ? state.tasks : [];
-  const pendingSelected = tasks.filter((t) => !t.completed && checked.has(t.id));
-  const bonusTotal = tasks.filter((t) => t.completed).reduce((sum, t) => sum + t.points, 0);
+  // The filter is a view concern; the bonus is pooled from every order on file
+  // (see splitWorksheet for why they are derived together).
+  const { visible, bonusTotal } = splitWorksheet(tasks, dossierFilter);
+  const pendingSelected = visible.filter((t) => !t.completed && checked.has(t.id));
 
   const handleConfirm = async () => {
     if (pendingSelected.length === 0 || confirming) return;
@@ -130,7 +139,7 @@ export const InjunctionScreen: React.FC<InjunctionScreenProps> = ({
             {REGISTRY_COPY.injunction.title}{' '}
             {state.status === 'ready' && (
               <span className="text-gray-500">
-                ({tasks.filter((t) => t.completed).length}/{tasks.length})
+                ({visible.filter((t) => t.completed).length}/{visible.length})
               </span>
             )}
             <button
@@ -172,7 +181,7 @@ export const InjunctionScreen: React.FC<InjunctionScreenProps> = ({
             </div>
           )}
 
-          {state.status === 'ready' && tasks.length === 0 && (
+          {state.status === 'ready' && visible.length === 0 && (
             <div className="px-5 py-10 text-center space-y-4">
               <p className="font-mono text-xs text-gray-500 uppercase tracking-widest">
                 No orders on file — run an audit while signed in to issue them.
@@ -187,16 +196,29 @@ export const InjunctionScreen: React.FC<InjunctionScreenProps> = ({
             </div>
           )}
 
-          {state.status === 'ready' && tasks.length > 0 && (
+          {state.status === 'ready' && visible.length > 0 && (
             <>
+              {dossierFilter && (
+                <div className="mx-5 mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-[#8b5a2b]/50 bg-[#8b5a2b]/10 px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-[#d9b98a]">
+                  Orders issued for this verdict
+                  <button
+                    type="button"
+                    onClick={onClearFilter}
+                    className="ml-auto rounded border border-[#8b5a2b]/60 px-2 py-1 font-black hover:bg-[#8b5a2b]/20 transition-colors cursor-pointer"
+                  >
+                    Show all
+                  </button>
+                </div>
+              )}
               <p className="px-5 pt-4 font-mono text-sm font-bold text-gray-200 tracking-wide">
-                {tasks.length} action{tasks.length === 1 ? '' : 's'} on file — newest first.
+                {visible.length} action{visible.length === 1 ? '' : 's'} on file
+                {dossierFilter ? ' for this verdict' : ''} — newest first.
               </p>
               <p className="px-5 pt-1 font-mono text-[11px] text-gray-500 uppercase tracking-widest">
                 {REGISTRY_COPY.injunction.hint}
               </p>
               <ul className="p-5 space-y-2">
-                {tasks.map((task) => {
+                {visible.map((task) => {
                   const done = task.completed || checked.has(task.id);
                   return (
                     <li key={task.id}>
@@ -251,7 +273,7 @@ export const InjunctionScreen: React.FC<InjunctionScreenProps> = ({
                 })}
               </ul>
               <p className="px-5 pb-5 font-mono text-[11px] text-gray-500 uppercase tracking-widest">
-                {tasks.length > 0 && tasks.every((t) => t.completed) ? REGISTRY_COPY.injunction.cleared : REGISTRY_COPY.injunction.closing}
+                {visible.every((t) => t.completed) ? REGISTRY_COPY.injunction.cleared : REGISTRY_COPY.injunction.closing}
               </p>
             </>
           )}

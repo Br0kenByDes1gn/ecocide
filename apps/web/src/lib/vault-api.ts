@@ -40,6 +40,25 @@ export async function fetchInjunctionTasks(): Promise<InjunctionTask[]> {
   return body.tasks ?? [];
 }
 
+/**
+ * The orders issued for one accepted verdict.
+ *
+ * `null` means "definitively not available to this caller" — the registry is
+ * locked, or the verdict belongs to another citizen — and the caller should stop
+ * asking. Anything else (a 5xx, a dropped connection) throws, so the caller can
+ * tell a definitive answer from a transient blip worth retrying.
+ */
+export async function fetchInjunctionTasksForDossier(
+  dossierId: string,
+  signal?: AbortSignal
+): Promise<InjunctionTask[] | null> {
+  const res = await authFetch('/api/vault/injunction-tasks', { signal });
+  if (res.status === 401 || res.status === 403) return null;
+  if (!res.ok) throw new Error(`INJUNCTION QUERY FAILED (${res.status})`);
+  const body = (await res.json()) as { tasks: InjunctionTask[] };
+  return (body.tasks ?? []).filter((task) => task.dossierId === dossierId);
+}
+
 export interface InjunctionConfirmResult {
   confirmed: Array<{ id: string; points: number }>;
   bonusTotal: number;

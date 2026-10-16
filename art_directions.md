@@ -95,7 +95,7 @@ inspection reticles, bureaucratic menace, deadpan machine judgment, satirical dr
 | Stamp ink red | `#c2322b` | DENIED, FINAL NOTICE |
 | Stamp ink green | `#2f7d3a` | APPROVED, EXEMPLARY |
 | Stamp ink amber | `#b45309` | PENDING REVIEW |
-| Compost brown | `#8b5a2b` | Folder tabs, ledger binding, case-file accents |
+| Compost brown | `#8b5a2b` | Folder tabs, ledger binding, case-file accents; the **injunction stamp** (an accepted verdict's issued orders — archive ink, deliberately not a tier ink) |
 
 ### 3.3 System Signal Colors
 

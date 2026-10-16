@@ -6,7 +6,9 @@ import { downloadHouseholdDossierPng } from '../lib/dossierCardPng';
 import { fullAuditReveal } from '../lib/useAuditReveal';
 import { useVault } from '../lib/useVault';
 import { soundFx } from '../lib/audio';
+import { useInjunctionStamp } from '../lib/useInjunction';
 import { DossierActions } from './DossierActions';
+import { InjunctionStamp } from './InjunctionStamp';
 import { HouseholdAuditCard } from './HouseholdAuditCard';
 import { DossierProphecy } from './DossierProphecy';
 import { PaperDossierHeader } from './PaperDossierHeader';
@@ -18,6 +20,8 @@ interface CitizenDossierProps {
   onReset: () => void;
   permalinkId?: string;
   sessionDate?: string;
+  /** Open the injunction worksheet filtered to this verdict (absent where there is none). */
+  onOpenInjunction?: (dossierId: string) => void;
 }
 
 /**
@@ -31,6 +35,7 @@ export const CitizenDossier: React.FC<CitizenDossierProps> = ({
   onReset,
   permalinkId,
   sessionDate,
+  onOpenInjunction,
 }) => {
   const { user_profile, prophecy, audit, suggestions } = payload;
   const reveal = fullAuditReveal(user_profile, audit);
@@ -40,6 +45,11 @@ export const CitizenDossier: React.FC<CitizenDossierProps> = ({
   // Citizen ID mirrors the registry "Registered to" identity (vault account email).
   const citizenId = vault?.user.email ?? (permalinkId ? `#${permalinkId}` : null);
   const [inventoryOpen, setInventoryOpen] = useState(false);
+
+  // Once the verdict is accepted the orders are issued in the background, so the
+  // stamp waits for them: immediate on a later visit, a short poll on the visit
+  // right after accepting.
+  const injunction = useInjunctionStamp(permalinkId, Boolean(payload.acceptedAt));
 
   const handleDownloadCard = () => {
     downloadHouseholdDossierPng({ payload, permalinkId });
@@ -119,6 +129,15 @@ export const CitizenDossier: React.FC<CitizenDossierProps> = ({
                 </p>
               </div>
             )}
+            {injunction.status === 'issued' && permalinkId && (
+              <div className="relative mt-6 flex justify-end">
+                <InjunctionStamp
+                  acceptedAt={payload.acceptedAt}
+                  onOpen={() => onOpenInjunction(permalinkId)}
+                />
+              </div>
+            )}
+
           </div>
 
           <DossierActions

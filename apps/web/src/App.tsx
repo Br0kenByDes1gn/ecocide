@@ -61,6 +61,14 @@ function parseAppealIdFromUrl(): string | null {
   return searchParams.get('appeal');
 }
 
+/**
+ * The verdict filter on the injunction worksheet (`/injunction?dossier=<id>`),
+ * set by the injunction stamp on a dossier. Absent = the whole worksheet.
+ */
+function parseDossierFilterFromUrl(): string | null {
+  return new URLSearchParams(window.location.search).get('dossier');
+}
+
 function parseAppealsIdFromUrl(): string | null {
   const pathMatch = window.location.pathname.match(/\/appeals\/([a-zA-Z0-9_-]+)/);
   if (pathMatch?.[1]) return pathMatch[1];
@@ -93,6 +101,9 @@ export function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [oracleData, setOracleData] = useState<OraclePayload | null>(null);
   const [evidenceUrl, setEvidenceUrl] = useState<string | undefined>(undefined);
+  const [dossierFilter, setDossierFilter] = useState<string | null>(() =>
+    typeof window === 'undefined' ? null : parseDossierFilterFromUrl()
+  );
   const [permalinkId, setPermalinkId] = useState<string | null>(null);
   /** Archive time of the open dossier (scan time, or record.createdAt). */
   const [sessionDate, setSessionDate] = useState<string | null>(null);
@@ -289,20 +300,17 @@ export function App() {
     window.history.pushState({}, '', '/scan');
   };
 
-  const goCitizen = () => {
-    if (!permalinkId) return;
-    setViewState('dossier');
-    window.history.pushState({}, '', `/citizen/${permalinkId}`);
-  };
-
   const goRegistry = () => {
     setViewState('registry');
     window.history.pushState({}, '', '/registry');
   };
 
-  const goInjunction = () => {
+  const goInjunction = (dossierId?: string) => {
+    const query = dossierId ? `?dossier=${encodeURIComponent(dossierId)}` : '';
     setViewState('injunction');
-    window.history.pushState({}, '', '/injunction');
+    window.history.pushState({}, '', `/injunction${query}`);
+    // The worksheet reads the filter at render, so nudge it to re-read.
+    setDossierFilter(dossierId ?? null);
   };
 
   /** Open any dossier by id (used by the registry's archive/ledger links). */
@@ -344,7 +352,13 @@ export function App() {
     window.history.pushState({}, '', `/arbitration/${permalinkId}`);
   };
 
-  const handleClaimed = goCitizen;
+  // Accepting a verdict changes it (it is now terminal, and its injunction is
+  // being issued), so the in-memory payload is stale. Re-read the record before
+  // showing the dossier, or the sealed appeal states and the injunction stamp
+  // would only appear after a manual reload.
+  const handleClaimed = () => {
+    if (permalinkId) void handleOpenDossier(permalinkId);
+  };
 
   const handleOpenAppeals = () => {
     if (!permalinkId) return;
@@ -471,7 +485,7 @@ export function App() {
           {(viewState === 'registry' || viewState === 'dossier') && (
             <button
               type="button"
-              onClick={goInjunction}
+              onClick={() => goInjunction()}
               className="text-xs font-mono text-gray-400 hover:text-lime-400 border border-gray-800 hover:border-lime-500/50 px-3 py-1.5 rounded-lg bg-gray-950 transition-colors hidden md:block cursor-pointer"
               title="Open the Environmental Injunction worksheet (/injunction)"
             >
@@ -531,6 +545,7 @@ export function App() {
             onReset={handleReset}
             permalinkId={permalinkId || undefined}
             sessionDate={sessionDate || undefined}
+            onOpenInjunction={goInjunction}
           />
         )}
 
@@ -579,6 +594,8 @@ export function App() {
           <InjunctionScreen
             onOpenDossier={handleOpenDossier}
             onBeginAudit={handleProceedToScan}
+            dossierFilter={dossierFilter || undefined}
+            onClearFilter={() => goInjunction()}
           />
         )}
       </main>

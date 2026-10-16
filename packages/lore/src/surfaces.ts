@@ -119,3 +119,21 @@ export function standingTrendLabel(delta: number): string {
   const sign = delta > 0 ? '+' : '−';
   return `${sign}${Math.abs(delta)} vs prior record`;
 }
+
+/**
+ * The injunction stamp — the mark placed on an accepted verdict's dossier once
+ * its corrective orders have been issued (see `issueInjunction` on the server).
+ *
+ * Like the tier stamp, both the wording and the ink come from the pack so the
+ * stamp is never wrong: the ink is the art bible's *archive* ink
+ * (art_directions.md §3.2, "folder tabs, ledger binding, case-file accents"),
+ * which no tier uses, so this mark never reads as a verdict.
+ */
+export const INJUNCTION_STAMP = {
+  /** Headline of the stamp (the component uppercases it). */
+  label: 'Injunction issued',
+  /** Prefixed to the issuance date, e.g. "Filed 2026-10-16". */
+  dated: 'Filed',
+  /** Archive ink — art_directions.md §3.2. */
+  ink: '#8b5a2b',
+} as const;
