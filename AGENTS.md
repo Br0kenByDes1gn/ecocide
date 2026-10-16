@@ -190,6 +190,16 @@ apps/server/scripts/  # scan-cost audit
   so its cost is the matching rows rather than the whole worksheet. Clicking the
   mark opens `/injunction?dossier=<id>`; the worksheet splits the visible list
   from the pooled bonus so filtering never moves the standing.
+- `src/components/DossierStamp.tsx` — the shared stamp idiom (hard border, tilt,
+  inset shadow, mono caps) used by **both** marks on the dossier, so they cannot
+  drift. `src/components/DispositionStamp.tsx` (+ `DispositionModal.tsx`) is the
+  other mark, on the left of the reserved space: the Bureau's disposition for the
+  household, from the tier's own `disposition` (label, emoji, detail) in the pack.
+  No date — it is a statement of intent, not a filing. It is drawn with the tier's
+  hex as the border/wash and the tier's matte `stampInk` as the lettering, and
+  opens the detail in a modal (Escape / backdrop dismiss, mirroring `CensusModal`).
+  Both marks wrap rather than collide on a narrow screen; only the injunction mark
+  plays a landing sound.
 - Copy: all world strings live in the lore pack; inline UI strings are
   generic chrome, not story.
 

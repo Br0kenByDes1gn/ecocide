@@ -121,6 +121,23 @@ export function standingTrendLabel(delta: number): string {
 }
 
 /**
+ * The disposition mark's file — what the Bureau intends to do with the household,
+ * which the caste stamp on the dossier opens. The per-tier wording lives on the
+ * tiers themselves (`FactionDef.disposition`); this is the chrome around it.
+ */
+export const DISPOSITION_COPY = {
+  title: 'Bureau Disposition',
+  /** Tooltip on the mark itself — says what opening it does. */
+  open: "Open the Bureau's disposition for this household",
+  /** Label over the household's own index + its band. */
+  band: 'Assessment band',
+  index: 'Index',
+  /** Footer label over the tier's one-line verdict. */
+  verdict: 'Standing verdict',
+  close: 'Close file',
+} as const;
+
+/**
  * The injunction stamp — the mark placed on an accepted verdict's dossier once
  * its corrective orders have been issued (see `issueInjunction` on the server).
  *

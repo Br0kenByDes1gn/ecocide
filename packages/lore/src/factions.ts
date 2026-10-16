@@ -45,6 +45,15 @@ export interface FactionSimulated {
   paragraph3: string;
 }
 
+export interface FactionDisposition {
+  /** Short stamped phrase, e.g. `MARKED FOR RECYCLING`. */
+  label: string;
+  /** Emoji glyph that rides the stamp. */
+  emoji: string;
+  /** The Bureau's fuller intent, shown when the mark is opened. */
+  detail: string;
+}
+
 export interface FactionDef {
   /** Stable internal id, persisted in the DB (e.g. `carbon-neutral-legend`). */
   id: string;
@@ -62,6 +71,12 @@ export interface FactionDef {
   stampInk: string;
   /** The Arbiter's one-line verdict for this tier (art §7). */
   verdictLine: string;
+  /**
+   * What the Bureau intends to do with this household: the short mark stamped on
+   * the dossier, its emoji, and the file detail behind it (the mark opens those).
+   * Labels + emoji must be unique across tiers (see factions.test.ts).
+   */
+  disposition: FactionDisposition;
   /** Per-tier reticle motif key (art §7 lore; web may animate it). */
   reticleMotif: string;
   /** Tier lore (census modal + prompts). */
@@ -184,6 +199,12 @@ export const FACTIONS = [
     stampText: 'EXEMPLARY',
     stampInk: '#2f7d3a',
     verdictLine: 'Suspiciously perfect. The Bureau is double-checking.',
+    disposition: {
+      label: 'MODEL CITIZEN',
+      emoji: '🌱',
+      detail:
+        'Your household has been filed as a model of restraint. The Bureau finds almost nothing to object to, which it finds suspicious, and will keep double-checking. Continue to consume nothing worth auditing.',
+    },
     reticleMotif: 'exemplary-ring',
     censusDescription:
       'Immaculate case file edged in lime; a laurel wreath of recycling arrows and a single seedling in an inspection jar, with a Bureau magnifier hovering suspiciously over everything. The planet meter is nearly empty of waste.',
@@ -228,6 +249,12 @@ export const FACTIONS = [
     stampText: 'APPROVED',
     stampInk: '#2f7d3a',
     verdictLine: 'Good habits. Keep going.',
+    disposition: {
+      label: 'PROVISIONALLY KEPT',
+      emoji: '🤏',
+      detail:
+        'You are kept on file, provisionally. Your habits are acceptable at the margin, and the margin is narrow: one more plastic bag and this file reopens.',
+    },
     reticleMotif: 'steady-brackets',
     censusDescription:
       'Neatly sorted bins, one reusable bottle on the counter, a tidy ledger with one small ink smudge. Provisionally approved; the smudge has been noted.',
@@ -272,6 +299,12 @@ export const FACTIONS = [
     stampText: 'APPROVED (GRUDGINGLY)',
     stampInk: '#b45309',
     verdictLine: 'Some good choices, some bad ones. Acceptable.',
+    disposition: {
+      label: 'STATISTICALLY FILED',
+      emoji: '📊',
+      detail:
+        'You pollute at exactly the rate the Bureau expects, which is the problem. Retained as a data point: your habits are the baseline against which better households are measured.',
+    },
     reticleMotif: 'half-ring',
     censusDescription:
       'Half-sorted bins; a reusable tote sits beside a plastic bag; a recycling symbol hangs slightly crooked. The household is statistically unremarkable, which is its own kind of verdict.',
@@ -316,6 +349,12 @@ export const FACTIONS = [
     stampText: 'PENDING REVIEW',
     stampInk: '#b45309',
     verdictLine: 'You know better, and the bin knows it.',
+    disposition: {
+      label: 'UNDER OBSERVATION',
+      emoji: '👀',
+      detail:
+        "You know better, and the bin knows it. Your file is under observation and your waste is counted as it is produced. The Bureau's magnifier does not blink.",
+    },
     reticleMotif: 'amber-notches',
     censusDescription:
       'Overflowing bin, stacked delivery boxes, loose bubble wrap, caution tape half applied. Amber warning lights pulse over a household under observation.',
@@ -360,6 +399,12 @@ export const FACTIONS = [
     stampText: 'DENIED',
     stampInk: '#c2322b',
     verdictLine: 'A lot of waste. Review pending.',
+    disposition: {
+      label: 'HELD FOR PARTS',
+      emoji: '🔧',
+      detail:
+        'Your household draws more than it returns and has been held for parts. The appliances still work; you do not. Expect the Bureau to recover what it can.',
+    },
     reticleMotif: 'voltage-ring',
     censusDescription:
       'Tangled extension cords, rows of standby LEDs, overloaded power strips, a meter needle pushed into the red zone. Flickering orange glow; grid strain notice served.',
@@ -404,6 +449,12 @@ export const FACTIONS = [
     stampText: 'FINAL NOTICE',
     stampInk: '#c2322b',
     verdictLine: 'Termination notice issued. Appeals accepted in pledges.',
+    disposition: {
+      label: 'MARKED FOR RECYCLING',
+      emoji: '♻️',
+      detail:
+        'Your wasteful carbon existence can no longer be supported. You have drawn far beyond your allowance, and you will be recycled to recoup the damage. Appeals are accepted in pledges.',
+    },
     reticleMotif: 'heartbeat-ring',
     censusDescription:
       'A mountain of mixed waste behind hazard-striped quarantine tape; the case file stamped CONDEMNED in red barcode. A cracked terminal screen glitches over a final notice.',

@@ -42,12 +42,27 @@ formula: **`compliance_formula.md`**.
 | `colors` | 11 Tailwind/hex tokens (text/border/bg/badge/bar/dot/glow) — **complete literal class strings** (Tailwind v4 scans sources; `index.css` includes `@source` for lore) |
 | `stampText` / `stampInk` | EXEMPLARY…FINAL NOTICE + paper-layer ink hex (art §3.4/§7) |
 | `verdictLine` | the Arbiter's one-liner (art §7 verdict table) |
+| `disposition` | the household's **disposition mark**: `label` (short stamped phrase, authored in caps), `emoji`, and `detail` — the file the mark opens, saying what the Bureau intends to do with the household |
 | `reticleMotif` | per-tier reticle flavor key (art §7 lore) |
 | `censusDescription` | tier lore — the case-file scene (art §3 "Per-Tier Visual Lore") |
 | `topics.p2/p3` | paragraph topic chips: `icon` key (web maps keys → lucide icons in `apps/web/src/lib/prophecyTopics.ts`) + `label` |
 | `promptBlocks.paragraph2/paragraph3` | per-tier instruction blocks injected into every verdict prompt |
 | `stylePrompt` | §10 badge art prompt (image-model use) |
 | `simulated` | offline verdict copy (title, paragraph2, paragraph3) |
+
+The **disposition mark** (`disposition`) is the second stamp on a dossier,
+opposite the injunction's. It carries no date, because it is not a filing — it is
+a statement of what the Bureau intends to *do* with the household. Read best →
+worst it is one escalating joke: the Bureau stops judging you and starts handling
+you (MODEL CITIZEN → PROVISIONALLY KEPT → STATISTICALLY FILED → UNDER OBSERVATION
+→ HELD FOR PARTS → MARKED FOR RECYCLING). Conventions: the label is authored in
+caps (it is stamped, like `stampText`); label and emoji must be **unique per
+tier** (`factions.test.ts` enforces it); the `detail` is written in the Bureau's
+flat second person and should be derivable from that tier's own copy
+(`verdictLine` / `simulated.title` / `censusDescription`). The web reads it as
+`getFaction(caste).disposition` and opens `detail` in a modal
+(`apps/web/src/components/DispositionStamp.tsx` + `DispositionModal.tsx`); the
+surrounding chrome is `DISPOSITION_COPY` in `surfaces.ts`.
 
 Also here: `HOUSEHOLD_TITLES` + `householdTitle(...)` — the deterministic
 **personalized titles** driven by the dominant scoring dimension / material

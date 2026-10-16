@@ -9,6 +9,8 @@ import { useVault } from '../lib/useVault';
 import { soundFx } from '../lib/audio';
 import { useInjunctionStamp } from '../lib/useInjunction';
 import { DossierActions } from './DossierActions';
+import { DispositionModal } from './DispositionModal';
+import { DispositionStamp } from './DispositionStamp';
 import { InjunctionStamp } from './InjunctionStamp';
 import { HouseholdAuditCard } from './HouseholdAuditCard';
 import { DossierProphecy } from './DossierProphecy';
@@ -46,6 +48,7 @@ export const CitizenDossier: React.FC<CitizenDossierProps> = ({
   // Citizen ID mirrors the registry "Registered to" identity (vault account email).
   const citizenId = vault?.user.email ?? (permalinkId ? `#${permalinkId}` : null);
   const [inventoryOpen, setInventoryOpen] = useState(false);
+  const [dispositionOpen, setDispositionOpen] = useState(false);
 
   // Once the verdict is accepted the orders are issued in the background, so the
   // stamp waits for them: immediate on a later visit, a short poll on the visit
@@ -73,10 +76,14 @@ export const CitizenDossier: React.FC<CitizenDossierProps> = ({
 
             {/*
               Reserved space under IMPACT FINDINGS — always present, so the paper
-              never reflows when the mark arrives. Holds the pending line while the
-              Arbiter drafts the orders, then the stamp itself.
+              never reflows when the mark arrives. The Bureau's disposition mark
+              for this household sits on the left from the moment the verdict
+              exists; the right side holds the pending line while the Arbiter
+              drafts the orders, then the injunction stamp itself. Wraps rather
+              than collides on a narrow screen.
             */}
-            <div className="relative mt-3 flex min-h-[3.5rem] items-center justify-end">
+            <div className="relative mt-3 flex min-h-[3.5rem] flex-wrap items-center justify-between gap-2">
+              <DispositionStamp caste={user_profile.caste} onClick={() => setDispositionOpen(true)} />
               {injunction.status === 'issued' && permalinkId && onOpenInjunction ? (
                 <InjunctionStamp
                   acceptedAt={payload.acceptedAt}
@@ -168,6 +175,13 @@ export const CitizenDossier: React.FC<CitizenDossierProps> = ({
           />
         </div>
       </div>
+
+      <DispositionModal
+        isOpen={dispositionOpen}
+        onClose={() => setDispositionOpen(false)}
+        caste={user_profile.caste}
+        index={user_profile.biocarbon_ratio}
+      />
     </div>
   );
 };
