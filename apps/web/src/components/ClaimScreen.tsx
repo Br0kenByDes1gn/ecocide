@@ -1,6 +1,6 @@
 import React from 'react';
 import type { OraclePayload } from '@ecocide/types';
-import { VAULT_CLAIM_FEE, getFaction } from '@ecocide/types';
+import { claimFeeUnits, getFaction } from '@ecocide/types';
 import { Trophy } from 'lucide-react';
 import { RegistryPayment } from './RegistryPayment';
 
@@ -15,7 +15,7 @@ interface ClaimScreenProps {
  * it, then proceed to the static citizen dossier.
  */
 export const ClaimScreen: React.FC<ClaimScreenProps> = ({ payload, onClaimed }) => {
-  const { user_profile } = payload;
+  const { user_profile, audit } = payload;
   const factionName = getFaction(user_profile.caste).name;
 
   return (
@@ -35,7 +35,7 @@ export const ClaimScreen: React.FC<ClaimScreenProps> = ({ payload, onClaimed }) 
 
       <RegistryPayment
         feeLabel="VERDICT CERTIFICATION FEE"
-        amount={VAULT_CLAIM_FEE}
+        amountUnits={claimFeeUnits(user_profile.caste, audit.items)}
         reason="claim_fee"
         bindDossierId={payload.id}
         onPaid={onClaimed}

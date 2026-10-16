@@ -99,16 +99,18 @@ export async function linkDossierToVault(dossierId: string): Promise<VaultLinkRe
   return res.json();
 }
 
-/** Draw a fixed fee from the vault (e.g. the appeal filing fee). */
-export async function chargeVault(
-  amount: number,
-  reason: string,
-  ref?: string
-): Promise<VaultChargeResult> {
+/**
+ * Draw a fee from the vault.
+ *
+ * No amount is sent: the server owns the price list and derives the fee from the
+ * dossier for a priced reason (`claim_fee`, `appeal_fee`), so a client cannot
+ * underpay its own bill.
+ */
+export async function chargeVault(reason: string, ref?: string): Promise<VaultChargeResult> {
   const res = await authFetch('/api/vault/charge', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ amount, reason, ref }),
+    body: JSON.stringify({ reason, ref }),
   });
   if (!res.ok) {
     const payload = (await res.json().catch(() => ({}))) as { error?: string };

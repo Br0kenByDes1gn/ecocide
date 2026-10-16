@@ -146,6 +146,20 @@ apps/server/scripts/  # scan-cost audit
   banked points; they are never re-issued.
 - `GET /api/census` — live audited-household counts per tier (display gate:
   only once ≥50 audits exist, art §7). `GET /api/evidence/:name`.
+- **Money is carbon credits.** One credit is one tonne of CO₂e; the ledger counts
+  *credit units* (1/100 of a credit = 10 kg) so it can stay integer, and every
+  user-facing figure is credits with two decimals. A new account is minted one
+  year's average citizen footprint (≈6.6 t, rounded to 7.00) as its allowance.
+- **The Bureau prices fees; the client never does.** Each tier carries a `tariff`
+  (`claimUnits` / `appealUnits`) and the audit modulates it — a harm-weighted load
+  over the items, normalised so the tier's own exhibit room scores exactly 1.0,
+  clamped to 0.6–1.8 and capped at half the allowance. The calibration lives in
+  `packages/types/src/economy.ts` and is asserted by `economy.test.ts`: the
+  disaster zone affords **20 audits + 1 appeal** out of the allowance, and every
+  better tier more. `/link` prices the claim, and `/api/vault/charge` derives the
+  appeal fee from the dossier it is given — an amount sent for `claim_fee` /
+  `appeal_fee` is ignored. Scans cost nothing: an audit can run with no account to
+  charge, and the money moves at the two acts that need one.
 - `GET /api/vault`, `POST /api/vault/link`, `POST /api/vault/charge`,
   `GET /api/vault/ledger`, `GET /api/vault/injunction-tasks`,
   `POST /api/vault/injunction-confirm`, `/api/auth/*` (Better Auth email-OTP).
@@ -186,8 +200,11 @@ apps/server/scripts/  # scan-cost audit
   override flags), barcode.
 - `src/components/CarbonRegistryScreen.tsx` (+ `RegistryUnlock`,
   `RegistryPayment`) — `/registry`: the pooled carbon standing hero, the
-  assessment archive and the demoted token account. Payment terminals charge
-  via `lib/vault-api.ts` (API/storage names keep their `vault` spellings).
+  assessment archive and the demoted carbon account. The payment terminal quotes
+  the fee in carbon credits with its kg CO₂e equivalent and sends only the filing
+  (`lib/vault-api.ts`; `RegistryPayment` takes `amountUnits` for display while the
+  server charges its own price), and API/storage names keep their `vault`
+  spellings.
   `/registry` and `/injunction` decide what to render through
   `lib/registry-phase.ts`, gated on `useVault().sessionReady` — **never on
   better-auth's `isPending`**. That flag is `data === null` sampled at each
@@ -258,6 +275,7 @@ apps/server/scripts/  # scan-cost audit
 | `pnpm dev:web` / `pnpm dev:server` | Single process |
 | `pnpm test` | Vitest across packages (hermetic) |
 | `pnpm scan-costs` | Token/cost audit from the local DB |
+| `pnpm --filter @ecocide/server db:reset-allowance` | One-off repair: re-base every wallet onto the current allowance, writing a reconciling ledger entry |
 | `pnpm wireframes` | Convert `models-src/*.obj` → `apps/web/src/lib/asset-wireframes.ts` |
 | `pnpm --filter @ecocide/server db:generate` | drizzle-kit generate (schema → `apps/server/drizzle`) |
 

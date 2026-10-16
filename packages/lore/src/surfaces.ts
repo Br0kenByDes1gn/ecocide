@@ -60,18 +60,33 @@ export const REGISTRY_COPY = {
     roomUnknown: 'Unspecified area',
   },
 
-  /** The demoted token account panel on the registry page. */
+  /** The demoted carbon account panel on the registry page. */
   account: {
-    title: 'Token Account',
+    title: 'Carbon Account',
     balance: 'Available balance',
     credited: 'Credited',
     spent: 'Spent',
     transactions: 'Transactions',
-    allowance: 'Allocated line of credit',
+    /**
+     * The allowance is one year of an average citizen's footprint (the real
+     * average is about 6.6 tonnes; the Bureau rounds up).
+     */
+    allowance: 'Yearly allowance',
+    allowanceNote: 'One year of an average citizen footprint, rounded up',
+    /** What the balance is denominated in: one credit is one tonne of CO₂e. */
+    unit: 'carbon credits',
+    unitRate: '1 credit = 1 tonne CO₂e',
     openAccount: 'Open account',
     ledgerTitle: 'Transaction Ledger',
     ledgerEmpty: 'No transactions logged.',
     loadOlder: 'Load older transactions',
+    /** Ledger reason labels (keyed by the stored reason). */
+    reasons: {
+      seed: 'Universal Basic Allowance',
+      claim_fee: 'Verdict Certification Fee',
+      appeal_fee: 'Appeal Filing Fee',
+      adjustment: 'System Adjustment',
+    },
   },
 
   /** Identity unlock (email OTP) for the registry account. */
@@ -113,6 +128,8 @@ export const REGISTRY_COPY = {
     paid: 'Payment authorized',
     simulation: 'Simulation terminal | no real charge will be made',
     balance: 'Balance',
+    /** The fee line is quoted in credits, with the tonne equivalent beneath. */
+    feeNote: 'One credit is one tonne of CO₂e',
   },
 } as const;
 

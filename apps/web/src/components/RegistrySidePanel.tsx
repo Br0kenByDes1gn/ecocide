@@ -17,7 +17,8 @@ import {
 import { useVault } from '../lib/useVault';
 import { fetchVaultLedger } from '../lib/vault-api';
 import {
-  formatCredits,
+  formatCarbonCredits,
+  formatCarbonKg,
   formatVaultDate,
   isCredit,
   ledgerReasonLabel,
@@ -246,7 +247,7 @@ export const RegistrySidePanel: React.FC<RegistrySidePanelProps> = ({
             {REGISTRY_COPY.account.title}
             {!accountOpen && (
               <span className="text-gray-500">
-                - {formatCredits(wallet.credits)} CREDITS
+                - {formatCarbonCredits(wallet.credits)} {REGISTRY_COPY.account.unit}
               </span>
             )}
           </span>
@@ -268,13 +269,19 @@ export const RegistrySidePanel: React.FC<RegistrySidePanelProps> = ({
                   <div className="flex items-center gap-2 mt-1">
                     <Coins className="w-7 h-7 text-cyan-400" />
                     <span className="font-mono text-3xl font-black text-cyan-300 tracking-wide">
-                      {formatCredits(wallet.credits)}
+                      {formatCarbonCredits(wallet.credits)}
                     </span>
-                    <span className="font-mono text-sm text-cyan-500">CREDITS</span>
+                    <span className="font-mono text-sm text-cyan-500">
+                      {REGISTRY_COPY.account.unit.toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="mt-1 font-mono text-[10px] text-gray-600 uppercase">
+                    {formatCarbonKg(wallet.credits)} — {REGISTRY_COPY.account.unitRate}
                   </div>
                 </div>
                 <div className="font-mono text-[10px] text-gray-600 uppercase">
-                  {REGISTRY_COPY.account.allowance}: {formatCredits(VAULT_ALLOWANCE)} CREDITS
+                  {REGISTRY_COPY.account.allowance}: {formatCarbonCredits(VAULT_ALLOWANCE)}{' '}
+                  {REGISTRY_COPY.account.unit}
                 </div>
               </div>
 
@@ -288,7 +295,7 @@ export const RegistrySidePanel: React.FC<RegistrySidePanelProps> = ({
               <div className="grid grid-cols-3 gap-3 text-center">
                 <div className="bg-black/40 border border-gray-800 rounded-xl py-2.5">
                   <div className="font-mono text-sm font-bold text-emerald-300">
-                    +{formatCredits(stats.totalCredited)}
+                    +{formatCarbonCredits(stats.totalCredited)}
                   </div>
                   <div className="font-mono text-[9px] text-gray-500 uppercase tracking-widest">
                     {REGISTRY_COPY.account.credited}
@@ -296,7 +303,7 @@ export const RegistrySidePanel: React.FC<RegistrySidePanelProps> = ({
                 </div>
                 <div className="bg-black/40 border border-gray-800 rounded-xl py-2.5">
                   <div className="font-mono text-sm font-bold text-red-300">
-                    −{formatCredits(stats.totalSpent)}
+                    −{formatCarbonCredits(stats.totalSpent)}
                   </div>
                   <div className="font-mono text-[9px] text-gray-500 uppercase tracking-widest">
                     {REGISTRY_COPY.account.spent}
@@ -372,10 +379,10 @@ export const RegistrySidePanel: React.FC<RegistrySidePanelProps> = ({
                             }`}
                           >
                             {credit ? '+' : '−'}
-                            {formatCredits(Math.abs(entry.delta))}
+                            {formatCarbonCredits(Math.abs(entry.delta))}
                           </div>
                           <div className="font-mono text-[10px] text-gray-500">
-                            BAL {formatCredits(entry.balanceAfter)}
+                            BAL {formatCarbonCredits(entry.balanceAfter)}
                           </div>
                         </div>
                       </div>

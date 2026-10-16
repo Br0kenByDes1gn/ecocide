@@ -59,6 +59,24 @@ export interface FactionDisposition {
   detail: string;
 }
 
+/**
+ * What the Bureau charges to process a household of this tier, in **credit units**
+ * (1 unit = 1/100 carbon credit = 10 kg CO₂e — see `CREDIT_UNITS_PER_CREDIT` in
+ * @ecocide/types). Both figures are per bureaucratic act: certifying a verdict and
+ * filing an appeal against it. The audit itself modulates them (a messier room
+ * costs more), so these are the tier's *base* rates.
+ *
+ * The scale is calibrated to one citizen's yearly allowance: a household at the
+ * bottom of the taxonomy can take about twenty audits and one appeal out of it,
+ * and every better tier gets more. `economy.test.ts` pins that.
+ */
+export interface FactionTariff {
+  /** Certification (claim) fee, in credit units. */
+  claimUnits: number;
+  /** Appeal filing fee, in credit units. */
+  appealUnits: number;
+}
+
 export interface FactionDef {
   /** Stable internal id, persisted in the DB (e.g. `carbon-neutral-legend`). */
   id: string;
@@ -82,6 +100,8 @@ export interface FactionDef {
    * opens those). Labels must be unique across tiers (see factions.test.ts).
    */
   disposition: FactionDisposition;
+  /** What it charges this tier to process a claim or an appeal (art §7 economy). */
+  tariff: FactionTariff;
   /** Per-tier reticle motif key (art §7 lore; web may animate it). */
   reticleMotif: string;
   /** Tier lore (census modal + prompts). */
@@ -210,6 +230,7 @@ export const FACTIONS = [
       detail:
         'Your household has been filed as a model of restraint. The Bureau finds almost nothing to object to, which it finds suspicious, and will keep double-checking. Continue to consume nothing worth auditing.',
     },
+    tariff: { claimUnits: 3, appealUnits: 10 },
     reticleMotif: 'exemplary-ring',
     censusDescription:
       'Immaculate case file edged in lime; a laurel wreath of recycling arrows and a single seedling in an inspection jar, with a Bureau magnifier hovering suspiciously over everything. The planet meter is nearly empty of waste.',
@@ -260,6 +281,7 @@ export const FACTIONS = [
       detail:
         'You are kept on file, provisionally. Your habits are acceptable at the margin, and the margin is narrow: one more plastic bag and this file reopens.',
     },
+    tariff: { claimUnits: 7, appealUnits: 25 },
     reticleMotif: 'steady-brackets',
     censusDescription:
       'Neatly sorted bins, one reusable bottle on the counter, a tidy ledger with one small ink smudge. Provisionally approved; the smudge has been noted.',
@@ -310,6 +332,7 @@ export const FACTIONS = [
       detail:
         'You pollute at exactly the rate the Bureau expects, which is the problem. Retained as a data point: your habits are the baseline against which better households are measured.',
     },
+    tariff: { claimUnits: 12, appealUnits: 40 },
     reticleMotif: 'half-ring',
     censusDescription:
       'Half-sorted bins; a reusable tote sits beside a plastic bag; a recycling symbol hangs slightly crooked. The household is statistically unremarkable, which is its own kind of verdict.',
@@ -360,6 +383,7 @@ export const FACTIONS = [
       detail:
         "You know better, and the bin knows it. Your file is under observation and your waste is counted as it is produced. The Bureau's magnifier does not blink.",
     },
+    tariff: { claimUnits: 18, appealUnits: 60 },
     reticleMotif: 'amber-notches',
     censusDescription:
       'Overflowing bin, stacked delivery boxes, loose bubble wrap, caution tape half applied. Amber warning lights pulse over a household under observation.',
@@ -410,6 +434,7 @@ export const FACTIONS = [
       detail:
         'Your household draws more than it returns and has been held for parts. The appliances still work; you do not. Expect the Bureau to recover what it can.',
     },
+    tariff: { claimUnits: 25, appealUnits: 85 },
     reticleMotif: 'voltage-ring',
     censusDescription:
       'Tangled extension cords, rows of standby LEDs, overloaded power strips, a meter needle pushed into the red zone. Flickering orange glow; grid strain notice served.',
@@ -460,6 +485,7 @@ export const FACTIONS = [
       detail:
         'Your wasteful carbon existence can no longer be supported. You have drawn far beyond your allowance, and you will be recycled to recoup the damage. Appeals are accepted in pledges.',
     },
+    tariff: { claimUnits: 30, appealUnits: 100 },
     reticleMotif: 'heartbeat-ring',
     censusDescription:
       'A mountain of mixed waste behind hazard-striped quarantine tape; the case file stamped CONDEMNED in red barcode. A cracked terminal screen glitches over a final notice.',

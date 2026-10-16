@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeAll, afterAll, beforeEach } from 'vitest';
 import { sql } from 'drizzle-orm';
 import { Hono } from 'hono';
-import { VAULT_ALLOWANCE, VAULT_CLAIM_FEE, type OraclePayload } from '@ecocide/types';
+import { VAULT_ALLOWANCE, appealFeeUnits, claimFeeUnits, type OraclePayload } from '@ecocide/types';
 import { createRepositories, initDb, runMigrations, type DbConnection, type Repositories } from '../db/index.js';
 import { user } from '../db/schema.js';
 import type { Auth } from '../auth/index.js';
@@ -23,6 +23,15 @@ const USER_A = 'user-aaaa';
 const USER_B = 'user-bbbb';
 
 /** Empty every table in schema.ts between tests. */
+/** The fee the Bureau prices for a stored dossier (tier rate × audit load). */
+async function pricedFee(dossierId: string, kind: 'claim' | 'appeal'): Promise<number> {
+  const record = await repositories.getDossier(dossierId);
+  const caste = (record!.user_profile || record!.profile).caste;
+  return kind === 'claim'
+    ? claimFeeUnits(caste, record!.audit.items)
+    : appealFeeUnits(caste, record!.audit.items);
+}
+
 async function truncateAll(): Promise<void> {
   await db.execute(
     sql`TRUNCATE TABLE "user", "session", "account", "verification", "wallets", "wallet_ledger", "dossiers", "appeals", "scan_api_logs" CASCADE`
@@ -200,7 +209,7 @@ describe('vault routes', () => {
     expect(first.status).toBe(200);
     const linked = await first.json();
     expect(linked.linked).toBe(true);
-    expect(linked.wallet.credits).toBe(VAULT_ALLOWANCE - VAULT_CLAIM_FEE);
+    expect(linked.wallet.credits).toBe(VAULT_ALLOWANCE - (await pricedFee(dossierId, 'claim')));
     expect(linked.dossier.ownerId).toBe(USER_A);
     // Accepting the verdict is part of the claim.
     expect(linked.dossier.acceptedAt).toBeTruthy();
@@ -213,7 +222,7 @@ describe('vault routes', () => {
     });
     const relinked = await second.json();
     expect(relinked.linked).toBe(false);
-    expect(relinked.wallet.credits).toBe(VAULT_ALLOWANCE - VAULT_CLAIM_FEE);
+    expect(relinked.wallet.credits).toBe(VAULT_ALLOWANCE - (await pricedFee(dossierId, 'claim')));
 
     const ledger = await repositories.getWalletLedger(USER_A);
     expect(ledger.filter((e) => e.reason === 'claim_fee')).toHaveLength(1);
@@ -276,17 +285,31 @@ describe('vault routes', () => {
     const res = await makeApp(USER_A).request('/api/vault/charge', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount: 500, reason: 'appeal_fee', ref: 'dossier-1' }),
+      body: JSON.stringify({ amount: 500, reason: 'adjustment', ref: 'dossier-1' }),
     });
     expect(res.status).toBe(200);
     const charge = await res.json();
     expect(charge.wallet.credits).toBe(VAULT_ALLOWANCE - 500);
-    expect(charge.entry.reason).toBe('appeal_fee');
+    expect(charge.entry.reason).toBe('adjustment');
     expect(charge.entry.ref).toBe('dossier-1');
     expect(charge.entry.balanceAfter).toBe(VAULT_ALLOWANCE - 500);
 
     const ledger = await repositories.getWalletLedger(USER_A);
-    expect(ledger.map((e) => e.reason)).toEqual(['appeal_fee', 'seed']);
+    expect(ledger.map((e) => e.reason)).toEqual(['adjustment', 'seed']);
+  });
+
+  it('prices the appeal fee from the dossier and ignores what the client sends', async () => {
+    const dossierId = await repositories.saveDossier(makePayload());
+    const priced = await pricedFee(dossierId, 'appeal');
+    const charge = await (await makeApp(USER_A).request('/api/vault/charge', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount: 1, reason: 'appeal_fee', ref: dossierId }),
+    })).json();
+
+    // The client asked to pay one unit; the Bureau charged its own price.
+    expect(charge.entry.delta).toBe(-priced);
+    expect(charge.wallet.credits).toBe(VAULT_ALLOWANCE - priced);
   });
 
   it('rejects invalid charge payloads', async () => {
@@ -298,18 +321,21 @@ describe('vault routes', () => {
         body: JSON.stringify(body),
       });
 
-    expect((await post({ amount: 0, reason: 'appeal_fee' })).status).toBe(400);
-    expect((await post({ amount: -5, reason: 'appeal_fee' })).status).toBe(400);
-    expect((await post({ amount: 1.5, reason: 'appeal_fee' })).status).toBe(400);
+    expect((await post({ amount: 0, reason: 'adjustment' })).status).toBe(400);
+    expect((await post({ amount: -5, reason: 'adjustment' })).status).toBe(400);
+    expect((await post({ amount: 1.5, reason: 'adjustment' })).status).toBe(400);
     expect((await post({ amount: 500, reason: '' })).status).toBe(400);
     expect((await post({ amount: 500, reason: 'Bad Reason!' })).status).toBe(400);
+      // A priced reason is derived from its dossier, never from the client.
+      expect((await post({ reason: 'appeal_fee' })).status).toBe(400);
+      expect((await post({ reason: 'appeal_fee', ref: 'no-such-dossier' })).status).toBe(404);
   });
 
   it('rejects unauthenticated charges', async () => {
     const res = await makeApp(null).request('/api/vault/charge', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount: 500, reason: 'appeal_fee' }),
+      body: JSON.stringify({ amount: 500, reason: 'adjustment' }),
     });
     expect(res.status).toBe(401);
   });
@@ -326,13 +352,13 @@ describe('vault routes', () => {
     await app.request('/api/vault/charge', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount: 500, reason: 'appeal_fee', ref: dossierId }),
+      body: JSON.stringify({ reason: 'appeal_fee', ref: dossierId }),
     });
 
     const state = await (await app.request('/api/vault')).json();
     expect(state.stats).toEqual({
       totalCredited: VAULT_ALLOWANCE,
-      totalSpent: VAULT_CLAIM_FEE + 500,
+      totalSpent: (await pricedFee(dossierId, 'claim')) + (await pricedFee(dossierId, 'appeal')),
       transactionCount: 3,
     });
     expect(state.dossiers).toHaveLength(1);

@@ -295,6 +295,23 @@ export function hardFailCount(items: readonly RatedItem[]): number {
   return items.reduce((n, item) => (itemOverrides(item).length > 0 ? n + 1 : n), 0);
 }
 
+/**
+ * How much mess an audit measured, as an index — the basis for what the Bureau
+ * charges for processing it.
+ *
+ * Every item contributes its repeats × its size × its harm, so a room full of
+ * large, high-harm things scores higher than a room of the same shape but tidier
+ * contents. It is deliberately **dimensionless**: the audit has no emission
+ * factors, so anything claiming this was kilograms of CO₂e would be inventing
+ * data. It is a relative load, meaningful only against another audit's.
+ */
+export function auditLoad(items: readonly RatedItem[]): number {
+  return items.reduce(
+    (load, item) => load + sanitizeCount(item.count) * sizeFactor(item.size) * harmScore(item.ratings),
+    0
+  );
+}
+
 /** The single worst item (lowest SI; first occurrence wins ties). */
 export function topOffender(items: readonly RatedItem[]): RatedItem | null {
   let worst: RatedItem | null = null;

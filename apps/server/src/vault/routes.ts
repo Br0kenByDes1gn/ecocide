@@ -2,7 +2,8 @@ import { Hono } from 'hono';
 import { registryStanding } from '@ecocide/compliance';
 import {
   VAULT_ALLOWANCE,
-  VAULT_CLAIM_FEE,
+  appealFeeUnits,
+  claimFeeUnits,
   getCasteFromScore,
   type VaultChargeResult,
   type VaultDossierSummary,
@@ -179,10 +180,16 @@ export function createVaultRoutes(deps: VaultRouteDeps) {
       // Charge the certification fee exactly once per dossier.
       const alreadyCharged = await deps.repositories.getWalletLedgerByRef(user.id, dossierId, 'claim_fee');
       if (!alreadyCharged) {
+        // Priced from the dossier, never from the client: the tier's rate scaled
+        // by what the audit actually found.
+        const feeUnits = claimFeeUnits(
+          (dossier.user_profile || dossier.profile).caste,
+          dossier.audit?.items
+        );
         wallet = (
           await deps.repositories.applyWalletDelta({
             userId: user.id,
-            delta: -VAULT_CLAIM_FEE,
+            delta: -feeUnits,
             reason: 'claim_fee',
             ref: dossierId,
           })
@@ -217,25 +224,48 @@ export function createVaultRoutes(deps: VaultRouteDeps) {
     return c.json(result);
   });
 
-  // Generic fee: draw a fixed amount from the vault and record it in the ledger.
-  // Used by every payment screen that is not the dossier-claim bind (e.g. the
-  // appeal filing fee).
+  // Fee drawn from the vault and recorded in the ledger.
+  //
+  // A *priced* reason ('claim_fee', 'appeal_fee') is never trusted from the
+  // client: the price belongs to the Bureau, so the dossier is looked up and the
+  // amount derived from its tier and its audit. Any other reason takes an explicit
+  // amount — this endpoint only ever debits, so that is a spend, not a mint, and it
+  // stays bounded by the allowance.
   app.post('/charge', async (c) => {
     const user = c.get('user');
     const body = (await c.req
       .json<{ amount?: unknown; reason?: unknown; ref?: unknown }>()
       .catch(() => ({}))) as { amount?: unknown; reason?: unknown; ref?: unknown };
 
-    const amount = Number(body.amount);
-    if (!Number.isInteger(amount) || amount <= 0 || amount > VAULT_ALLOWANCE) {
-      return c.json({ error: 'amount must be a positive integer (credits)' }, 400);
-    }
-
     const reason = typeof body.reason === 'string' ? body.reason.trim() : '';
     if (!/^[a-z][a-z0-9_]{2,31}$/.test(reason)) {
       return c.json({ error: 'a valid ledger reason is required' }, 400);
     }
     const ref = typeof body.ref === 'string' && body.ref.trim() ? body.ref.trim() : undefined;
+
+    let amount: number;
+    if (reason === 'claim_fee' || reason === 'appeal_fee') {
+      if (!ref) {
+        return c.json({ error: `a dossier reference is required to price a ${reason}` }, 400);
+      }
+      const priced = await deps.repositories.getDossier(ref);
+      if (!priced) {
+        return c.json({ error: 'Subject dossier not found in the registry archives' }, 404);
+      }
+      const caste = (priced.user_profile || priced.profile).caste;
+      amount =
+        reason === 'claim_fee'
+          ? claimFeeUnits(caste, priced.audit?.items)
+          : appealFeeUnits(caste, priced.audit?.items);
+    } else {
+      amount = Number(body.amount);
+      if (!Number.isInteger(amount) || amount <= 0 || amount > VAULT_ALLOWANCE) {
+        return c.json(
+          { error: 'amount must be a positive integer in credit units, within the allowance' },
+          400
+        );
+      }
+    }
 
     // Ensure the allowance exists before the first-ever charge against a vault.
     const existing = await deps.repositories.getWalletByUser(user.id);

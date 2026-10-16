@@ -476,14 +476,25 @@ export function simulateTierRoom(caste: Caste): SimulatedScan {
 // OTP). Storage/API names deliberately keep their `vault` spelling.
 // ---------------------------------------------------------------------------
 
-/** Token allowance minted into a freshly created Carbon Registry. */
-export const VAULT_ALLOWANCE = 1_000_000;
-
-/** Certification fee deducted from the vault when a dossier is claimed. */
-export const VAULT_CLAIM_FEE = 250;
-
-/** Appeal filing fee deducted from the vault. */
-export const VAULT_APPEAL_FEE = 500;
+/**
+ * The wallet, the allowance and the fee schedule live in `economy.ts`: the unit is
+ * a hundredth of a carbon credit, the allowance is one year's average footprint,
+ * and each tier's prices are modulated by the audit itself.
+ */
+export {
+  CREDIT_UNITS_PER_CREDIT,
+  KG_CO2E_PER_CREDIT,
+  KG_CO2E_PER_CREDIT_UNIT,
+  VAULT_ALLOWANCE,
+  AUDIT_FACTOR_MIN,
+  AUDIT_FACTOR_MAX,
+  unitsToCredits,
+  unitsToKg,
+  auditFactor,
+  referenceLoad,
+  claimFeeUnits,
+  appealFeeUnits,
+} from './economy.js';
 
 /** Auditable reasons a wallet balance can move. */
 export type WalletLedgerReason = 'seed' | 'claim_fee' | 'appeal_fee' | 'adjustment' | string;

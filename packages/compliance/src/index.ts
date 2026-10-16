@@ -44,6 +44,7 @@ export {
   MATERIAL_FAMILIES,
   householdRatio,
   hardFailCount,
+  auditLoad,
   topOffender,
   dominantDimension,
   dominantMaterialFamily,

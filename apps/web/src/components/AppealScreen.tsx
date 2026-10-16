@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import type { OraclePayload } from '@ecocide/types';
-import { VAULT_APPEAL_FEE } from '@ecocide/types';
+import { appealFeeUnits } from '@ecocide/types';
 import { Loader2, Recycle, Send, ShieldCheck } from 'lucide-react';
 import { RegistryPayment } from './RegistryPayment';
 import { DossierBarcode } from './PaperDossierHeader';
@@ -25,7 +25,7 @@ const MAX_PLEDGES = 3;
  * hand off to the Appeal Records screen.
  */
 export const AppealScreen: React.FC<AppealScreenProps> = ({ payload, permalinkId, sessionDate, onSubmitted }) => {
-  const { user_profile, suggestions } = payload;
+  const { user_profile, audit, suggestions } = payload;
   const { vault } = useVault();const [phase, setPhase] = useState<Phase>('pay');
   const [appeal, setAppeal] = useState('');
   const [pledges, setPledges] = useState<Set<number>>(new Set());
@@ -105,7 +105,7 @@ export const AppealScreen: React.FC<AppealScreenProps> = ({ payload, permalinkId
       {phase === 'pay' && (
         <RegistryPayment
           feeLabel="APPEAL FILING FEE"
-          amount={VAULT_APPEAL_FEE}
+          amountUnits={appealFeeUnits(user_profile.caste, audit.items)}
           reason="appeal_fee"
           chargeRef={permalinkId}
           onPaid={() => setPhase('form')}

@@ -9,7 +9,8 @@
     "start": "node dist/index.js",
     "migrate": "node dist/migrate-cli.js",
     "db:generate": "drizzle-kit generate",
-    "scan-costs": "node scripts/show-scan-costs.mjs"
+    "scan-costs": "node scripts/show-scan-costs.mjs",
+    "db:reset-allowance": "tsx scripts/reset-allowance.ts"
   },
   "dependencies": {
     "@bull-board/api": "^9.10.2",

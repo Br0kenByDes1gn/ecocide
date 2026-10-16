@@ -24,6 +24,7 @@ export type {
   FactionId,
   FactionDef,
   FactionDisposition,
+  FactionTariff,
   FactionColorConfig,
   FactionTopic,
   FactionPromptBlocks,
