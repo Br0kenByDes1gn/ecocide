@@ -134,6 +134,13 @@ export const INJUNCTION_STAMP = {
   label: 'Injunction issued',
   /** Prefixed to the issuance date, e.g. "Filed 2026-10-16". */
   dated: 'Filed',
+  /**
+   * Shown in the stamp's reserved space while the orders are being drafted —
+   * issuance happens after the acceptance response, so the dossier says who is
+   * working. Same register as the other in-flight lines ("Debiting registry
+   * ledger...").
+   */
+  pending: 'The Arbiter is drafting your orders...',
   /** Archive ink — art_directions.md §3.2. */
   ink: '#8b5a2b',
 } as const;

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { OraclePayload } from '@ecocide/types';
 import { getFaction } from '@ecocide/types';
+import { INJUNCTION_STAMP } from '@ecocide/lore';
 import { CheckCircle2, ChevronDown, ChevronUp, Layers } from 'lucide-react';
 import { downloadHouseholdDossierPng } from '../lib/dossierCardPng';
 import { fullAuditReveal } from '../lib/useAuditReveal';
@@ -69,6 +70,27 @@ export const CitizenDossier: React.FC<CitizenDossierProps> = ({
               }}
             />
             <PaperDossierHeader caseId={caseId} sessionDate={sessionDate} subtitle="IMPACT FINDINGS" citizenId={citizenId} largeIds subtitleBelowIds />
+
+            {/*
+              Reserved space under IMPACT FINDINGS — always present, so the paper
+              never reflows when the mark arrives. Holds the pending line while the
+              Arbiter drafts the orders, then the stamp itself.
+            */}
+            <div className="relative mt-3 flex min-h-[3.5rem] items-center justify-end">
+              {injunction.status === 'issued' && permalinkId && onOpenInjunction ? (
+                <InjunctionStamp
+                  acceptedAt={payload.acceptedAt}
+                  onOpen={() => onOpenInjunction(permalinkId)}
+                />
+              ) : injunction.status === 'waiting' ? (
+                <p
+                  className="animate-pulse text-right font-mono text-[10px] font-bold uppercase tracking-widest"
+                  style={{ color: INJUNCTION_STAMP.ink }}
+                >
+                  {INJUNCTION_STAMP.pending}
+                </p>
+              ) : null}
+            </div>
             <div className="relative mt-[11px] rounded-sm border border-[#cfc4a8] bg-[#fbf7ea] p-3">
               <button
                 type="button"
@@ -129,15 +151,6 @@ export const CitizenDossier: React.FC<CitizenDossierProps> = ({
                 </p>
               </div>
             )}
-            {injunction.status === 'issued' && permalinkId && (
-              <div className="relative mt-6 flex justify-end">
-                <InjunctionStamp
-                  acceptedAt={payload.acceptedAt}
-                  onOpen={() => onOpenInjunction(permalinkId)}
-                />
-              </div>
-            )}
-
           </div>
 
           <DossierActions
