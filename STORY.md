@@ -22,7 +22,6 @@ formula: **`compliance_formula.md`**.
 | --- | --- | --- |
 | `projectName` | `ecocide` | internal id / package scope |
 | `appName` | `ECOCIDE` | header + PWA brand |
-| `appVersion` | `0.2.0` | header version |
 | `entityName` | `AI Supreme Arbiter of Consumption` | the in-world decider (prompts, scanner copy, emails, footer) |
 | `entityShortName` | `the Arbiter` | mid-sentence reference |
 | `tagline` | `Carbon Excess Eliminator` | logo lockup / landing (art §1.2) |

@@ -43,7 +43,7 @@ export const ScannerHeader: React.FC<ScannerHeaderProps> = ({
           <div className="min-w-0">
             <h1 className="text-lg sm:text-xl font-bold font-mono text-lime-400 tracking-wider flex items-center gap-2 whitespace-nowrap">
               {IDENTITY.appName}
-              <span className="hidden sm:inline text-xs text-gray-500 font-normal">v{IDENTITY.appVersion}</span>
+              <span className="hidden sm:inline text-xs text-gray-500 font-normal">v{__APP_VERSION__}</span>
             </h1>
             <p className="hidden sm:block text-[11px] font-mono text-gray-400 tracking-widest whitespace-nowrap">
               {IDENTITY.tagline.toUpperCase()}

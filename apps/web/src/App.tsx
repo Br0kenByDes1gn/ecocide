@@ -465,7 +465,7 @@ export function App() {
           </div>
           <div>
             <h1 className="text-lg sm:text-xl font-bold font-mono text-lime-400 tracking-wider flex items-center gap-2 group-hover:text-lime-300 transition-colors">
-              {IDENTITY.appName} <span className="hidden sm:inline text-xs text-gray-500 font-normal">v{IDENTITY.appVersion}</span>
+              {IDENTITY.appName} <span className="hidden sm:inline text-xs text-gray-500 font-normal">v{__APP_VERSION__}</span>
             </h1>
             <p className="hidden sm:block text-[11px] font-mono text-gray-400 tracking-widest">
               {IDENTITY.tagline.toUpperCase()}

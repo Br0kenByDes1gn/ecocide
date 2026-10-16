@@ -7,7 +7,6 @@ export const IDENTITY = {
   projectName: 'ecocide',
   /** Display name shown in the PWA manifest / header. */
   appName: 'ECOCIDE',
-  appVersion: '0.2.0',
   /** The in-world entity that audits households and issues verdicts. */
   entityName: 'AI Supreme Arbiter of Consumption',
   /** Generic way to refer to the entity mid-sentence. */
