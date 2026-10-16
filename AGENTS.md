@@ -220,6 +220,14 @@ apps/server/scripts/  # scan-cost audit
   previous canvas painter described an older page within a day and had to go. The
   typewriter face is self-hosted (`apps/web/public/fonts/`) so the export is
   deterministic and the PWA keeps its face offline.
+- `src/components/PaperDossierHeader.tsx` — the paper header shared by the
+  arbitration and citizen dossiers (and the PNG export). Everything collapses under
+  `sm:` — the recycling mark, the bureau title, the case/citizen ids and the
+  barcode — and **the title block is `min-h`, never a fixed height**: a fixed box
+  let three wrapped lines spill out of the header and over the case-ID row beneath.
+  The ids `break-all` instead of clipping, because a citizen id is a full email
+  address. The arbitration page's classification stamp scales down and wraps for the
+  same reason: a `shrink-0` block in a non-wrapping row can only be cut off.
 - Copy: all world strings live in the lore pack; inline UI strings are
   generic chrome, not story.
 
