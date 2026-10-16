@@ -52,11 +52,16 @@ export async function fetchInjunctionTasksForDossier(
   dossierId: string,
   signal?: AbortSignal
 ): Promise<InjunctionTask[] | null> {
-  const res = await authFetch('/api/vault/injunction-tasks', { signal });
+  // The server narrows to this verdict, so the poll's cost is the matching rows
+  // (usually none) rather than the citizen's whole worksheet.
+  const res = await authFetch(
+    `/api/vault/injunction-tasks?dossierId=${encodeURIComponent(dossierId)}`,
+    { signal }
+  );
   if (res.status === 401 || res.status === 403) return null;
   if (!res.ok) throw new Error(`INJUNCTION QUERY FAILED (${res.status})`);
   const body = (await res.json()) as { tasks: InjunctionTask[] };
-  return (body.tasks ?? []).filter((task) => task.dossierId === dossierId);
+  return body.tasks ?? [];
 }
 
 export interface InjunctionConfirmResult {

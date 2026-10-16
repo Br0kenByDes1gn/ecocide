@@ -160,8 +160,8 @@ apps/server/scripts/  # scan-cost audit
 ### apps/web
 
 - SPA flow in `src/App.tsx` (`/`, `/scan`, `/citizen/:id`, `/arbitration/:id`,
-  `/claim/:id`, `/appeal/:id`, `/appeals/:id`, `/registry` with `/vault`
-  redirecting, dev-only `/debug`).
+  `/claim/:id`, `/appeal/:id`, `/appeals/:id`, `/injunction` (optionally
+  `?dossier=<id>`), `/registry` with `/vault` redirecting, dev-only `/debug`).
 - `src/components/HomePage.tsx` — the landing screen (terminal + paper
   dossier panel); the global app header hides on the scan screen.
 - `src/components/ObjectScanner.tsx` (+ `ScannerHeader`, `UploadPanel`,
@@ -179,6 +179,17 @@ apps/server/scripts/  # scan-cost audit
   `RegistryPayment`) — `/registry`: the pooled carbon standing hero, the
   assessment archive and the demoted token account. Payment terminals charge
   via `lib/vault-api.ts` (API/storage names keep their `vault` spellings).
+- `src/components/InjunctionStamp.tsx` (+ `lib/useInjunction.ts`,
+  `lib/injunction-worksheet.ts`) — the mark placed in the dossier's reserved space
+  under IMPACT FINDINGS once an accepted verdict's orders exist. Issuance runs
+  *after* the acceptance response, so the space shows a pulsing line
+  (`INJUNCTION_STAMP.pending`, from the pack) while `useInjunction` waits: it
+  reads once, then polls on a bounded schedule (≤6 requests, 30s deadline),
+  makes no requests while the tab is hidden, and reads once on return. The poll
+  asks for one verdict (`?dossierId=`, served by `getInjunctionTasksByDossier`),
+  so its cost is the matching rows rather than the whole worksheet. Clicking the
+  mark opens `/injunction?dossier=<id>`; the worksheet splits the visible list
+  from the pooled bonus so filtering never moves the standing.
 - Copy: all world strings live in the lore pack; inline UI strings are
   generic chrome, not story.
 

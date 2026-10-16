@@ -20,10 +20,19 @@ import { fetchInjunctionTasksForDossier } from './vault-api';
  */
 
 /** Delay before each attempt, in ms; the last value repeats until the deadline. */
-export const INJUNCTION_POLL_DELAYS_MS = [0, 1000, 2000, 3000, 5000] as const;
+export const INJUNCTION_POLL_DELAYS_MS = [0, 1000, 2500, 5000, 10_000] as const;
 
-/** Give up after this long. The model call is the slow part (~5-15s in prod). */
-export const INJUNCTION_POLL_DEADLINE_MS = 60_000;
+/**
+ * Give up after this long. The model call is the slow part (~5-15s in prod), so
+ * 30s covers a sluggish issuance; the deadline only exists so an issuance that
+ * *failed* cannot leave the page asking forever.
+ */
+export const INJUNCTION_POLL_DEADLINE_MS = 30_000;
+
+/** True while the page is hidden — a backgrounded tab has nobody watching it. */
+function isHidden(): boolean {
+  return typeof document !== 'undefined' && document.visibilityState === 'hidden';
+}
 
 export type InjunctionStampStatus = 'idle' | 'waiting' | 'issued';
 
@@ -65,6 +74,7 @@ export function useInjunctionStamp(
     let attempt = 0;
 
     const cancelled = () => cancelledRef.current || controller.signal.aborted;
+    const pastDeadline = () => Date.now() - startedAt >= INJUNCTION_POLL_DEADLINE_MS;
 
     const poll = async () => {
       let tasks: InjunctionTask[] | null;
@@ -74,13 +84,13 @@ export function useInjunctionStamp(
         // Transient (5xx, dropped connection): keep trying until the deadline
         // rather than treat it as a definitive "no orders".
         if (cancelled()) return;
-        if (Date.now() - startedAt >= INJUNCTION_POLL_DEADLINE_MS) {
+        if (pastDeadline()) {
           console.warn(`[Injunction] could not read the orders for ${dossierId}; giving up.`);
           setState({ status: 'idle', tasks: [] });
           return;
         }
         attempt += 1;
-        timer = setTimeout(poll, injunctionPollDelay(attempt));
+        schedule(injunctionPollDelay(attempt));
         return;
       }
       if (cancelled()) return;
@@ -98,22 +108,50 @@ export function useInjunctionStamp(
 
       setState({ status: 'waiting', tasks: [] });
 
-      if (Date.now() - startedAt >= INJUNCTION_POLL_DEADLINE_MS) {
+      if (pastDeadline()) {
         console.warn(`[Injunction] no orders on file for ${dossierId} after polling; giving up.`);
         setState({ status: 'idle', tasks: [] });
         return;
       }
 
       attempt += 1;
-      timer = setTimeout(poll, injunctionPollDelay(attempt));
+      schedule(injunctionPollDelay(attempt));
     };
 
+    const schedule = (delay: number) => {
+      timer = setTimeout(() => {
+        // Out of time: issuance is best-effort, so stop asking instead of burning
+        // a request we already know we will discard.
+        if (pastDeadline()) {
+          console.warn(`[Injunction] gave up waiting for the orders of ${dossierId}.`);
+          setState({ status: 'idle', tasks: [] });
+          return;
+        }
+        if (isHidden()) {
+          schedule(injunctionPollDelay(attempt + 1));
+          return;
+        }
+        void poll();
+      }, delay);
+    };
+
+    const onVisible = () => {
+      if (cancelled() || isHidden()) return;
+      // Deliberately not deadline-gated: a citizen who pocketed the phone through
+      // the whole window gets one read when they come back, which is the case
+      // this exists for. `poll` decides what to do if it finds nothing.
+      if (timer) clearTimeout(timer);
+      void poll();
+    };
+
+    document.addEventListener('visibilitychange', onVisible);
     void poll();
 
     return () => {
       cancelledRef.current = true;
       controller.abort();
       if (timer) clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVisible);
     };
   }, [dossierId, enabled]);
 

@@ -419,6 +419,43 @@ describe('vault routes', () => {
     expect(clamped.offset).toBe(0);
   });
 
+  it('scopes the orders to one verdict on request', async () => {
+    const app = makeApp(USER_A);
+    const first = await repositories.saveDossier(makePayload());
+    const second = await repositories.saveDossier(makePayload());
+    await repositories.addInjunctionTasks(USER_A, first, [
+      { action: 'Retire the pods.', replaces: 'coffee pod', why: 'W', category: 'reduce', impact: 'high', effort: 'easy' },
+      { action: 'Reuse the jar.', replaces: 'glass jar', why: 'W', category: 'reuse', impact: 'low', effort: 'easy' },
+    ]);
+    await repositories.addInjunctionTasks(USER_A, second, [
+      { action: 'Swap the bulb.', replaces: 'bulb', why: 'W', category: 'swap', impact: 'medium', effort: 'easy' },
+    ]);
+
+    // Bare request = the whole worksheet, which is what /injunction shows.
+    const all = await (await app.request('/api/vault/injunction-tasks')).json();
+    expect(all.tasks).toHaveLength(3);
+
+    // ?dossierId= is the small answer the dossier page polls while it waits for
+    // issuance: only this verdict's rows.
+    const scoped = await (
+      await app.request(`/api/vault/injunction-tasks?dossierId=${first}`)
+    ).json();
+    expect(scoped.tasks).toHaveLength(2);
+    expect(scoped.tasks.every((task) => task.dossierId === first)).toBe(true);
+
+    // A verdict with no orders of its own answers with nothing, not the rest.
+    const empty = await (
+      await app.request('/api/vault/injunction-tasks?dossierId=no-such-verdict')
+    ).json();
+    expect(empty.tasks).toEqual([]);
+
+    // Another citizen's scope never reaches these orders.
+    const foreign = await (
+      await makeApp(USER_B).request(`/api/vault/injunction-tasks?dossierId=${first}`)
+    ).json();
+    expect(foreign.tasks).toEqual([]);
+  });
+
   it('rejects unauthenticated ledger access', async () => {
     expect((await makeApp(null).request('/api/vault/ledger')).status).toBe(401);
   });

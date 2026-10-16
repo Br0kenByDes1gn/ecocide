@@ -99,7 +99,13 @@ export function createVaultRoutes(deps: VaultRouteDeps) {
 
   app.get('/injunction-tasks', async (c) => {
     const user = c.get('user');
-    const tasks = await deps.repositories.getInjunctionTasksByUser(user.id);
+    // `?dossierId=` answers for one verdict: the dossier page polls this while it
+    // waits for issuance, and the whole worksheet would be a wasteful answer to a
+    // yes/no question (it also grows with every verdict the citizen ever collects).
+    const dossierId = c.req.query('dossierId')?.trim();
+    const tasks = dossierId
+      ? await deps.repositories.getInjunctionTasksByDossier(user.id, dossierId)
+      : await deps.repositories.getInjunctionTasksByUser(user.id);
     return c.json({ tasks });
   });
 

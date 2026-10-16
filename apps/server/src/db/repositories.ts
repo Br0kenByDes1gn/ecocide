@@ -150,6 +150,7 @@ function mapScanLogRow(row: ScanLogRow): ApiCallLog {
   };
 }
 
+type InjunctionTaskRow = typeof injunctionTasks.$inferSelect;
 type WalletRow = typeof wallets.$inferSelect;
 type WalletLedgerRow = typeof walletLedger.$inferSelect;
 
@@ -172,6 +173,23 @@ function mapLedgerRow(row: WalletLedgerRow): WalletLedgerEntry {
     ref: row.ref || undefined,
     balanceAfter: row.balance_after,
     createdAt: row.created_at,
+  };
+}
+
+function mapInjunctionTaskRow(row: InjunctionTaskRow): InjunctionTask {
+  return {
+    id: row.id,
+    action: row.action,
+    replaces: row.replaces,
+    why: row.why,
+    category: row.category as InjunctionTask['category'],
+    impact: row.impact as InjunctionTask['impact'],
+    effort: row.effort as InjunctionTask['effort'],
+    dossierId: row.dossier_id,
+    createdAt: row.created_at,
+    completed: row.completed,
+    completedAt: row.completed_at,
+    points: row.points,
   };
 }
 
@@ -276,20 +294,26 @@ export function createRepositories(db: DbConnection['db']) {
         .where(eq(injunctionTasks.user_id, userId))
         .orderBy(desc(injunctionTasks.created_at));
 
-      return rows.map((row) => ({
-        id: row.id,
-        action: row.action,
-        replaces: row.replaces,
-        why: row.why,
-        category: row.category as InjunctionTask['category'],
-        impact: row.impact as InjunctionTask['impact'],
-        effort: row.effort as InjunctionTask['effort'],
-        dossierId: row.dossier_id,
-        createdAt: row.created_at,
-        completed: row.completed,
-        completedAt: row.completed_at,
-        points: row.points,
-      }));
+      return rows.map(mapInjunctionTaskRow);
+    },
+
+    /**
+     * The orders issued for ONE verdict — what the dossier page asks for while it
+     * waits for issuance, so the answer costs the matching rows rather than the
+     * citizen's whole worksheet. Rides the unique (user_id, dossier_id, action)
+     * index.
+     */
+    async getInjunctionTasksByDossier(
+      userId: string,
+      dossierId: string
+    ): Promise<InjunctionTask[]> {
+      const rows = await db
+        .select()
+        .from(injunctionTasks)
+        .where(and(eq(injunctionTasks.user_id, userId), eq(injunctionTasks.dossier_id, dossierId)))
+        .orderBy(desc(injunctionTasks.created_at));
+
+      return rows.map(mapInjunctionTaskRow);
     },
 
     /**

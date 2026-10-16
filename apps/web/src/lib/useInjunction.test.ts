@@ -71,4 +71,22 @@ describe('injunctionPollDelay', () => {
     expect(INJUNCTION_POLL_DEADLINE_MS).toBeLessThanOrEqual(120_000);
     expect(INJUNCTION_POLL_DELAYS_MS[0]).toBe(0);
   });
+
+  /**
+   * Polling is a request per attempt, so the schedule's length is a traffic
+   * budget. Derived from the exported constants rather than hard-coded, so a
+   * future tweak cannot quietly restore a long tail.
+   */
+  it('spends at most a handful of requests before the deadline', () => {
+    let elapsed = 0;
+    let attempts = 1; // the immediate read
+    for (;;) {
+      elapsed += injunctionPollDelay(attempts);
+      if (elapsed >= INJUNCTION_POLL_DEADLINE_MS) break;
+      attempts += 1;
+    }
+
+    expect(attempts).toBeGreaterThanOrEqual(4); // it does keep trying
+    expect(attempts).toBeLessThanOrEqual(6); // ...but not for long
+  });
 });
