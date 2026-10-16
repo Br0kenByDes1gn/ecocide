@@ -13,6 +13,8 @@ import {
 
 interface AppealRecordsScreenProps {
   permalinkId?: string;
+  /** The verdict has been accepted → the ruling is final and actions are closed. */
+  accepted?: boolean;
   /** Rejected rulings: file a brand-new appeal. */
   onNewAppeal: () => void;
   /** Rejected rulings: accept the current verdict and replay its arbitration. */
@@ -28,6 +30,7 @@ interface AppealRecordsScreenProps {
  */
 export const AppealRecordsScreen: React.FC<AppealRecordsScreenProps> = ({
   permalinkId,
+  accepted = false,
   onNewAppeal,
   onAcceptCurrent,
   onApplyAccepted,
@@ -103,13 +106,19 @@ export const AppealRecordsScreen: React.FC<AppealRecordsScreenProps> = ({
       <div className="w-full max-w-3xl mx-auto bg-[#121a14] rounded-2xl border border-gray-800 p-10 text-center shadow-xl space-y-4">
         <Gavel className="w-8 h-8 text-purple-400 mx-auto" />
         <div className="font-mono text-sm text-gray-300">NO APPEALS HAVE BEEN FILED FOR THIS CITIZEN.</div>
-        <button
-          type="button"
-          onClick={onNewAppeal}
-          className="px-6 py-3 bg-purple-600 hover:bg-purple-500 text-black font-black rounded-xl font-mono text-sm tracking-widest uppercase cursor-pointer shadow-lg"
-        >
-          FILE FIRST APPEAL
-        </button>
+        {accepted ? (
+          <div className="text-xs font-mono text-lime-300/90 tracking-widest uppercase">
+            Verdict accepted — ruling final, appeals closed
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={onNewAppeal}
+            className="px-6 py-3 bg-purple-600 hover:bg-purple-500 text-black font-black rounded-xl font-mono text-sm tracking-widest uppercase cursor-pointer shadow-lg"
+          >
+            FILE FIRST APPEAL
+          </button>
+        )}
       </div>
     );
   }
@@ -170,7 +179,11 @@ export const AppealRecordsScreen: React.FC<AppealRecordsScreenProps> = ({
         {error && <div className="text-xs font-mono text-red-400 animate-pulse">⚠ {error}</div>}
 
         <div className="flex flex-wrap gap-3 pt-2">
-          {latest.accepted ? (
+          {accepted ? (
+            <div className="text-xs font-mono text-lime-300/90 tracking-widest uppercase">
+              Verdict accepted — ruling final, appeals closed
+            </div>
+          ) : latest.accepted ? (
             <button
               type="button"
               onClick={handleApplyAccepted}
@@ -261,5 +274,6 @@ function toOraclePayload(record: CitizenRecord): OraclePayload {
     suggestions: record.suggestions,
     id: record.id,
     evidenceUrl: record.evidenceUrl,
+    acceptedAt: record.acceptedAt,
   };
 }

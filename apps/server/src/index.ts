@@ -18,10 +18,8 @@ import {
   generateAppealVerdict,
   generateHouseholdInventory,
   generateHouseholdVerdict,
-  generateInjunctionChecklist,
   generateReArbitrationVerdict,
   generateSimulatedAppealVerdict,
-  generateSimulatedInjunctionChecklist,
   generateSimulatedReArbitration,
   type InventoryResult,
   type ReArbitrationVerdict,
@@ -287,27 +285,6 @@ app.post('/api/oracle/scan', async (c) => {
       await jobs.enqueue('email:verdict', { dossierId: id, to: email }, { jobId: `email:verdict:${id}` });
     }
 
-    // Injunction tasks: after the verdict, logged-in citizens get this scan's
-    // corrective actions appended to their accumulated list (best-effort —
-    // a checklist failure must never fail the scan itself).
-    try {
-      const injunctionSession = await auth.api.getSession({ headers: c.req.raw.headers });
-      const injunctionUserId = injunctionSession?.user?.id;
-      if (injunctionUserId) {
-        const record = await repositories.getDossier(id);
-        if (record) {
-          const checklist = geminiConfigured()
-            ? (await generateInjunctionChecklist(record)).checklist
-            : generateSimulatedInjunctionChecklist(record);
-          if (checklist.items.length > 0) {
-            await repositories.addInjunctionTasks(injunctionUserId, id, checklist.items);
-          }
-        }
-      }
-    } catch (injunctionError) {
-      console.warn('[Injunction] background task generation failed:', injunctionError);
-    }
-
     return c.json({
       ...payload,
       id,
@@ -357,6 +334,13 @@ app.post('/api/citizen/:id/appeal', async (c) => {
     if (!record) {
       return c.json({ error: 'Citizen record not found' }, 404);
     }
+
+      // Acceptance is terminal: the ruling is frozen and appeals are closed.
+      // Enforced here, not just in the UI — these permalink endpoints are public,
+      // so the rule has to hold without a session.
+      if (record.acceptedAt) {
+        return c.json({ error: 'This verdict was accepted — the ruling is final and appeals are closed' }, 409);
+      }
 
     const body = (await c.req.json().catch(() => ({}))) as AppealRequest;
     const appeal = (body.appeal || '').trim();
@@ -426,6 +410,11 @@ app.post('/api/citizen/:id/appeals/:appealId/apply', async (c) => {
     return c.json({ error: 'Citizen record not found' }, 404);
   }
 
+  // Re-arbitration rewrites the classification, so it closes with acceptance.
+  if (record.acceptedAt) {
+    return c.json({ error: 'This verdict was accepted — the ruling is final and cannot be re-arbitrated' }, 409);
+  }
+
   const appeal = (await repositories.getAppealsByDossier(id)).find((a) => a.id === appealId);
   if (!appeal) {
     return c.json({ error: 'Appeal not found for this citizen' }, 404);
@@ -433,7 +422,6 @@ app.post('/api/citizen/:id/appeals/:appealId/apply', async (c) => {
   if (!appeal.accepted || !appeal.newCaste) {
     return c.json({ error: 'Only an accepted appeal with a re-classification can be applied' }, 400);
   }
-
   // Re-arbitrate against the STORED inventory (no vision re-call).
   let fresh: ReArbitrationVerdict;
   if (geminiConfigured()) {

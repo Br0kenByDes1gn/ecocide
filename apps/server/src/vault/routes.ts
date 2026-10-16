@@ -13,6 +13,7 @@ import {
 import type { Auth } from '../auth/index.js';
 import { requireSession, type AuthVariables } from '../auth/middleware.js';
 import type { Repositories } from '../db/index.js';
+import { issueInjunction, injunctionRunsInBackground } from '../injunction.js';
 
 export interface VaultRouteDeps {
   repositories: Repositories;
@@ -184,6 +185,25 @@ export function createVaultRoutes(deps: VaultRouteDeps) {
       await deps.repositories.linkDossierToUser(dossierId, user.id);
       linked = true;
       wallet = (await deps.repositories.getWalletByUser(user.id)) ?? wallet;
+
+      // Accepting the verdict is terminal: it freezes the ruling (appeals close)
+      // and issues the injunction from it. `acceptDossier` only stamps the first
+      // acceptance, so a repeated claim neither re-accepts nor re-issues.
+      const acceptedAt = await deps.repositories.acceptDossier(dossierId);
+      if (acceptedAt) {
+        const issuance = issueInjunction({
+          repositories: deps.repositories,
+          userId: user.id,
+          dossierId,
+        }).catch((err) => console.warn('[Injunction] issuance failed:', err?.message || err));
+
+        // A model call must not hold up the certification screen, so it runs
+        // after the response (Cloud Run has CPU always allocated). Offline the
+        // checklist is local arithmetic, so it is awaited and the actions are
+        // already there when the citizen opens the worksheet.
+        if (injunctionRunsInBackground()) void issuance;
+        else await issuance;
+      }
     }
 
     const updated = await deps.repositories.getDossier(dossierId);

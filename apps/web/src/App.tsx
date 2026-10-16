@@ -171,6 +171,7 @@ export function App() {
           suggestions: record.suggestions,
           id: record.id,
           evidenceUrl: record.evidenceUrl,
+          acceptedAt: record.acceptedAt,
         };
         setOracleData(payload);
         setEvidenceUrl(record.evidenceUrl);
@@ -320,6 +321,7 @@ export function App() {
         suggestions: record.suggestions,
         id: record.id,
         evidenceUrl: record.evidenceUrl,
+        acceptedAt: record.acceptedAt,
       };
       setOracleData(payload);
       setEvidenceUrl(record.evidenceUrl);
@@ -559,6 +561,7 @@ export function App() {
         {viewState === 'appeals' && (
           <AppealRecordsScreen
             permalinkId={permalinkId || undefined}
+            accepted={Boolean(oracleData?.acceptedAt)}
             onNewAppeal={handleNewAppeal}
             onAcceptCurrent={handleAcceptCurrent}
             onApplyAccepted={handleApplyAccepted}

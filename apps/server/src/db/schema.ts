@@ -1,4 +1,4 @@
-import { boolean, doublePrecision, index, integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
+import { boolean, doublePrecision, index, integer, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
 
 /**
  * Single source of truth for the database schema (PostgreSQL).
@@ -161,6 +161,12 @@ export const dossiers = pgTable(
     evidence_filename: text('evidence_filename'),
     /** Owning Carbon Registry account (Better Auth user id); null while anonymous. */
     user_id: text('user_id').references(() => user.id, { onDelete: 'set null' }),
+    /**
+     * When the citizen accepted the verdict. Null while the ruling is still
+     * open to appeal; once set the classification is final and the injunction
+     * has been (or is being) issued.
+     */
+    accepted_at: text('accepted_at'),
   },
   (t) => [
     index('idx_dossiers_created_at').on(t.created_at),
@@ -195,7 +201,10 @@ export const injunctionTasks = pgTable(
     user_id: text('user_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
-    dossier_id: text('dossier_id'),
+    /** The accepted verdict this action was issued for (its provenance). */
+    dossier_id: text('dossier_id')
+      .notNull()
+      .references(() => dossiers.id, { onDelete: 'cascade' }),
     action: text('action').notNull(),
     replaces: text('replaces').notNull(),
     why: text('why').notNull(),
@@ -207,7 +216,12 @@ export const injunctionTasks = pgTable(
     completed_at: text('completed_at'),
     points: integer('points').notNull().default(0),
   },
-  (t) => [index('idx_injunction_tasks_user_created').on(t.user_id, t.created_at)]
+  (t) => [
+    index('idx_injunction_tasks_user_created').on(t.user_id, t.created_at),
+    // Identity: one row per action per accepted verdict. Also a double-click
+    // guard, since issuance hangs off the (idempotent) claim endpoint.
+    uniqueIndex('uniq_injunction_tasks_user_dossier_action').on(t.user_id, t.dossier_id, t.action),
+  ]
 );
 
 export const scanApiLogs = pgTable(

@@ -132,6 +132,19 @@ function makeCleanPayload(): OraclePayload {
 /** `saveDossier` stamps ISO-ms timestamps; a tick keeps two saves ordered. */
 const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
 
+/**
+ * Issuance hangs off the claim without being awaited (a model call must not block
+ * the certification screen), so the test waits for the actions to land.
+ */
+async function waitForTasks(userId: string, timeoutMs = 5000) {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const tasks = await repositories.getInjunctionTasksByUser(userId);
+    if (tasks.length > 0 || Date.now() > deadline) return tasks;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+}
+
 describe('vault routes', () => {
   it('rejects unauthenticated access', async () => {
     const app = makeApp(null);
@@ -189,6 +202,8 @@ describe('vault routes', () => {
     expect(linked.linked).toBe(true);
     expect(linked.wallet.credits).toBe(VAULT_ALLOWANCE - VAULT_CLAIM_FEE);
     expect(linked.dossier.ownerId).toBe(USER_A);
+    // Accepting the verdict is part of the claim.
+    expect(linked.dossier.acceptedAt).toBeTruthy();
 
     // Idempotent: re-linking does not double-charge.
     const second = await app.request('/api/vault/link', {
@@ -202,6 +217,32 @@ describe('vault routes', () => {
 
     const ledger = await repositories.getWalletLedger(USER_A);
     expect(ledger.filter((e) => e.reason === 'claim_fee')).toHaveLength(1);
+  });
+
+  it('issues the injunction from the accepted verdict, exactly once', async () => {
+    const dossierId = await repositories.saveDossier(makePayload());
+    const app = makeApp(USER_A);
+    const link = () =>
+      app.request('/api/vault/link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dossierId }),
+      });
+
+    const first = await (await link()).json();
+    const acceptedAt = first.dossier.acceptedAt;
+    expect(acceptedAt).toBeTruthy();
+
+    const tasks = await waitForTasks(USER_A);
+    expect(tasks.length).toBeGreaterThan(0);
+    expect(tasks.every((task) => task.dossierId === dossierId)).toBe(true);
+    expect(tasks.every((task) => task.completed === false)).toBe(true);
+
+    // Re-linking neither re-accepts the verdict nor duplicates the actions.
+    const relinked = await (await link()).json();
+    expect(relinked.linked).toBe(false);
+    expect(relinked.dossier.acceptedAt).toBe(acceptedAt);
+    expect(await repositories.getInjunctionTasksByUser(USER_A)).toHaveLength(tasks.length);
   });
 
   it('refuses to bind a dossier already owned by another vault', async () => {
@@ -384,11 +425,15 @@ describe('vault routes', () => {
 
   it('confirms injunction tasks with impact x effort points, idempotently', async () => {
     const app = makeApp(USER_A);
-    await repositories.addInjunctionTasks(USER_A, 'dossier-1', [
+    // Actions are issued against an accepted verdict, so seed real dossiers:
+    // the FK makes the provenance real rather than a free-form string.
+    const dossierA = await repositories.saveDossier(makePayload());
+    const dossierB = await repositories.saveDossier(makePayload());
+    await repositories.addInjunctionTasks(USER_A, dossierA, [
       { action: 'A', replaces: 'x', why: 'W', category: 'reduce', impact: 'medium', effort: 'easy' },
       { action: 'B', replaces: 'y', why: 'W', category: 'swap', impact: 'high', effort: 'hard' },
     ]);
-    await repositories.addInjunctionTasks(USER_B, 'dossier-2', [
+    await repositories.addInjunctionTasks(USER_B, dossierB, [
       { action: 'C', replaces: 'z', why: 'W', category: 'reuse', impact: 'low', effort: 'easy' },
     ]);
     const own = await repositories.getInjunctionTasksByUser(USER_A);

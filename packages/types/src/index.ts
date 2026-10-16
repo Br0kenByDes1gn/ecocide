@@ -194,6 +194,8 @@ export interface OraclePayload {
   id?: string;
   /** Served URL of the archived evidence photo (file on disk, not the DB). */
   evidenceUrl?: string;
+  /** Set once the citizen accepts the verdict — acceptance is terminal. */
+  acceptedAt?: string;
 }
 
 export interface CitizenRecord {
@@ -208,6 +210,11 @@ export interface CitizenRecord {
   evidenceUrl?: string;
   /** Owning Carbon Registry account id (null/undefined while anonymous). */
   ownerId?: string;
+  /**
+   * When the citizen accepted this verdict (ISO-8601). Acceptance is terminal:
+   * it freezes the classification, closes appeals and issues the injunction.
+   */
+  acceptedAt?: string;
 }
 
 export interface ScanRequest {

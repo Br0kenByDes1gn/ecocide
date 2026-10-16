@@ -81,6 +81,23 @@ export const AppealScreen: React.FC<AppealScreenProps> = ({ payload, permalinkId
     }
   };
 
+  // Acceptance is terminal: the ruling is frozen, so the filing screen closes.
+  // The server refuses the filing too — this is the citizen-facing half.
+  if (payload.acceptedAt) {
+    return (
+      <div className="w-full max-w-3xl mx-auto bg-[#121a14] rounded-2xl border border-gray-800 p-10 text-center shadow-xl space-y-3 font-mono">
+        <ShieldCheck className="w-8 h-8 text-lime-400 mx-auto" />
+        <div className="text-sm text-gray-200 font-black tracking-widest uppercase">
+          Verdict accepted — ruling final
+        </div>
+        <p className="text-xs text-gray-400 leading-relaxed">
+          The Bureau recorded your acceptance on {payload.acceptedAt.slice(0, 10)}. The classification
+          is sealed and can no longer be appealed.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full max-w-3xl mx-auto space-y-6">
       {phase === 'pay' && (

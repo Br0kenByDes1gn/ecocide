@@ -162,7 +162,7 @@ Flags that are not cosmetic:
 | --- | --- |
 | `--service-account` | Everything the app is allowed to do lives on this identity. |
 | `--no-cpu-throttling` | The OTP/verdict emails are sent after the HTTP response (fire-and-forget jobs). With throttled CPU the container is frozen at that point and **emails silently never send**. |
-| `--concurrency=8`, `--max-instances=3` | One scan is two Gemini calls taking 15-30s. The default concurrency of 80 on a 1 GiB instance is an OOM and a bill. |
+| `--concurrency=8`, `--max-instances=3` | One scan is two Gemini calls taking 15-30s, and accepting a verdict adds a third (the injunction checklist). The default concurrency of 80 on a 1 GiB instance is an OOM and a bill. |
 | `--add-volume` (GCS) | Audit photos are files (AGENTS.md rule 4) and are written once, never modified — safe on FUSE, and no code change. Swap to the GCS SDK inside `evidence.ts` if FUSE memory ever bites. |
 | `AUTO_MIGRATE=false` | The migrate job owns DDL. |
 | `--execution-environment=gen2` | Required for volume mounts. |

@@ -124,11 +124,26 @@ apps/server/scripts/  # scan-cost audit
   calls (`oracle_inventory`, `oracle_classify`). Offline when no Gemini creds.
 - `GET /api/citizen/:id`, `GET /api/citizen/:id/appeals`,
   `POST /api/citizen/:id/appeal`, `POST /api/citizen/:id/appeals/:appealId/apply`.
+  **Acceptance is terminal** (`dossiers.accepted_at`): once a verdict is accepted
+  — the `ACCEPT VERDICT` claim — the classification is frozen and both appeal
+  endpoints refuse with 409. These permalink endpoints are public, so the rule is
+  enforced server-side, not just by hiding the buttons.
+- The **environmental injunction** (`src/injunction.ts`) is issued at acceptance,
+  from the frozen verdict (including any granted appeal), exactly once per
+  accepted verdict: the dossier's items are hashed, a cached checklist is reused
+  when unchanged, otherwise a text-only Gemini checklist is generated (or the
+  deterministic simulation offline) and one `injunction_tasks` row per action is
+  inserted, unique on (user, dossier, action). Completed rows are the citizen's
+  banked points; they are never re-issued.
 - `GET /api/census` — live audited-household counts per tier (display gate:
   only once ≥50 audits exist, art §7). `GET /api/evidence/:name`.
 - `GET /api/vault`, `POST /api/vault/link`, `POST /api/vault/charge`,
-  `GET /api/vault/ledger`, `/api/auth/*` (Better Auth email-OTP). These are the
-  Carbon Registry endpoints — the storage path keeps its `vault` name.
+  `GET /api/vault/ledger`, `GET /api/vault/injunction-tasks`,
+  `POST /api/vault/injunction-confirm`, `/api/auth/*` (Better Auth email-OTP).
+  These are the Carbon Registry endpoints — the storage path keeps its `vault`
+  name. `/link` is the acceptance; `/injunction-confirm` banks impact × effort
+  points, which lift the pooled index on read (`min(100, standing + bonus)`) —
+  the stored per-audit SI is never rewritten.
 - `GET /admin/queues` Bull Board (BullMQ mode + Basic auth only).
 - Prompt assembly is thin in `src/gemini.ts` (wraps lore builders, parses
   JSON, sanitizes model output); world copy comes from the pack.

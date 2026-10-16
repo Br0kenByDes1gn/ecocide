@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import type {
   ApiCallLog,
@@ -127,6 +127,7 @@ function mapRowToRecord(row: DossierRow): CitizenRecord {
     suggestions,
     evidenceUrl: row.evidence_filename ? evidenceUrlFor(row.evidence_filename) : undefined,
     ownerId: row.user_id || undefined,
+    acceptedAt: row.accepted_at || undefined,
   };
 }
 
@@ -247,18 +248,23 @@ export function createRepositories(db: DbConnection['db']) {
     ): Promise<void> {
       const createdAt = new Date().toISOString();
       for (const item of items) {
-        await db.insert(injunctionTasks).values({
-          id: nanoid(12),
-          user_id: userId,
-          dossier_id: dossierId,
-          action: item.action,
-          replaces: item.replaces,
-          why: item.why,
-          category: item.category,
-          impact: item.impact,
-          effort: item.effort,
-          created_at: createdAt,
-        });
+        // `onConflictDoNothing` covers both a model that emits the same action
+        // twice in one checklist and a retried issuance for the same verdict.
+        await db
+          .insert(injunctionTasks)
+          .values({
+            id: nanoid(12),
+            user_id: userId,
+            dossier_id: dossierId,
+            action: item.action,
+            replaces: item.replaces,
+            why: item.why,
+            category: item.category,
+            impact: item.impact,
+            effort: item.effort,
+            created_at: createdAt,
+          })
+          .onConflictDoNothing();
       }
     },
 
@@ -664,6 +670,22 @@ export function createRepositories(db: DbConnection['db']) {
     /** Attaches an (anonymous) dossier to a vault account. */
     async linkDossierToUser(dossierId: string, userId: string): Promise<void> {
       await db.update(dossiers).set({ user_id: userId }).where(eq(dossiers.id, dossierId));
+    },
+
+    /**
+     * Accepts a verdict: acceptance is terminal (it freezes the classification,
+     * closes appeals and issues the injunction). Sets the timestamp only the
+     * first time, so a repeated claim cannot re-accept or re-issue.
+     * Returns the acceptance time, or null when it was already accepted.
+     */
+    async acceptDossier(dossierId: string): Promise<string | null> {
+      const acceptedAt = new Date().toISOString();
+      const rows = await db
+        .update(dossiers)
+        .set({ accepted_at: acceptedAt })
+        .where(and(eq(dossiers.id, dossierId), isNull(dossiers.accepted_at)))
+        .returning({ id: dossiers.id });
+      return rows.length > 0 ? acceptedAt : null;
     },
 
     /**
