@@ -196,7 +196,7 @@ export const AppealRecordsScreen: React.FC<AppealRecordsScreenProps> = ({
                 </>
               ) : (
                 <>
-                  <ShieldCheck className="w-5 h-5" /> RE-ARBITRATE AS NEW CASTE
+                  <ShieldCheck className="w-5 h-5" /> SEE NEW VERDICT
                 </>
               )}
             </button>
@@ -207,14 +207,14 @@ export const AppealRecordsScreen: React.FC<AppealRecordsScreenProps> = ({
                 onClick={onNewAppeal}
                 className="flex-1 min-w-[180px] px-6 py-4 bg-purple-600 hover:bg-purple-500 text-black font-black rounded-xl font-mono text-sm tracking-widest uppercase flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg"
               >
-                <Gavel className="w-5 h-5" /> NEW APPEAL
+                <Gavel className="w-5 h-5" /> APPEAL AGAIN
               </button>
               <button
                 type="button"
                 onClick={onAcceptCurrent}
                 className="flex-1 min-w-[180px] px-6 py-4 bg-cyan-500 hover:bg-cyan-400 text-black font-black rounded-xl font-mono text-sm tracking-widest uppercase flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg"
               >
-                <ShieldCheck className="w-5 h-5" /> ACCEPT VERDICT
+                <ShieldCheck className="w-5 h-5" /> SEE VERDICT
               </button>
             </>
           )}
