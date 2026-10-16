@@ -204,7 +204,7 @@ Screens and files: landing (`HomePage.tsx`) · app chrome (`App.tsx`) · scan
 `DossierProphecy.tsx`, `lib/useArbitrationFlow.ts`, `lib/useAuditReveal.ts`) ·
 claim/appeal (`ClaimScreen.tsx`, `AppealScreen.tsx`,
 `AppealRecordsScreen.tsx`, `RegistryPayment.tsx`) · dossier + download card
-(`CitizenDossier.tsx`, `lib/dossierCardPng.ts`) · carbon registry
+(`CitizenDossier.tsx`, `PaperDossierPanel.tsx`, `lib/dossier-export.ts`) · carbon registry
 (`CarbonRegistryScreen.tsx` + `RegistryUnlock.tsx`; copy in
 `packages/lore/src/surfaces.ts` — `REGISTRY_COPY`) · census
 (`CensusModal.tsx`) · dev bench (`DebugBench.tsx`).

@@ -15,6 +15,8 @@ export interface DossierShareMeta {
 interface DossierActionsProps {
   onReset: () => void;
   onDownload: () => void;
+  /** True while the PNG is being rendered; the button says so instead of looking dead. */
+  busy?: boolean;
   /** Pass the whole payload; the share text is derived from the lore pack. */
   payload?: OraclePayload;
   share: DossierShareMeta;
@@ -25,7 +27,7 @@ interface DossierActionsProps {
  * link always points at the static /citizen/:id permalink so recipients land
  * on the shareable dossier.
  */
-export const DossierActions: React.FC<DossierActionsProps> = ({ onReset, onDownload, payload, share }) => {
+export const DossierActions: React.FC<DossierActionsProps> = ({ onReset, onDownload, busy = false, payload, share }) => {
   const [copied, setCopied] = useState(false);
 
   const factionName = payload
@@ -70,10 +72,12 @@ export const DossierActions: React.FC<DossierActionsProps> = ({ onReset, onDownl
         <button
           type="button"
           onClick={onDownload}
-          className="px-5 py-3 bg-gray-900 hover:bg-gray-800 text-gray-200 border border-gray-700 rounded-xl font-mono text-xs flex items-center gap-2 transition-colors"
+          disabled={busy}
+          title="Download this dossier as it appears on screen"
+          className="px-5 py-3 bg-gray-900 hover:bg-gray-800 text-gray-200 border border-gray-700 rounded-xl font-mono text-xs flex items-center gap-2 transition-colors disabled:opacity-60 disabled:cursor-wait"
         >
-          <Download className="w-4 h-4 text-emerald-400" />
-          DOWNLOAD CASE CARD
+          <Download className={`w-4 h-4 text-emerald-400 ${busy ? 'animate-pulse' : ''}`} />
+          {busy ? 'PREPARING CASE CARD...' : 'DOWNLOAD CASE CARD'}
         </button>
 
         <button

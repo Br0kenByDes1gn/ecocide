@@ -17,6 +17,7 @@
     "canvas-confetti": "^1.9.4",
     "framer-motion": "^12.4.7",
     "lucide-react": "^1.16.0",
+    "modern-screenshot": "^4.7.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },

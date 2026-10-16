@@ -202,6 +202,15 @@ apps/server/scripts/  # scan-cost audit
   `src/lib/lore-icons.ts` resolves (`topics.icon` uses the same map) — no colour
   emoji anywhere on the paper layer. Both marks wrap rather than collide on a
   narrow screen; only the injunction mark plays a landing sound.
+- `src/components/DossierSheet.tsx` + `src/components/PaperDossierPanel.tsx` — the
+  dossier's two-column sheet and its paper half, rendered by **both** the page and
+  the PNG export. `src/lib/dossier-export.ts` rasterises that sheet off-screen
+  (fixed 1280px, 2×, `modern-screenshot` through an SVG `foreignObject`, with
+  canvases swapped for images and motion frozen) so DOWNLOAD CASE CARD produces the
+  page as it looks. **Never hand-paint a second design for the export** — the
+  previous canvas painter described an older page within a day and had to go. The
+  typewriter face is self-hosted (`apps/web/public/fonts/`) so the export is
+  deterministic and the PWA keeps its face offline.
 - Copy: all world strings live in the lore pack; inline UI strings are
   generic chrome, not story.
 

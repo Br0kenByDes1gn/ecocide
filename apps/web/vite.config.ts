@@ -52,7 +52,7 @@ export default defineConfig({
     devServiceWorkerCleanup(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg'],
+      includeAssets: ['favicon.svg', 'fonts/special-elite-latin.woff2', 'fonts/special-elite-latin-ext.woff2'],
       workbox: {
         // Never let the SPA navigation fallback swallow API calls, and always
         // hit the network for identity/vault traffic (OTP + session + wallet).
