@@ -14,7 +14,7 @@ interface RegistryUnlockProps {
  * panel. Unlocking never charges anything; payment is a separate, explicit step.
  */
 export const RegistryUnlock: React.FC<RegistryUnlockProps> = ({ onUnlocked }) => {
-  const { isPending, status, error, requestOtp, verifyOtp, refresh } = useVault();
+  const { sessionReady, status, error, requestOtp, verifyOtp, refresh } = useVault();
   const [stage, setStage] = useState<'email' | 'otp'>('email');
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
@@ -36,7 +36,9 @@ export const RegistryUnlock: React.FC<RegistryUnlockProps> = ({ onUnlocked }) =>
 
   const busy = status === 'sending' || status === 'verifying';
 
-  if (isPending) {
+  // Only the *first* session answer blocks the form. A background refetch must
+  // never replace it: the citizen may be mid-way through typing a one-time code.
+  if (!sessionReady) {
     return (
       <div className="py-6 text-center space-y-3">
         <Loader2 className="w-8 h-8 animate-spin text-cyan-400 mx-auto" />

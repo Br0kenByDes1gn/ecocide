@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { CASTE_COLORS, getFaction } from '@ecocide/types';
 import { REGISTRY_COPY } from '@ecocide/lore';
-import { FileText, Loader2, ShieldCheck, Wallet } from 'lucide-react';
+import { FileText, ShieldCheck, Wallet } from 'lucide-react';
+import { registryPhase } from '../lib/registry-phase';
 import { useVault } from '../lib/useVault';
 import { formatRoomType, formatVaultDate } from '../lib/vault-format';
+import { RegistryFailedPanel, RegistryLoadingPanel } from './RegistryStatusPanel';
 import { RegistryUnlock } from './RegistryUnlock';
 import { RegistrySidePanel } from './RegistrySidePanel';
 
@@ -24,24 +26,25 @@ export const CarbonRegistryScreen: React.FC<CarbonRegistryScreenProps> = ({
   onOpenDossier,
   onBeginAudit,
 }) => {
-  const { session, isPending, vault, refresh } = useVault();
+  const { session, sessionReady, vault, vaultError, refresh } = useVault();
   const [dateFilter, setDateFilter] = useState<string | null>(null);
   const [areaFilter, setAreaFilter] = useState<string | null>(null);
   const [filterOpen, setFilterOpen] = useState<'date' | 'area' | null>(null);
 
-  if (isPending) {
-    return (
-      <div className="w-full max-w-3xl mx-auto bg-[#121a14] rounded-2xl border border-gray-800 p-10 flex flex-col items-center gap-4 shadow-xl">
-        <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
-        <div className="font-mono text-xs text-gray-300 tracking-widest uppercase animate-pulse">
-          {REGISTRY_COPY.status.loading}
-        </div>
-      </div>
-    );
+  // One decision, in one place — and a background session refetch cannot drop
+  // the unlock form (and the code the citizen just typed) out of the tree.
+  const phase = registryPhase({ sessionReady, session, vault, vaultError });
+
+  if (phase === 'loading' || phase === 'hydrating') {
+    return <RegistryLoadingPanel />;
+  }
+
+  if (phase === 'failed') {
+    return <RegistryFailedPanel message={vaultError} onRetry={() => void refresh()} />;
   }
 
   // Locked → unlock inline.
-  if (!session && !vault) {
+  if (phase === 'locked') {
     return (
       <div className="w-full max-w-md mx-auto bg-[#0e1510] rounded-2xl border-2 border-cyan-500/40 p-6 shadow-2xl">
         <div className="flex items-center gap-2 border-b border-gray-800 pb-3 mb-5 text-cyan-300 font-mono text-xs font-bold tracking-widest uppercase">
@@ -53,16 +56,8 @@ export const CarbonRegistryScreen: React.FC<CarbonRegistryScreenProps> = ({
     );
   }
 
-  if (!vault) {
-    return (
-      <div className="w-full max-w-3xl mx-auto bg-[#121a14] rounded-2xl border border-gray-800 p-10 flex flex-col items-center gap-4 shadow-xl">
-        <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
-        <div className="font-mono text-xs text-gray-300 tracking-widest uppercase animate-pulse">
-          {REGISTRY_COPY.status.loading}
-        </div>
-      </div>
-    );
-  }
+  // 'ready' implies a record; this keeps the types honest.
+  if (!vault) return <RegistryLoadingPanel />;
 
   const { standing, dossiers } = vault;
   const hasRecord = standing.assessmentCount > 0;

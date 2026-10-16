@@ -179,6 +179,15 @@ apps/server/scripts/  # scan-cost audit
   `RegistryPayment`) — `/registry`: the pooled carbon standing hero, the
   assessment archive and the demoted token account. Payment terminals charge
   via `lib/vault-api.ts` (API/storage names keep their `vault` spellings).
+  `/registry` and `/injunction` decide what to render through
+  `lib/registry-phase.ts`, gated on `useVault().sessionReady` — **never on
+  better-auth's `isPending`**. That flag is `data === null` sampled at each
+  fetch, so for a logged-out visitor it returns to `true` on every background
+  refetch (better-auth refetches the session when a tab becomes visible), and
+  reading it as a mount gate tore the unlock form out of the tree on a tab
+  switch — losing the email and the one-time code the citizen had just typed.
+  `sessionReady` latches on the first answer and never goes back. A registry
+  fetch that fails is a `failed` phase with a retry, not a spinner.
 - `src/components/InjunctionStamp.tsx` (+ `lib/useInjunction.ts`,
   `lib/injunction-worksheet.ts`) — the mark placed in the dossier's reserved space
   under IMPACT FINDINGS once an accepted verdict's orders exist. Issuance runs
