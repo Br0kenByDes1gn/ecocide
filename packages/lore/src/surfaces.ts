@@ -25,6 +25,9 @@ export const REGISTRY_COPY = {
   status: {
     loading: 'Retrieving carbon record...',
     locked: 'Access Carbon Registry',
+    /** Signed in, but the record would not load — with a way out. */
+    failed: 'Registry record unavailable',
+    retry: 'Retry transmission',
   },
 
   /** The pooled standing hero. */

@@ -5,6 +5,21 @@ import { fetchVault, linkDossierToVault } from './vault-api';
 
 export type VaultStatus = 'idle' | 'sending' | 'verifying' | 'linking' | 'unlocked' | 'error';
 
+/**
+ * Has the session resolved at least once *in this document*?
+ *
+ * better-auth's own session atom lives at module scope, so its answer outlives
+ * any component; this flag does the same for the "we have an answer" bit, which
+ * keeps a screen from re-showing its loading gate every time it remounts (a
+ * route change, a modal, a re-render after signing out).
+ *
+ * It exists because `isPending` cannot answer that question: better-auth sets it
+ * to `data === null` on every fetch, so for a logged-out visitor it goes back to
+ * true on each background refetch — including the one it fires when the tab
+ * becomes visible again. Gating a form on that unmounts it mid-flow.
+ */
+let sessionResolvedOnce = false;
+
 /** True inside a Capacitor native shell, where cookies are cross-origin. */
 function isNativeShell(): boolean {
   if (typeof window === 'undefined') return false;
@@ -20,20 +35,33 @@ function isNativeShell(): boolean {
 export function useVault() {
   const { data: session, isPending } = authClient.useSession();
   const [vault, setVault] = useState<VaultState | null>(null);
+  const [vaultError, setVaultError] = useState<string | null>(null);
   const [status, setStatus] = useState<VaultStatus>('idle');
   const [error, setError] = useState<string | null>(null);
+
+  // Latch on the first answer (see `sessionResolvedOnce`). Everything a citizen
+  // would have to retype — an email, a one-time code — sits below the gate this
+  // opens, so it must not close again on a background refetch.
+  if (!isPending) sessionResolvedOnce = true;
+  const sessionReady = sessionResolvedOnce || !isPending;
 
   const refresh = useCallback(async () => {
     try {
       setVault(await fetchVault());
-    } catch {
-      // Not signed in yet — nothing to hydrate.
+      setVaultError(null);
+    } catch (e) {
+      // Signed in but the record would not load: keep the failure so the screen
+      // can offer a retry instead of spinning forever.
+      setVaultError(e instanceof Error ? e.message : 'REGISTRY RECORD UNAVAILABLE');
     }
   }, []);
 
   useEffect(() => {
     if (session) void refresh();
-    else setVault(null);
+    else {
+      setVault(null);
+      setVaultError(null);
+    }
   }, [session, refresh]);
 
   const requestOtp = useCallback(async (email: string): Promise<boolean> => {
@@ -101,7 +129,10 @@ export function useVault() {
   return {
     session,
     isPending,
+    /** True once the session has answered at least once — the screen gate. */
+    sessionReady,
     vault,
+    vaultError,
     status,
     error,
     requestOtp,

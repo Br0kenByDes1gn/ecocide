@@ -6,6 +6,8 @@ import { useVault } from '../lib/useVault';
 import { splitWorksheet } from '../lib/injunction-worksheet';
 import { confirmInjunctionTasks, fetchInjunctionTasks } from '../lib/vault-api';
 import { formatVaultDate } from '../lib/vault-format';
+import { registryPhase } from '../lib/registry-phase';
+import { RegistryFailedPanel, RegistryLoadingPanel } from './RegistryStatusPanel';
 import { RegistryUnlock } from './RegistryUnlock';
 import { RegistrySidePanel } from './RegistrySidePanel';
 
@@ -39,7 +41,7 @@ export const InjunctionScreen: React.FC<InjunctionScreenProps> = ({
   dossierFilter,
   onClearFilter,
 }) => {
-  const { session, isPending, vault, refresh } = useVault();
+  const { session, sessionReady, vault, vaultError, refresh } = useVault();
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [confirming, setConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
@@ -63,19 +65,20 @@ export const InjunctionScreen: React.FC<InjunctionScreenProps> = ({
     if (session && vault) void load();
   }, [session, vault, load]);
 
-  if (isPending) {
-    return (
-      <div className="w-full max-w-3xl mx-auto bg-[#121a14] rounded-2xl border border-gray-800 p-10 flex flex-col items-center gap-4 shadow-xl">
-        <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
-        <div className="font-mono text-xs text-gray-300 tracking-widest uppercase animate-pulse">
-          {REGISTRY_COPY.status.loading}
-        </div>
-      </div>
-    );
+  // Same ladder as the registry page, decided in one place: a background
+  // session refetch must not tear the unlock form (or the code in it) down.
+  const phase = registryPhase({ sessionReady, session, vault, vaultError });
+
+  if (phase === 'loading' || phase === 'hydrating') {
+    return <RegistryLoadingPanel />;
+  }
+
+  if (phase === 'failed') {
+    return <RegistryFailedPanel message={vaultError} onRetry={() => void refresh()} />;
   }
 
   // Locked → unlock inline.
-  if (!session && !vault) {
+  if (phase === 'locked') {
     return (
       <div className="w-full max-w-md mx-auto bg-[#0e1510] rounded-2xl border-2 border-cyan-500/40 p-6 shadow-2xl">
         <div className="flex items-center gap-2 border-b border-gray-800 pb-3 mb-5 text-cyan-300 font-mono text-xs font-bold tracking-widest uppercase">
@@ -87,16 +90,8 @@ export const InjunctionScreen: React.FC<InjunctionScreenProps> = ({
     );
   }
 
-  if (!vault) {
-    return (
-      <div className="w-full max-w-3xl mx-auto bg-[#121a14] rounded-2xl border border-gray-800 p-10 flex flex-col items-center gap-4 shadow-xl">
-        <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
-        <div className="font-mono text-xs text-gray-300 tracking-widest uppercase animate-pulse">
-          {REGISTRY_COPY.status.loading}
-        </div>
-      </div>
-    );
-  }
+  // 'ready' implies a record; this keeps the types honest.
+  if (!vault) return <RegistryLoadingPanel />;
 
   const toggleItem = (id: string) => {
     setChecked((prev) => {
