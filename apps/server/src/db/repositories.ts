@@ -132,6 +132,7 @@ function mapRowToRecord(row: DossierRow): CitizenRecord {
     evidenceUrl: row.evidence_filename ? evidenceUrlFor(row.evidence_filename) : undefined,
     ownerId: row.user_id || undefined,
     acceptedAt: row.accepted_at || undefined,
+    attributed: Boolean(row.subject_email),
   };
 }
 
@@ -740,6 +741,49 @@ export function createRepositories(db: DbConnection['db']) {
     /** Attaches an (anonymous) dossier to a vault account. */
     async linkDossierToUser(dossierId: string, userId: string): Promise<void> {
       await db.update(dossiers).set({ user_id: userId }).where(eq(dossiers.id, dossierId));
+    },
+
+    /**
+     * Attributes a fresh verdict to an accused household (the informant flow):
+     * the verdict is now claimable/appealable only by a session signed in with
+     * `subjectEmail`.
+     *
+     * The update is conditional — only an unattributed, unaccepted dossier is
+     * attributed — so two concurrent filings, or a tip against an already-claimed
+     * verdict, cannot overwrite each other. Returns true when this call did the
+     * attribution.
+     */
+    async attributeDossierToSubject(
+      dossierId: string,
+      subjectEmail: string,
+      informantUserId: string
+    ): Promise<boolean> {
+      const rows = await db
+        .update(dossiers)
+        .set({ subject_email: subjectEmail, informant_user_id: informantUserId })
+        .where(
+          and(
+            eq(dossiers.id, dossierId),
+            isNull(dossiers.subject_email),
+            isNull(dossiers.accepted_at)
+          )
+        )
+        .returning({ id: dossiers.id });
+      return rows.length > 0;
+    },
+
+    /**
+     * The address a verdict was attributed to, or null. Kept separate from
+     * `getDossier` on purpose: the raw address must never ride along in the
+     * public record, so the access checks read it here and nowhere else.
+     */
+    async getDossierSubjectEmail(dossierId: string): Promise<string | null> {
+      const [row] = await db
+        .select({ subject_email: dossiers.subject_email })
+        .from(dossiers)
+        .where(eq(dossiers.id, dossierId))
+        .limit(1);
+      return row?.subject_email ?? null;
     },
 
     /**

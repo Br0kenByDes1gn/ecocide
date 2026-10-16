@@ -18,6 +18,7 @@ import type { Auth } from '../auth/index.js';
 import { requireSession, type AuthVariables } from '../auth/middleware.js';
 import type { Repositories } from '../db/index.js';
 import { issueInjunction, injunctionRunsInBackground } from '../injunction.js';
+import { dossierAccessError } from '../access.js';
 
 export interface VaultRouteDeps {
   repositories: Repositories;
@@ -209,6 +210,15 @@ export function createVaultRoutes(deps: VaultRouteDeps) {
     if (!dossier) {
       return c.json({ error: 'Subject dossier not found in the registry archives' }, 404);
     }
+    // A tipped verdict is locked to the accused household — refuse before any fee
+    // is drawn, so a wrong claimant is never billed.
+    const access = dossierAccessError(
+      await deps.repositories.getDossierSubjectEmail(dossierId),
+      user.email
+    );
+    if (access) {
+      return c.json({ error: access.error }, access.status);
+    }
     if (dossier.ownerId && dossier.ownerId !== user.id) {
       return c.json({ error: 'Dossier is already bound to another Carbon Registry' }, 409);
     }
@@ -294,6 +304,15 @@ export function createVaultRoutes(deps: VaultRouteDeps) {
       const priced = await deps.repositories.getDossier(ref);
       if (!priced) {
         return c.json({ error: 'Subject dossier not found in the registry archives' }, 404);
+      }
+      // Defence in depth: the appeal fee is refused for a tipped verdict unless
+      // the caller is the accused household (the filing endpoint checks too).
+      const access = dossierAccessError(
+        await deps.repositories.getDossierSubjectEmail(ref),
+        user.email
+      );
+      if (access) {
+        return c.json({ error: access.error }, access.status);
       }
       const caste = (priced.user_profile || priced.profile).caste;
       amount =

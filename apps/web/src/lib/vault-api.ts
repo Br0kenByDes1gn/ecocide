@@ -4,6 +4,7 @@ import type {
   VaultLedgerPage,
   VaultLinkResult,
   VaultState,
+  Wallet,
 } from '@ecocide/types';
 import { authFetch } from './auth-client';
 
@@ -121,6 +122,40 @@ export async function chargeVault(reason: string, ref?: string): Promise<VaultCh
   if (!res.ok) {
     const payload = (await res.json().catch(() => ({}))) as { error?: string };
     throw new Error(payload.error || `REGISTRY CHARGE FAILED (${res.status})`);
+  }
+  return res.json();
+}
+
+/** Result of submitting a verdict as evidence against another household. */
+export interface InformantEvidenceResult {
+  /** Credit units paid to the informant's wallet (0 on a replayed filing). */
+  rewardUnits: number;
+  wallet?: Wallet;
+}
+
+/** A filing refusal carrying the server's machine-readable `code`. */
+export interface InformantEvidenceError extends Error {
+  code?: string;
+}
+
+/**
+ * Attribute a verdict to another household's email and collect the bounty.
+ * Requires a registry session; the verdict then locks to the accused address.
+ */
+export async function submitInformantEvidence(
+  dossierId: string,
+  email: string
+): Promise<InformantEvidenceResult> {
+  const res = await authFetch(`/api/citizen/${encodeURIComponent(dossierId)}/inform`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+  if (!res.ok) {
+    const payload = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
+    const err = new Error(payload.error || `INFORMANT FILING FAILED (${res.status})`) as InformantEvidenceError;
+    err.code = payload.code;
+    throw err;
   }
   return res.json();
 }

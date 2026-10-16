@@ -89,6 +89,22 @@ export const RegistrySidePanel: React.FC<RegistrySidePanelProps> = ({
   const effectiveFaction = getFaction(effectiveCaste);
   const effectiveColors = CASTE_COLORS[effectiveCaste];
 
+  const signOutButton = (
+    <button
+      type="button"
+      onClick={() => void handleSignOut()}
+      disabled={signingOut}
+      className="text-[10px] font-mono text-gray-400 hover:text-red-300 border border-gray-800 hover:border-red-500/50 px-3 py-1.5 rounded-lg bg-gray-950 transition-colors flex items-center gap-1.5 cursor-pointer uppercase tracking-widest disabled:opacity-50"
+    >
+      {signingOut ? (
+        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+      ) : (
+        <LogOut className="w-3.5 h-3.5" />
+      )}
+      Sign out
+    </button>
+  );
+
   return (
     <div className="space-y-3 min-w-0">
       {/* Standing hero */}
@@ -149,19 +165,7 @@ export const RegistrySidePanel: React.FC<RegistrySidePanelProps> = ({
                     {standingTrendLabel(standing.delta)}
                   </span>
                 )}
-                <button
-                  type="button"
-                  onClick={() => void handleSignOut()}
-                  disabled={signingOut}
-                  className="text-[10px] font-mono text-gray-400 hover:text-red-300 border border-gray-800 hover:border-red-500/50 px-3 py-1.5 rounded-lg bg-gray-950 transition-colors flex items-center gap-1.5 cursor-pointer uppercase tracking-widest disabled:opacity-50"
-                >
-                  {signingOut ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <LogOut className="w-3.5 h-3.5" />
-                  )}
-                  Sign out
-                </button>
+                {signOutButton}
               </div>
             </div>
 
@@ -237,6 +241,7 @@ export const RegistrySidePanel: React.FC<RegistrySidePanelProps> = ({
             >
               {REGISTRY_COPY.standing.emptyAction}
             </button>
+            <div className="flex justify-center">{signOutButton}</div>
           </div>
         )}
       </div>

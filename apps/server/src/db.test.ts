@@ -255,6 +255,40 @@ describe('postgres database dossier repository', () => {
     expect(updated?.suggestions).toHaveLength(1);
   });
 
+  it('attributes a dossier to a subject exactly once', async () => {
+    const id = await repositories.saveDossier(makePayload());
+    await conn.db.insert(userTable).values({
+      id: 'tipster',
+      name: '',
+      email: 'tipster@test',
+      emailVerified: true,
+    });
+
+    expect(await repositories.getDossierSubjectEmail(id)).toBeNull();
+    expect((await repositories.getDossier(id))?.attributed).toBe(false);
+
+    expect(await repositories.attributeDossierToSubject(id, 'accused@example.com', 'tipster')).toBe(
+      true
+    );
+    expect(await repositories.getDossierSubjectEmail(id)).toBe('accused@example.com');
+    expect((await repositories.getDossier(id))?.attributed).toBe(true);
+
+    // Conditional: a second attribution is refused and the first address stands.
+    expect(await repositories.attributeDossierToSubject(id, 'other@example.com', 'tipster')).toBe(
+      false
+    );
+    expect(await repositories.getDossierSubjectEmail(id)).toBe('accused@example.com');
+  });
+
+  it('refuses to attribute an accepted verdict', async () => {
+    const id = await repositories.saveDossier(makePayload());
+    await repositories.acceptDossier(id);
+    expect(await repositories.attributeDossierToSubject(id, 'accused@example.com', 'tipster')).toBe(
+      false
+    );
+    expect(await repositories.getDossierSubjectEmail(id)).toBeNull();
+  });
+
   it('stores and lists appeal filings newest first', async () => {
     const dossierId = await repositories.saveDossier(makePayload());
 

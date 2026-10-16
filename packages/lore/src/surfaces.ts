@@ -90,6 +90,8 @@ export const REGISTRY_COPY = {
       appeal_fee: 'Appeal Filing Fee',
       /** Paid to the citizen when a completed order is confirmed. */
       injunction_reward: 'Compliance Credit',
+      /** Paid to a citizen for submitting a verdict against another household. */
+      informant_reward: 'Informant Bounty',
       adjustment: 'System Adjustment',
     },
   },
@@ -207,4 +209,64 @@ export const INJUNCTION_STAMP = {
   pending: 'The Arbiter is drafting your orders...',
   /** Archive ink — art_directions.md §3.2. */
   ink: '#8b5a2b',
+} as const;
+
+/**
+ * The informant submission screen (route `/inform/:id`) — the third act on a
+ * verdict, beside claiming and appealing: surrender evidence of *another*
+ * household's consumption offences. The verdict is issued in the accused's name
+ * and only the holder of the accused address may claim or appeal it; the
+ * informant is paid a flat bounty for their vigilance.
+ *
+ * World strings only; the mechanical chrome (validation, button states) stays
+ * inline in the component, the way STORY.md §8 describes.
+ */
+export const INFORMANT_COPY = {
+  /** Page name (the route is `/inform/:id`). */
+  name: 'Informant Submission',
+
+  /** The Arbiter's static address atop the form. */
+  title: 'SURRENDER EVIDENCE',
+  address: [
+    'The Arbiter does not inspect every household itself. It relies on the vigilance of its citizens.',
+    'If you hold photographic evidence of another household’s consumption offences, surrender it here. A verdict will be issued in their name, and only they may answer for it.',
+  ],
+  anonymity:
+    'Submissions are anonymous. The accused household will never learn who informed on them.',
+
+  /** Target-address field. */
+  emailLabel: 'Email of the accused household',
+  emailPlaceholder: 'offender@sector-9.net',
+  submit: 'Submit as evidence',
+  submitting: 'Filing your evidence...',
+
+  /** Shown above the registry unlock — the bounty needs a wallet to land in. */
+  unlockNote: 'The Bureau pays its informants. Unlock your registry — the bounty lands in its wallet.',
+
+  /** Refusals surfaced by the server. */
+  errorSelf: 'The Bureau does not accept self-informing. Name another household.',
+  errorInvalid:
+    'That is not a valid address. The Bureau cannot serve a verdict on a typo.',
+  errorGeneric: 'FILING REJECTED. THE ARBITER IS INDISPOSED — TRY AGAIN.',
+
+  /** The reward view after a successful filing ("you were a good informant"). */
+  success: {
+    title: 'A DILIGENT CITIZEN IS REWARDED',
+    body: 'Your vigilance has been noted. A verdict has been issued against the accused household, and only they may claim or appeal it. For your civic contribution the Bureau awards you:',
+    rewardLabel: 'Informant bounty',
+    balanceLabel: 'New balance',
+    done: 'Return to the dossier',
+  },
+
+  /** The notification delivered to the accused household. */
+  email: {
+    subject: 'ANONYMOUS TIP RECEIVED // VERDICT ISSUED AGAINST YOUR HOUSEHOLD',
+    heading: 'ANONYMOUS TIP RECEIVED',
+    preheader: 'A verdict has been issued against your household',
+    intro:
+      'The AI Supreme Arbiter of Consumption has received an anonymous tip concerning the consumption habits of this household. A forensic audit of the submitted evidence is complete, and a verdict has been issued in your name.',
+    note:
+      'Only the holder of this address may claim or appeal the ruling. Every other citizen has been locked out of the file.',
+    footerNote: 'You are receiving this because a fellow citizen informed on you.',
+  },
 } as const;

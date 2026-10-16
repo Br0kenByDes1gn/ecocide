@@ -18,6 +18,7 @@ import {
   INJUNCTION_REWARD_JITTER,
   INJUNCTION_REWARD_MAX_UNITS,
   INJUNCTION_REWARD_MIN_UNITS,
+  INFORMANT_REWARD_UNITS,
   CREDIT_UNITS_PER_CREDIT,
   KG_CO2E_PER_CREDIT,
   VAULT_ALLOWANCE,
@@ -228,5 +229,12 @@ describe('fee schedule', () => {
 
   it('falls back to the worst tier for an unknown classification', () => {
     expect(claimFeeUnits('not-a-tier', undefined)).toBe(claimFeeUnits('disaster-zone', undefined));
+  });
+});
+
+describe('the informant bounty', () => {
+  it('pays one whole carbon credit for a verified tip', () => {
+    expect(unitsToCredits(INFORMANT_REWARD_UNITS)).toBe(1);
+    expect(unitsToKg(INFORMANT_REWARD_UNITS)).toBe(1000);
   });
 });

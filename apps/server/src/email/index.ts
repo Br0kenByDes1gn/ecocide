@@ -6,4 +6,5 @@ export type { EmailMessage, Mailer } from './mailer.js';
 export { verdictEmail } from './templates/verdict.js';
 export type { RenderedEmail } from './templates/verdict.js';
 export { appealRulingEmail } from './templates/appeal.js';
+export { informantTipEmail } from './templates/informant.js';
 export { vaultOtpEmail } from './templates/otp.js';

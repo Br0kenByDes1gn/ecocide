@@ -2,12 +2,13 @@ import type { Repositories } from '../db/index.js';
 import type { Mailer } from '../email/index.js';
 
 /** Registered job names and their typed payloads. */
-export type JobName = 'email:verdict' | 'email:appeal-ruling' | 'email:otp';
+export type JobName = 'email:verdict' | 'email:appeal-ruling' | 'email:otp' | 'email:informant-tip';
 
 export interface JobPayloads {
   'email:verdict': { dossierId: string; to: string };
   'email:appeal-ruling': { dossierId: string; appealId: string; to: string };
   'email:otp': { to: string; code: string };
+  'email:informant-tip': { dossierId: string; to: string };
 }
 
 export interface JobOptions {

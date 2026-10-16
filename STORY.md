@@ -187,10 +187,14 @@ re-derives them. World copy lives in `surfaces.ts` (`REGISTRY_COPY`).
 
 ## 7. Emails — `apps/server/src/email/templates/`
 
-`verdict.ts`, `appeal.ts`, `otp.ts` + `layout.ts`. Copy is inline in the
-templates; tier names resolve via `getFaction(caste)` — never raw ids.
-Recipients are never persisted. Evidence photos are linked via the dossier
+`verdict.ts`, `appeal.ts`, `informant.ts`, `otp.ts` + `layout.ts`. Copy is
+inline in the templates; tier names resolve via `getFaction(caste)` — never raw
+ids. Recipients are never persisted. Evidence photos are linked via the dossier
 permalink, never embedded.
+
+`informant.ts` is the "anonymous tip" notice sent to the household a verdict was
+submitted *against* (the third act on a verdict — see §8). Its copy comes from
+`INFORMANT_COPY.email` in the pack.
 
 ## 8. Screen copy (web)
 
@@ -204,7 +208,11 @@ Screens and files: landing (`HomePage.tsx`) · app chrome (`App.tsx`) · scan
 `lib/audit-lenses.ts` + `TierStamp.tsx`) · verdict (`ArbitrationDossier.tsx`,
 `DossierProphecy.tsx`, `lib/useArbitrationFlow.ts`, `lib/useAuditReveal.ts`) ·
 claim/appeal (`ClaimScreen.tsx`, `AppealScreen.tsx`,
-`AppealRecordsScreen.tsx`, `RegistryPayment.tsx`) · dossier + download card
+`AppealRecordsScreen.tsx`, `RegistryPayment.tsx`) · informant
+(`InformantScreen.tsx` — the third act on a verdict, beside claim and appeal:
+the citizen surrenders evidence of *another* household, pays the accused's
+address a verdict and collects a one-credit bounty; copy in
+`packages/lore/src/surfaces.ts` — `INFORMANT_COPY`) · dossier + download card
 (`CitizenDossier.tsx`, `PaperDossierPanel.tsx`, `lib/dossier-export.ts`) · carbon registry
 (`CarbonRegistryScreen.tsx` + `RegistryUnlock.tsx`; copy in
 `packages/lore/src/surfaces.ts` — `REGISTRY_COPY`) · census

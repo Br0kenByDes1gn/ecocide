@@ -2,7 +2,7 @@ import React from 'react';
 import type { Caste, OraclePayload } from '@ecocide/types';
 import { getFaction } from '@ecocide/types';
 import { IDENTITY } from '@ecocide/lore';
-import { ArrowRight, Gavel, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Gavel, ShieldCheck, UserSearch } from 'lucide-react';
 import { PaperDossierHeader } from './PaperDossierHeader';
 import { PaperInventoryTable } from './PaperInventoryTable';
 
@@ -17,6 +17,8 @@ interface ArbitrationDossierProps {
   onClaim?: () => void;
   /** Navigate to the appeal screen (/appeal/:id). Only wired when a permalink exists. */
   onAppeal?: () => void;
+  /** Navigate to the informant screen (/inform/:id). Only wired when a permalink exists. */
+  onInform?: () => void;
 }
 
 /** Subtle paper-noise texture (same recipe as the landing dossier panel). */
@@ -42,6 +44,7 @@ export const ArbitrationDossier: React.FC<ArbitrationDossierProps> = ({
   sessionDate,
   onClaim,
   onAppeal,
+  onInform,
 }) => {
   const { user_profile, prophecy, audit } = payload;
 
@@ -248,9 +251,29 @@ export const ArbitrationDossier: React.FC<ArbitrationDossierProps> = ({
                   APPEAL TO THE ARBITER
                   <ArrowRight className="w-5 h-5" />
                 </button>
+                {/*
+                  A verdict already attributed to another household is closed to
+                  further tips — the address is never shown publicly, only that a
+                  response is pending.
+                */}
+                {onInform && !payload.attributed && (
+                  <button
+                    type="button"
+                    onClick={onInform}
+                    className="px-8 py-3 bg-transparent hover:bg-gray-800 text-gray-200 border border-gray-600 hover:border-lime-400 font-black rounded-xl font-mono text-sm tracking-widest uppercase flex items-center gap-2.5 transition-all hover:scale-[1.02] cursor-pointer"
+                  >
+                    <UserSearch className="w-5 h-5 text-lime-400" />
+                    SUBMIT AS EVIDENCE FOR SOMEONE ELSE
+                  </button>
+                )}
               </>
             )}
           </div>
+          {payload.attributed && !payload.acceptedAt && (
+            <p className="text-[10px] font-mono text-amber-400/90 tracking-widest uppercase">
+              VERDICT ATTRIBUTED — RESPONSE PENDING. ONLY THE ACCUSED HOUSEHOLD MAY CLAIM OR APPEAL.
+            </p>
+          )}
           <div className="w-full flex flex-col sm:flex-row items-center justify-between gap-2 border-t border-gray-900 pt-2">
             <p className="text-[10px] font-mono text-amber-400/90 tracking-widest uppercase">
               {IDENTITY.secondaryLine}

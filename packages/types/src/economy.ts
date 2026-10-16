@@ -152,6 +152,13 @@ export function injunctionTaskPoints(
 export const INJUNCTION_REWARD_MIN_UNITS = Math.round(0.05 * CREDIT_UNITS_PER_CREDIT);
 export const INJUNCTION_REWARD_MAX_UNITS = Math.round(0.5 * CREDIT_UNITS_PER_CREDIT);
 
+/**
+ * What a verified informant is paid for submitting a verdict against another
+ * household: one whole carbon credit. A flat bounty, deliberately larger than an
+ * injunction chore — the Bureau pays well for other people's garbage.
+ */
+export const INFORMANT_REWARD_UNITS = 1 * CREDIT_UNITS_PER_CREDIT;
+
 /** How far the deterministic jitter may move a payout, either way. */
 export const INJUNCTION_REWARD_JITTER = 0.1;
 

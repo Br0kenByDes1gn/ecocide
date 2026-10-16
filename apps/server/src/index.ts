@@ -1,6 +1,6 @@
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import { basicAuth } from 'hono/basic-auth';
 import { cors } from 'hono/cors';
 import { createBullBoard } from '@bull-board/api';
@@ -32,6 +32,8 @@ import { createAuth } from './auth/index.js';
 import { loadAuthConfig } from './auth/config.js';
 import type { AuthVariables } from './auth/middleware.js';
 import { createVaultRoutes } from './vault/routes.js';
+import { dossierAccessError } from './access.js';
+import { submitInformantTip } from './informant.js';
 import { geminiConfigured, geminiModeLabel } from './gemini/config.js';
 import {
   evidenceFileNameFor,
@@ -121,6 +123,16 @@ const jobs = jobSystem.dispatcher;
 // Better Auth: email-OTP identity + Carbon Registry sessions.
 const authConfig = loadAuthConfig();
 const auth = createAuth({ db, jobs, config: authConfig });
+
+/**
+ * The signed-in citizen behind a request, or null. The permalink endpoints are
+ * public, so the attributed-verdict gates read the session here instead of
+ * rejecting every unauthenticated caller.
+ */
+async function sessionUser(c: Context) {
+  const session = await auth.api.getSession({ headers: c.req.raw.headers });
+  return session?.user ?? null;
+}
 
 let shuttingDown = false;
 async function shutdown(signal: string): Promise<void> {
@@ -309,6 +321,60 @@ app.get('/api/citizen/:id', async (c) => {
   return c.json({ ...record, acceptedPledges });
 });
 
+/**
+ * Submit a verdict as evidence against another household (the informant act).
+ *
+ * Requires a Carbon Registry session — the informant is paid a bounty, so there
+ * must be a wallet to pay it into. The verdict is attributed to the accused
+ * address; from then on only that address may claim or appeal.
+ */
+app.post('/api/citizen/:id/inform', async (c) => {
+  const id = c.req.param('id');
+  const user = await sessionUser(c);
+  if (!user) {
+    return c.json({ error: 'Carbon Registry locked — authentication required' }, 401);
+  }
+
+  const body = (await c.req.json<{ email?: unknown }>().catch(() => ({}))) as { email?: unknown };
+  const targetEmail = typeof body.email === 'string' ? body.email : '';
+  if (!targetEmail.trim()) {
+    return c.json({ error: 'An accused household address is required', code: 'invalid_email' }, 400);
+  }
+
+  const result = await submitInformantTip({
+    repositories,
+    jobs,
+    dossierId: id,
+    informantUserId: user.id,
+    informantEmail: user.email,
+    targetEmail,
+  });
+
+  switch (result.outcome) {
+    case 'ok':
+      return c.json({ rewardUnits: result.rewardUnits, wallet: result.wallet });
+    case 'invalid_email':
+      return c.json({ error: 'Invalid accused household address', code: 'invalid_email' }, 400);
+    case 'self':
+      return c.json({ error: 'A household cannot inform on itself', code: 'self' }, 400);
+    case 'not_found':
+      return c.json({ error: 'Subject dossier not found in the registry archives' }, 404);
+    case 'accepted':
+      return c.json(
+        { error: 'This verdict was accepted — the ruling is final', code: 'accepted' },
+        409
+      );
+    case 'already_attributed':
+      return c.json(
+        {
+          error: 'This verdict has already been submitted as evidence against a household',
+          code: 'already_attributed',
+        },
+        409
+      );
+  }
+});
+
 // Live census of audited households (art §7: real counts, never invented)
 app.get('/api/census', async (c) => {
   return c.json(await repositories.getCensusReport());
@@ -378,6 +444,16 @@ app.post('/api/citizen/:id/appeal', async (c) => {
       // so the rule has to hold without a session.
       if (record.acceptedAt) {
         return c.json({ error: 'This verdict was accepted — the ruling is final and appeals are closed' }, 409);
+      }
+
+      // A verdict tipped against another household may only be appealed by that
+      // household — read the session here since this endpoint is otherwise public.
+      const access = dossierAccessError(
+        await repositories.getDossierSubjectEmail(id),
+        (await sessionUser(c))?.email ?? null
+      );
+      if (access) {
+        return c.json({ error: access.error }, access.status);
       }
 
     const body = (await c.req.json().catch(() => ({}))) as AppealRequest;
@@ -458,6 +534,16 @@ app.post('/api/citizen/:id/appeals/:appealId/apply', async (c) => {
   // Re-arbitration rewrites the classification, so it closes with acceptance.
   if (record.acceptedAt) {
     return c.json({ error: 'This verdict was accepted — the ruling is final and cannot be re-arbitrated' }, 409);
+  }
+
+  // Applying a ruling is part of the appeal: an attributed verdict stays locked
+  // to the accused household.
+  const access = dossierAccessError(
+    await repositories.getDossierSubjectEmail(id),
+    (await sessionUser(c))?.email ?? null
+  );
+  if (access) {
+    return c.json({ error: access.error }, access.status);
   }
 
   const appeal = (await repositories.getAppealsByDossier(id)).find((a) => a.id === appealId);

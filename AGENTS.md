@@ -128,6 +128,18 @@ apps/server/scripts/  # scan-cost audit
   — the `ACCEPT VERDICT` claim — the classification is frozen and both appeal
   endpoints refuse with 409. These permalink endpoints are public, so the rule is
   enforced server-side, not just by hiding the buttons.
+- **A verdict can be tipped against another household.**
+  `POST /api/citizen/:id/inform` (session required, `src/informant.ts`) attributes
+  a fresh verdict to an accused address (`dossiers.subject_email`, plus
+  `informant_user_id` for the audit trail) and pays the informant
+  `INFORMANT_REWARD_UNITS` (one credit) — once per verdict, guarded by its
+  `informant_reward` ledger entry with `ref = dossierId`. The accused is emailed
+  the "anonymous tip" notice (`email:informant-tip`). While a verdict is
+  attributed, only a session signed in with that address may claim or appeal it:
+  `src/access.ts` (`dossierAccessError`) is consulted by `/api/vault/link`, the
+  priced `/api/vault/charge`, the appeal filing and the re-arbitration apply. The
+  raw address is **never** serialized — `GET /api/citizen/:id` reports only
+  `attributed: true`.
 - **Pledges** are persisted when an appeal is *filed* (`appeals.pledges_json`, a
   `PledgeRef[]`), and the **server composes** the `PLEDGES OFFERED: …` block into
   the stored appeal text — the tribunal reads the prose, the record keeps the list,
@@ -204,8 +216,19 @@ apps/server/scripts/  # scan-cost audit
 ### apps/web
 
 - SPA flow in `src/App.tsx` (`/`, `/scan`, `/citizen/:id`, `/arbitration/:id`,
-  `/claim/:id`, `/appeal/:id`, `/appeals/:id`, `/injunction` (optionally
+  `/claim/:id`, `/appeal/:id`, `/inform/:id`, `/appeals/:id`, `/injunction` (optionally
   `?dossier=<id>`), `/registry` with `/vault` redirecting, dev-only `/debug`).
+- `src/components/ArbitrationDossier.tsx` — the verdict page. Beside
+  `ACCEPT VERDICT` and `APPEAL`, when a permalink exists, it offers
+  `SUBMIT AS EVIDENCE FOR SOMEONE ELSE` (`/inform/:id`), hidden once the verdict
+  is attributed or accepted. An attributed verdict shows a response-pending
+  notice; the address itself is never rendered (the server only reports
+  `attributed`).
+- `src/components/InformantScreen.tsx` — `/inform/:id`: the citizen unlocks their
+  own registry (the bounty lands in a wallet), enters the accused household's
+  address, and files the tip; a success view pays the credit. Copy is
+  `INFORMANT_COPY` from the pack; the call is
+  `lib/vault-api.ts#submitInformantEvidence`.
 - `src/components/HomePage.tsx` — the landing screen (terminal + paper
   dossier panel); the global app header hides on the scan screen.
 - `src/components/ObjectScanner.tsx` (+ `ScannerHeader`, `UploadPanel`,
@@ -220,12 +243,16 @@ apps/server/scripts/  # scan-cost audit
   stamp, title, index + waste gauge, 2×2 stats, per-item cards (with Step-5
   override flags), barcode.
 - `src/components/CarbonRegistryScreen.tsx` (+ `RegistryUnlock`,
-  `RegistryPayment`) — `/registry`: the pooled carbon standing hero, the
-  assessment archive and the demoted carbon account. The payment terminal quotes
-  the fee in carbon credits with its kg CO₂e equivalent and sends only the filing
-  (`lib/vault-api.ts`; `RegistryPayment` takes `amountUnits` for display while the
-  server charges its own price), and API/storage names keep their `vault`
-  spellings.
+  `RegistryPayment`, `RegistrySwitchAccount`) — `/registry`: the pooled carbon
+  standing hero, the assessment archive and the demoted carbon account. The
+  payment terminal quotes the fee in carbon credits with its kg CO₂e equivalent
+  and sends only the filing (`lib/vault-api.ts`; `RegistryPayment` takes
+  `amountUnits` for display while the server charges its own price), and
+  API/storage names keep their `vault` spellings. Anywhere a session is *shown*
+  rather than entered — the payment terminal and the informant screen —
+  `RegistrySwitchAccount` exposes the signed-in address and a
+  **Not you? Use a different address** escape hatch, because a wrong address is
+  refused by the attributed-verdict gates and must be switchable in place.
   `/registry` and `/injunction` decide what to render through
   `lib/registry-phase.ts`, gated on `useVault().sessionReady` — **never on
   better-auth's `isPending`**. That flag is `data === null` sampled at each

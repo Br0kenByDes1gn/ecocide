@@ -162,6 +162,15 @@ export const dossiers = pgTable(
     /** Owning Carbon Registry account (Better Auth user id); null while anonymous. */
     user_id: text('user_id').references(() => user.id, { onDelete: 'set null' }),
     /**
+     * Email a tipster submitted this verdict against ("submit as evidence for
+     * someone else"). While set, only a session signed in with this address may
+     * claim or appeal the ruling — see `dossierAccessError`. Never serialized to
+     * clients; the public dossier only reports `attributed`.
+     */
+    subject_email: text('subject_email'),
+    /** The Carbon Registry account that filed the tip (internal audit trail). */
+    informant_user_id: text('informant_user_id').references(() => user.id, { onDelete: 'set null' }),
+    /**
      * When the citizen accepted the verdict. Null while the ruling is still
      * open to appeal; once set the classification is final and the injunction
      * has been (or is being) issued.

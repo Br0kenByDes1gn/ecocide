@@ -13,6 +13,7 @@ import { CitizenDossier } from './components/CitizenDossier';
 import { ClaimScreen } from './components/ClaimScreen';
 import { DebugBench } from './components/DebugBench';
 import { CarbonRegistryScreen } from './components/CarbonRegistryScreen';
+import { InformantScreen } from './components/InformantScreen';
 import { IDENTITY, REGISTRY_COPY, CONFETTI_COLORS } from '@ecocide/lore';
 import { soundFx } from './lib/audio';
 
@@ -28,6 +29,7 @@ type ViewState =
   | 'arbitration'
   | 'claim'
   | 'appeal'
+  | 'inform'
   | 'appeals'
   | 'registry'
   | 'injunction'
@@ -59,6 +61,13 @@ function parseAppealIdFromUrl(): string | null {
   if (pathMatch?.[1]) return pathMatch[1];
   const searchParams = new URLSearchParams(window.location.search);
   return searchParams.get('appeal');
+}
+
+function parseInformIdFromUrl(): string | null {
+  const pathMatch = window.location.pathname.match(/\/inform\/([a-zA-Z0-9_-]+)/);
+  if (pathMatch?.[1]) return pathMatch[1];
+  const searchParams = new URLSearchParams(window.location.search);
+  return searchParams.get('inform');
 }
 
 /**
@@ -93,6 +102,7 @@ export function App() {
     if (parseClaimIdFromUrl()) return 'claim';
     if (parseAppealsIdFromUrl()) return 'appeals';
     if (parseAppealIdFromUrl()) return 'appeal';
+    if (parseInformIdFromUrl()) return 'inform';
     if (parseArbitrationIdFromUrl()) return 'arbitration';
     if (parseCitizenIdFromUrl()) return 'dossier';
     if (window.location.pathname === '/scan') return 'scanning';
@@ -152,9 +162,10 @@ export function App() {
       const claimId = parseClaimIdFromUrl();
       const appealsId = parseAppealsIdFromUrl();
       const appealId = parseAppealIdFromUrl();
+      const informId = parseInformIdFromUrl();
       const arbitrationId = parseArbitrationIdFromUrl();
       const citizenId = parseCitizenIdFromUrl();
-      const id = claimId || appealsId || appealId || arbitrationId || citizenId;
+      const id = claimId || appealsId || appealId || informId || arbitrationId || citizenId;
       if (!id) {
         if (path === '/scan') {
           setViewState('scanning');
@@ -183,6 +194,7 @@ export function App() {
           id: record.id,
           evidenceUrl: record.evidenceUrl,
           acceptedAt: record.acceptedAt,
+          attributed: record.attributed ?? false,
           acceptedPledges: record.acceptedPledges ?? [],
         };
         setOracleData(payload);
@@ -196,6 +208,8 @@ export function App() {
             ? 'appeals'
             : appealId
             ? 'appeal'
+            : informId
+            ? 'inform'
             : arbitrationId
             ? 'arbitration'
             : 'dossier'
@@ -331,6 +345,7 @@ export function App() {
         id: record.id,
         evidenceUrl: record.evidenceUrl,
         acceptedAt: record.acceptedAt,
+        attributed: record.attributed ?? false,
         acceptedPledges: record.acceptedPledges ?? [],
       };
       setOracleData(payload);
@@ -378,6 +393,12 @@ export function App() {
     if (!permalinkId) return;
     setViewState('appeal');
     window.history.pushState({}, '', `/appeal/${permalinkId}`);
+  };
+
+  const handleOpenInform = () => {
+    if (!permalinkId) return;
+    setViewState('inform');
+    window.history.pushState({}, '', `/inform/${permalinkId}`);
   };
 
   // After filing an appeal, land on the Appeal Records screen to see the ruling
@@ -559,6 +580,15 @@ export function App() {
             sessionDate={sessionDate || undefined}
             onClaim={permalinkId ? handleOpenClaim : undefined}
             onAppeal={permalinkId ? handleOpenAppeal : undefined}
+            onInform={permalinkId ? handleOpenInform : undefined}
+          />
+        )}
+
+        {viewState === 'inform' && oracleData && (
+          <InformantScreen
+            payload={oracleData}
+            permalinkId={permalinkId || undefined}
+            onDone={goArbitration}
           />
         )}
 

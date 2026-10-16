@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { CheckCircle2, CreditCard, Loader2, Lock, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, CreditCard, Loader2, Lock } from 'lucide-react';
 import { REGISTRY_COPY } from '@ecocide/lore';
 import { formatCarbonCredits, formatCarbonKg } from '../lib/vault-format';
 import { useVault } from '../lib/useVault';
 import { chargeVault, linkDossierToVault } from '../lib/vault-api';
+import { RegistrySwitchAccount } from './RegistrySwitchAccount';
 import { RegistryUnlock } from './RegistryUnlock';
 
 interface RegistryPaymentProps {
@@ -53,9 +54,16 @@ export const RegistryPayment: React.FC<RegistryPaymentProps> = ({
   const [payError, setPayError] = useState<string | null>(null);
   const doneRef = useRef(false);
 
-  // A signed-in citizen skips the unlock and lands on the authorize step.
+  // A signed-in citizen skips the unlock and lands on the authorize step — but
+  // only when the session *appears*. A transition test (rather than "session is
+  // truthy") keeps "use a different address" from bouncing straight back to the
+  // authorize step: signing out drops the session, and the next unlock is a real
+  // transition. `false` initially, so a session present at mount still advances.
+  const hadSession = useRef(false);
   useEffect(() => {
-    if (session && stage === 'unlock') setStage('confirm');
+    const appeared = Boolean(session) && !hadSession.current;
+    hadSession.current = Boolean(session);
+    if (appeared && stage === 'unlock') setStage('confirm');
   }, [session, stage]);
 
   const pay = useCallback(async () => {
@@ -111,12 +119,12 @@ export const RegistryPayment: React.FC<RegistryPaymentProps> = ({
 
       {stage === 'confirm' && (
         <div className="space-y-3">
-          <div className="flex items-center justify-between text-[10px] font-mono border border-emerald-500/30 bg-emerald-950/20 rounded-lg px-3 py-2">
-            <span className="text-emerald-400 uppercase tracking-widest flex items-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5" /> {REGISTRY_COPY.terminal.unlocked}
-            </span>
-            <span className="text-gray-400 truncate max-w-[60%] text-right">{vault?.user.email}</span>
-          </div>
+          <RegistrySwitchAccount
+            onSwitched={() => {
+              setPayError(null);
+              setStage('unlock');
+            }}
+          />
           {vault && (
             <p className="text-center font-mono text-[11px] text-gray-500 uppercase">
               {REGISTRY_COPY.terminal.balance}:{' '}

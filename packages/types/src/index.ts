@@ -218,6 +218,12 @@ export interface OraclePayload {
   evidenceUrl?: string;
   /** Set once the citizen accepts the verdict — acceptance is terminal. */
   acceptedAt?: string;
+  /**
+   * True when this verdict was tipped against a specific address ("submitted as
+   * evidence for someone else"). The attributed address itself is never sent to
+   * the client — only that a claim is pending. See `CitizenRecord.attributed`.
+   */
+  attributed?: boolean;
   /** Pledges granted on appeal, from `CitizenRecord.acceptedPledges`. */
   acceptedPledges?: AcceptedPledge[];
 }
@@ -245,6 +251,12 @@ export interface CitizenRecord {
    * it freezes the classification, closes appeals and issues the injunction.
    */
   acceptedAt?: string;
+  /**
+   * True when the verdict was attributed to a specific email by a tipster. The
+   * address itself is never serialized — only that a claim is pending and that
+   * only the matching session may claim or appeal it.
+   */
+  attributed?: boolean;
 }
 
 export interface ScanRequest {
@@ -502,6 +514,7 @@ export {
   INJUNCTION_REWARD_MIN_UNITS,
   INJUNCTION_REWARD_MAX_UNITS,
   INJUNCTION_REWARD_JITTER,
+  INFORMANT_REWARD_UNITS,
   injunctionTaskPoints,
   injunctionRewardUnits,
   INJUNCTION_INDEX_CAP,
@@ -512,7 +525,14 @@ export {
 export type { InjunctionStanding } from './economy.js';
 
 /** Auditable reasons a wallet balance can move. */
-export type WalletLedgerReason = 'seed' | 'claim_fee' | 'appeal_fee' | 'adjustment' | string;
+export type WalletLedgerReason =
+  | 'seed'
+  | 'claim_fee'
+  | 'appeal_fee'
+  | 'injunction_reward'
+  | 'informant_reward'
+  | 'adjustment'
+  | string;
 
 export interface VaultUser {
   id: string;
