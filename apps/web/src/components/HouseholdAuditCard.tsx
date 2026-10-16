@@ -26,6 +26,12 @@ interface HouseholdAuditCardProps {
   onExpand?: () => void;
   /** Default lens for the evidence photo. */
   defaultLens?: LensId;
+  /** Controlled lens (the citizen page owns it so the export can reproduce it). */
+  lens?: LensId;
+  /** Fires when the citizen clicks a lens chip; the page stores the choice. */
+  onLensChange?: (lens: LensId) => void;
+  /** Fires once the lens bitmap is on the canvas (the PNG export waits for it). */
+  onLensRendered?: () => void;
   /** Hide the per-item inventory block (citizen page renders it in the paper panel). */
   hideInventory?: boolean;
 }
@@ -45,11 +51,21 @@ export const HouseholdAuditCard: React.FC<HouseholdAuditCardProps> = ({
   interactive = false,
   onExpand,
   defaultLens = 'neon-outline',
+  lens: lensProp,
+  onLensChange,
+  onLensRendered,
   hideInventory = false,
 }) => {
   const { user_profile, audit, suggestions } = payload;
   const faction = getFaction(user_profile.caste);
-  const [lens, setLens] = useState<LensId>(defaultLens);
+  const [lensState, setLensState] = useState<LensId>(defaultLens);
+  // Controlled when the page passes one, internal otherwise (the arbitration
+  // reveal and the dev bench keep the simple form).
+  const lens = lensProp ?? lensState;
+  const setLens = (next: LensId) => {
+    setLensState(next);
+    onLensChange?.(next);
+  };
   const [itemsOpen, setItemsOpen] = useState(false);
   const [fullscreenOpen, setFullscreenOpen] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -70,6 +86,7 @@ export const HouseholdAuditCard: React.FC<HouseholdAuditCardProps> = ({
 
     const draw = (img: HTMLImageElement) => {
       drawAuditLens(ctx, img, canvas.width, canvas.height, audit.items, lens);
+      onLensRendered?.();
     };
 
     const img = new Image();
@@ -81,8 +98,13 @@ export const HouseholdAuditCard: React.FC<HouseholdAuditCardProps> = ({
       // no evidence → faint audit-grid void with the items' chips only
       ctx.fillStyle = '#070a08';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
+      onLensRendered?.();
     };
     img.src = evidenceUrl || '';
+    // `onLensRendered` is deliberately not a dependency: it is a one-shot signal
+    // for the PNG export, and re-running the effect on a new arrow would reload
+    // the photo and redraw the lens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [evidenceUrl, lens, audit.items]);
 
   // Close the fullscreen viewer with Escape
@@ -149,7 +171,7 @@ export const HouseholdAuditCard: React.FC<HouseholdAuditCardProps> = ({
     text ? <>{text}</> : <Placeholder className={placeholderClassName} />;
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <div
         onClick={clickable ? onExpand : undefined}
         role={clickable ? 'button' : undefined}

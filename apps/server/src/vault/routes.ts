@@ -3,6 +3,7 @@ import { registryStanding } from '@ecocide/compliance';
 import {
   VAULT_ALLOWANCE,
   VAULT_CLAIM_FEE,
+  getCasteFromScore,
   type VaultChargeResult,
   type VaultDossierSummary,
   type VaultLedgerPage,
@@ -12,6 +13,7 @@ import {
 import type { Auth } from '../auth/index.js';
 import { requireSession, type AuthVariables } from '../auth/middleware.js';
 import type { Repositories } from '../db/index.js';
+import { issueInjunction, injunctionRunsInBackground } from '../injunction.js';
 
 export interface VaultRouteDeps {
   repositories: Repositories;
@@ -95,6 +97,60 @@ export function createVaultRoutes(deps: VaultRouteDeps) {
     return c.json(result);
   });
 
+  app.get('/injunction-tasks', async (c) => {
+    const user = c.get('user');
+    // `?dossierId=` answers for one verdict: the dossier page polls this while it
+    // waits for issuance, and the whole worksheet would be a wasteful answer to a
+    // yes/no question (it also grows with every verdict the citizen ever collects).
+    const dossierId = c.req.query('dossierId')?.trim();
+    const tasks = dossierId
+      ? await deps.repositories.getInjunctionTasksByDossier(user.id, dossierId)
+      : await deps.repositories.getInjunctionTasksByUser(user.id);
+    return c.json({ tasks });
+  });
+
+  app.post('/injunction-confirm', async (c) => {
+    const user = c.get('user');
+    const body = (await c.req.json<{ taskIds?: string[] }>().catch(() => ({}))) as {
+      taskIds?: string[];
+    };
+    const taskIds = Array.isArray(body.taskIds)
+      ? body.taskIds.filter((id): id is string => typeof id === 'string').slice(0, 100)
+      : [];
+    if (taskIds.length === 0) {
+      return c.json({ error: 'No tasks selected' }, 400);
+    }
+
+    const IMPACT_POINTS: Record<string, number> = { low: 2, medium: 4, high: 8 };
+    const EFFORT_POINTS: Record<string, number> = { easy: 2, moderate: 4, hard: 8 };
+    const owned = await deps.repositories.getInjunctionTasksByUser(user.id);
+    const pendingById = new Map(owned.filter((t) => !t.completed).map((t) => [t.id, t]));
+    const confirmed = taskIds
+      .filter((id) => pendingById.has(id))
+      .map((id) => {
+        const task = pendingById.get(id)!;
+        return {
+          id,
+          points: (IMPACT_POINTS[task.impact] ?? 0) * (EFFORT_POINTS[task.effort] ?? 0),
+        };
+      });
+
+    await deps.repositories.confirmInjunctionTasks(user.id, confirmed);
+    const bonusTotal = await deps.repositories.getInjunctionBonusTotal(user.id);
+
+    const rows = await deps.repositories.getVaultAssessmentRows(user.id);
+    const standing = registryStanding(
+      rows.map((row) => ({ createdAt: row.createdAt, items: row.items }))
+    );
+    const effectiveIndex = Math.min(100, standing.index + bonusTotal);
+    return c.json({
+      confirmed,
+      bonusTotal,
+      effectiveIndex,
+      effectiveCaste: getCasteFromScore(effectiveIndex),
+    });
+  });
+
   app.post('/link', async (c) => {
     const user = c.get('user');
     const body = (await c.req.json<{ dossierId?: string }>().catch(() => ({}))) as {
@@ -135,6 +191,25 @@ export function createVaultRoutes(deps: VaultRouteDeps) {
       await deps.repositories.linkDossierToUser(dossierId, user.id);
       linked = true;
       wallet = (await deps.repositories.getWalletByUser(user.id)) ?? wallet;
+
+      // Accepting the verdict is terminal: it freezes the ruling (appeals close)
+      // and issues the injunction from it. `acceptDossier` only stamps the first
+      // acceptance, so a repeated claim neither re-accepts nor re-issues.
+      const acceptedAt = await deps.repositories.acceptDossier(dossierId);
+      if (acceptedAt) {
+        const issuance = issueInjunction({
+          repositories: deps.repositories,
+          userId: user.id,
+          dossierId,
+        }).catch((err) => console.warn('[Injunction] issuance failed:', err?.message || err));
+
+        // A model call must not hold up the certification screen, so it runs
+        // after the response (Cloud Run has CPU always allocated). Offline the
+        // checklist is local arithmetic, so it is awaited and the actions are
+        // already there when the citizen opens the worksheet.
+        if (injunctionRunsInBackground()) void issuance;
+        else await issuance;
+      }
     }
 
     const updated = await deps.repositories.getDossier(dossierId);

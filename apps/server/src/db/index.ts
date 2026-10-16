@@ -12,6 +12,7 @@ export {
   account,
   appeals,
   dossiers,
+  injunctionTasks,
   scanApiLogs,
   session,
   user,

@@ -4,6 +4,8 @@ import type {
   Caste,
   CitizenAppeal,
   CitizenRecord,
+  InjunctionChecklist,
+  InjunctionItem,
   OraclePayload,
   Prophecy,
   Suggestion,
@@ -11,13 +13,16 @@ import type {
 import { enrichAuditItems, MATERIAL_FAMILIES } from '@ecocide/types';
 import {
   buildAppealPrompt as buildLoreAppealPrompt,
+  buildInjunctionPrompt,
   buildInventoryPrompt as buildLoreInventoryPrompt,
   buildReArbitrationPrompt as buildLoreReArbitrationPrompt,
   buildVerdictPrompt as buildLoreVerdictPrompt,
   generateSimulatedAppealRuling,
+  generateSimulatedInjunction,
   generateSimulatedReArbitrationCopy,
   getFaction,
   householdTitle,
+  INJUNCTION_JSON_SCHEMA,
   INVENTORY_JSON_SCHEMA,
   VERDICT_JSON_SCHEMA,
 } from '@ecocide/lore';
@@ -474,4 +479,109 @@ function usageFrom(response: any, model: string, startTime: number): ApiCallUsag
     costUsd: cost.totalCostUsd,
     durationMs,
   };
+}
+// ---------------------------------------------------------------------------
+// INJUNCTION (corrective-action checklist for one household, on stored items)
+// ---------------------------------------------------------------------------
+
+const INJUNCTION_CATEGORIES = ['swap', 'reuse', 'repair', 'reduce', 'dispose_properly'] as const;
+const INJUNCTION_IMPACTS = ['high', 'medium', 'low'] as const;
+const INJUNCTION_EFFORTS = ['easy', 'moderate', 'hard'] as const;
+
+/** Builds the injunction prompt input from a stored dossier (no vision re-call). */
+export function buildInjunctionPromptInput(dossier: CitizenRecord) {
+  const profile = dossier.user_profile || dossier.profile;
+  const items = (dossier.audit?.items ?? []).map((item) => ({
+    label: item.label,
+    count: item.count,
+    si: item.si ?? null,
+    status: item.status ?? 'needs-improvement',
+    materialFamily: item.materialFamily ?? null,
+    overrides: item.overrides ?? [],
+    ratingsSummary: (['m', 'r', 'd', 'c', 'l', 't', 'p', 'e'] as const)
+      .map((k) => `${k}:${item.ratings?.[k] ?? 'n/a'}`)
+      .join(' '),
+  }));
+  return {
+    ratio: profile.biocarbon_ratio,
+    factionId: profile.caste,
+    roomType: dossier.audit?.roomType ?? null,
+    items,
+  };
+}
+
+/** Sanitizes one raw model checklist entry into a valid InjunctionItem. */
+function sanitizeInjunctionItem(raw: any): InjunctionItem | null {
+  if (!raw || typeof raw.action !== 'string' || !raw.action.trim()) return null;
+  const category = INJUNCTION_CATEGORIES.includes(raw.category) ? raw.category : 'reduce';
+  const impact = INJUNCTION_IMPACTS.includes(raw.impact) ? raw.impact : 'medium';
+  const effort = INJUNCTION_EFFORTS.includes(raw.effort) ? raw.effort : 'easy';
+  return {
+    action: raw.action.trim(),
+    replaces: typeof raw.replaces === 'string' && raw.replaces.trim() ? raw.replaces.trim() : 'household item',
+    why: typeof raw.why === 'string' && raw.why.trim() ? raw.why.trim() : 'This reduces the household waste burden.',
+    category,
+    impact,
+    effort,
+  };
+}
+
+/** Runs the injunction checklist through Gemini (text-only, small). */
+export async function generateInjunctionChecklist(
+  dossier: CitizenRecord
+): Promise<{ checklist: InjunctionChecklist; usage: ApiCallUsage }> {
+  const startTime = performance.now();
+  const ai = createGeminiClient();
+  const model = getGeminiModel();
+  const prompt = buildInjunctionPrompt(buildInjunctionPromptInput(dossier));
+
+  const response = await ai.models.generateContent({
+    model,
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    config: {
+      responseMimeType: 'application/json',
+      responseJsonSchema: INJUNCTION_JSON_SCHEMA,
+      temperature: 0.7,
+    },
+  });
+
+  const usage = usageFrom(response as any, model, startTime);
+  const parsed = JSON.parse(response.text || '{}');
+  const rawItems = Array.isArray(parsed.items) ? parsed.items : [];
+  const items = rawItems
+    .map(sanitizeInjunctionItem)
+    .filter((item: InjunctionItem | null): item is InjunctionItem => item !== null)
+    .slice(0, 8);
+
+  return {
+    checklist: {
+      headline:
+        typeof parsed.headline === 'string' && parsed.headline.trim()
+          ? parsed.headline.trim()
+          : 'Actions to raise your Compliance Ratio.',
+      items,
+      closing_line:
+        typeof parsed.closing_line === 'string' && parsed.closing_line.trim()
+          ? parsed.closing_line.trim()
+          : 'Pledge these actions to lift your score, one habit at a time.',
+    },
+    usage,
+  };
+}
+
+/** Simulation fallback for the injunction checklist (deterministic, hashed). */
+export function generateSimulatedInjunctionChecklist(dossier: CitizenRecord): InjunctionChecklist {
+  const profile = dossier.user_profile || dossier.profile;
+  return generateSimulatedInjunction(
+    (dossier.audit?.items ?? []).map((item) => ({
+      label: item.label,
+      count: item.count,
+      si: item.si ?? null,
+      status: item.status ?? 'needs-improvement',
+      materialFamily: item.materialFamily ?? 'unknown',
+      overrides: item.overrides ?? [],
+    })),
+    profile.biocarbon_ratio,
+    dossier.id
+  );
 }

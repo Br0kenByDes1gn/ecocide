@@ -218,24 +218,33 @@ export const ArbitrationDossier: React.FC<ArbitrationDossierProps> = ({
       {onClaim && onAppeal && (
         <div className="flex flex-col items-center gap-2 pt-1">
           <div className="rounded-sm border border-gray-800 bg-transparent p-3 flex flex-wrap items-center justify-center gap-3">
-            <button
-              type="button"
-              onClick={onClaim}
-              className="px-8 py-3 bg-[#b4ff39] hover:bg-[#c6ff66] text-black font-black rounded-xl font-mono text-sm tracking-widest uppercase flex items-center gap-2.5 transition-all shadow-[0_0_25px_rgba(180,255,57,0.4)] hover:shadow-[0_0_35px_rgba(180,255,57,0.8)] hover:scale-[1.02] cursor-pointer"
-            >
-              <ShieldCheck className="w-5 h-5" />
-              ACCEPT VERDICT
-              <ArrowRight className="w-5 h-5" />
-            </button>
-            <button
-              type="button"
-              onClick={onAppeal}
-              className="px-8 py-3 bg-[#ffb703] hover:bg-[#ca8a04] text-black font-black rounded-xl font-mono text-sm tracking-widest uppercase flex items-center gap-2.5 transition-all shadow-[0_0_25px_rgba(255,183,3,0.4)] hover:shadow-[0_0_35px_rgba(255,183,3,0.8)] hover:scale-[1.02] cursor-pointer"
-            >
-              <Gavel className="w-5 h-5" />
-              APPEAL TO THE ARBITER
-              <ArrowRight className="w-5 h-5" />
-            </button>
+            {payload.acceptedAt ? (
+              <div className="flex items-center gap-2.5 px-8 py-3 font-mono text-sm tracking-widest uppercase text-lime-300">
+                <ShieldCheck className="w-5 h-5" />
+                VERDICT ACCEPTED — RULING FINAL
+              </div>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={onClaim}
+                  className="px-8 py-3 bg-[#b4ff39] hover:bg-[#c6ff66] text-black font-black rounded-xl font-mono text-sm tracking-widest uppercase flex items-center gap-2.5 transition-all shadow-[0_0_25px_rgba(180,255,57,0.4)] hover:shadow-[0_0_35px_rgba(180,255,57,0.8)] hover:scale-[1.02] cursor-pointer"
+                >
+                  <ShieldCheck className="w-5 h-5" />
+                  ACCEPT VERDICT
+                  <ArrowRight className="w-5 h-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={onAppeal}
+                  className="px-8 py-3 bg-[#ffb703] hover:bg-[#ca8a04] text-black font-black rounded-xl font-mono text-sm tracking-widest uppercase flex items-center gap-2.5 transition-all shadow-[0_0_25px_rgba(255,183,3,0.4)] hover:shadow-[0_0_35px_rgba(255,183,3,0.8)] hover:scale-[1.02] cursor-pointer"
+                >
+                  <Gavel className="w-5 h-5" />
+                  APPEAL TO THE ARBITER
+                  <ArrowRight className="w-5 h-5" />
+                </button>
+              </>
+            )}
           </div>
           <div className="w-full flex flex-col sm:flex-row items-center justify-between gap-2 border-t border-gray-900 pt-2">
             <p className="text-[10px] font-mono text-amber-400/90 tracking-widest uppercase">

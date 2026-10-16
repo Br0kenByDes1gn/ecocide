@@ -126,6 +126,39 @@ export interface Suggestion {
   impact_pct: number;
 }
 
+/** One corrective action on the environmental injunction checklist. */
+export interface InjunctionItem {
+  action: string;
+  replaces: string;
+  why: string;
+  category: 'swap' | 'reuse' | 'repair' | 'reduce' | 'dispose_properly';
+  impact: 'high' | 'medium' | 'low';
+  effort: 'easy' | 'moderate' | 'hard';
+}
+
+/** The environmental injunction checklist for one household. */
+export interface InjunctionChecklist {
+  headline: string;
+  items: InjunctionItem[];
+  closing_line: string;
+}
+
+/** One stored injunction task row (accumulated per citizen across scans). */
+export interface InjunctionTask {
+  id: string;
+  action: string;
+  replaces: string;
+  why: string;
+  category: InjunctionItem['category'];
+  impact: InjunctionItem['impact'];
+  effort: InjunctionItem['effort'];
+  dossierId: string | null;
+  createdAt: string;
+  completed: boolean;
+  completedAt: string | null;
+  points: number;
+}
+
 /** The full household audit result. */
 export interface HouseholdAudit {
   roomType: string | null;
@@ -161,6 +194,8 @@ export interface OraclePayload {
   id?: string;
   /** Served URL of the archived evidence photo (file on disk, not the DB). */
   evidenceUrl?: string;
+  /** Set once the citizen accepts the verdict — acceptance is terminal. */
+  acceptedAt?: string;
 }
 
 export interface CitizenRecord {
@@ -175,6 +210,11 @@ export interface CitizenRecord {
   evidenceUrl?: string;
   /** Owning Carbon Registry account id (null/undefined while anonymous). */
   ownerId?: string;
+  /**
+   * When the citizen accepted this verdict (ISO-8601). Acceptance is terminal:
+   * it freezes the classification, closes appeals and issues the injunction.
+   */
+  acceptedAt?: string;
 }
 
 export interface ScanRequest {

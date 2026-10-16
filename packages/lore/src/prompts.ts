@@ -202,7 +202,7 @@ DETECTED ITEMS (the full inventory):
 ${input.itemsSummary}
 
 ASSESSMENT PROTOCOL:
-1. Write exactly three short (1–2 sentences each) bureaucratic paragraphs, cold, precise, faintly absurd:
+1. Write exactly three short (1-2 sentences each) paragraphs. The respose should be precise, plain language, and genuinely useful, no jokes, no insults:
    - paragraph_1 (Audit Summary): Address the household, cite its Household Sustainability Index of ${input.ratio}%, and name at least two specific items from the inventory.
    ${input.paragraph2}
    ${input.paragraph3}
@@ -210,7 +210,7 @@ ASSESSMENT PROTOCOL:
 3. suggestions: 3–5 concrete, feasible improvement actions, EACH bound to a specific detected item label (the appeal tribunal will offer these to the household as pledges). Understate the numbers. Label every figure as an estimate.
 
 TONE & STYLE:
-- Official, bureaucratic, precise, faintly arch. Zero tolerance for mysticism or sentimentality.
+- Official, cold, precise, plain language, genuinely useful, and faintly arch. Zero tolerance for mysticism or sentimentality.
 - Aim the humor at habits and objects, never at people, their bodies, income or circumstances.
 - Never mention real environmental disasters; the charge is always this household's excess.
 
@@ -249,9 +249,9 @@ CLASSIFICATION FRAMEWORK (tier ids are FINAL — re-classification must use exac
 ${factionRegistryBlock()}
 
 RULING:
-Judge whether the appeal is convincing. Be bureaucratic, dry and precise. Ground your reasoning in the household's actual items. If the appeal requests a re-classification, either accept it (assigning EXACTLY one other tier id) or reject it. If no tier is requested, weigh the designation, the Index and the appeal's content.
-- If ACCEPTED: new_caste MUST be one of the framework ids and MUST differ from the current designation; craft a new formal honorific title, a new verdict headline, and exactly 3 short (1–2 sentence) bureaucratic paragraphs.
-- If REJECTED: accepted=false with a dismissive, bureaucratic reason addressing the appeal's logic, tone, or evidence.
+Judge whether the appeal is convincing. Be cold, plain language, genuinely useful, dry and precise. Ground your reasoning in the household's actual items. If the appeal requests a re-classification, either accept it (assigning EXACTLY one other tier id) or reject it. If no tier is requested, weigh the designation, the Index and the appeal's content.
+- If ACCEPTED: new_caste MUST be one of the framework ids and MUST differ from the current designation; craft a new formal honorific title, a new verdict headline, and exactly 3 short (1–2 sentence) cold, precise, plain language, and genuinely useful paragraphs.
+- If REJECTED: accepted=false with a dismissive, official, precise, and plain language reason addressing the appeal's logic, tone, or evidence.
 
 Return STRICT JSON only:
 {
@@ -301,9 +301,12 @@ CLASSIFICATION FRAMEWORK:
 ${factionRegistryBlock()}
 
 TASK (identical to the original assessment, but for the NEW designation):
-1. Write exactly three short (1–2 sentences each) bureaucratic paragraphs; paragraph_1 must acknowledge the GRANTED appeal by wryly referencing its gist — the appeal is mentioned ONLY in paragraph_1.
-2. headline: a concise official classification notice for the new designation.
-3. new_honorific_title: a formal title aligned with the new designation.
+1. Write exactly three paragraphs (3-4 sentences each) in clear, articulate, descriptive plain language. Be precise and genuinely useful, use everyday words, and avoid bureaucratic jargon.
+   - paragraph_1 must acknowledge the GRANTED appeal with one dry clause that refers to the gist of the pledge (for example "Your pledge to swap bottled water for a filter was accepted"), then state the new tier and the new Compliance Ratio. Explain what changed since the original verdict and which items or habits moved the score. The appeal is mentioned ONLY in paragraph_1.
+   - paragraph_2: describe the environmental harm of the 2-3 items that still lower the score most. For each, explain in concrete terms what the material is, how long it takes to break down, whether it can be recycled, and any toxicity concern, using only the properties given. If a hard-fail item remains, name it plainly and say why it counts as one.
+   - paragraph_3: give the most effective next change, tied to a named item, and explain why it would improve the score. Add one secondary change the household could make after that. If the new tier is Compliant, say specifically what is working and give one way to improve further. Be encouraging, not flattering.
+2. headline: a clear classification notice for the new designation (maximum 14 words), stating the new tier and that it was updated after appeal. No threats and no jargon.
+3. new_honorific_title: a short formal title aligned with the new designation, in the style of "Plastic-Reduction Candidate". It must describe the household's habits or objects, never the person, and must not use termination language.
 
 Return STRICT JSON only:
 {
@@ -311,5 +314,105 @@ Return STRICT JSON only:
   "new_honorific_title": "...",
   "scripture": ["p1", "p2", "p3"]
 }
+`;
+}
+export const INJUNCTION_CATEGORIES = ['swap', 'reuse', 'repair', 'reduce', 'dispose_properly'] as const;
+export type InjunctionCategory = (typeof INJUNCTION_CATEGORIES)[number];
+export const INJUNCTION_IMPACTS = ['high', 'medium', 'low'] as const;
+export type InjunctionImpact = (typeof INJUNCTION_IMPACTS)[number];
+export const INJUNCTION_EFFORTS = ['easy', 'moderate', 'hard'] as const;
+export type InjunctionEffort = (typeof INJUNCTION_EFFORTS)[number];
+
+/** One audited item as seen by the injunction prompt (scores already computed). */
+export interface InjunctionPromptItem {
+  label: string;
+  count: number;
+  si: number | null;
+  status: string;
+  materialFamily: string | null;
+  overrides: string[];
+  ratingsSummary: string;
+}
+
+export interface InjunctionPromptInput {
+  ratio: number;
+  factionId: string;
+  roomType: string | null;
+  items: InjunctionPromptItem[];
+}
+
+export const INJUNCTION_JSON_SCHEMA = {
+  type: 'object',
+  properties: {
+    headline: { type: 'string', description: 'A short plain notice for the page (maximum 10 words).' },
+    items: {
+      type: 'array',
+      description: '6–8 checklist items ordered from highest to lowest environmental impact.',
+      items: {
+        type: 'object',
+        properties: {
+          action: { type: 'string', description: 'One short imperative sentence (maximum 14 words), tied to a specific detected item.' },
+          replaces: { type: 'string', description: 'The exact name of the detected item this action addresses.' },
+          why: { type: 'string', description: 'One short sentence explaining the environmental benefit, using only the given properties.' },
+          category: { type: 'string', enum: ['swap', 'reuse', 'repair', 'reduce', 'dispose_properly'] },
+          impact: { type: 'string', enum: ['high', 'medium', 'low'] },
+          effort: { type: 'string', enum: ['easy', 'moderate', 'hard'] },
+        },
+        required: ['action', 'replaces', 'why', 'category', 'impact', 'effort'],
+      },
+    },
+    closing_line: { type: 'string', description: 'One short encouraging sentence (maximum 18 words) about pledging these actions.' },
+  },
+  required: ['headline', 'items', 'closing_line'],
+} as const;
+
+/**
+ * INJUNCTION — corrective-action checklist prompt. Text-only: the scored
+ * inventory is the evidence. The model writes actions, never math.
+ */
+export function buildInjunctionPrompt(input: InjunctionPromptInput): string {
+  const lines = input.items.map(
+    (item) =>
+      `- x${item.count} ${item.label} // SI ${item.si ?? '?'} // ${item.status.toUpperCase()} // material: ${item.materialFamily ?? 'unknown'} // overrides: ${item.overrides.length ? item.overrides.join('+') : 'none'} // ratings: ${item.ratingsSummary}`
+  );
+  return `
+You are the ${ENTITY}, issuing a binding ENVIRONMENTAL INJUNCTION against a household. Convert the audited inventory below into a corrective-action checklist.
+
+HOUSEHOLD CONTEXT:
+- Designation (caste): ${input.factionId}
+- Household Sustainability Index: ${input.ratio}%
+- Room(s) audited: ${input.roomType ?? 'unspecified'}
+
+DETECTED ITEMS (scores already computed — do not recompute them):
+${lines.join('\n')}
+
+TASK (create a corrective action checklist for this household based on the audit result):
+Produce between 6 and 8 checklist items, ordered from highest to lowest environmental impact. Each item must be:
+action: one short imperative sentence (maximum 14 words) in plain language, tied to a specific detected item. Example shape: "Replace plastic water bottles with a metal or glass bottle."
+replaces: the exact name of the detected item this action addresses.
+why: one short sentence explaining the environmental benefit, using only the properties given (material, decomposition time, recyclability, toxicity).
+category: one of "swap", "reuse", "repair", "reduce", "dispose_properly".
+impact: "high", "medium" or "low", based on the item's Harm Score ranking in the input.
+effort: "easy", "moderate" or "hard".
+Include at least two items that cost nothing (reuse, repair, refuse or reduce), so the list does not depend on buying new products.
+If a hard-fail item is present (single-use plastic, hazardous item, landfill trap), the first item must address it. For single-use plastics and landfill traps, use a swap or reduce. For hazardous items that are NOT long-use durables, the action must be proper disposal (for example a hazardous-waste collection point), not a swap.
+If the household is Compliant, write items that maintain and extend good habits, not corrections.
+Do not repeat the same detected item in more than two checklist entries.
+headline: a short plain notice for the page (maximum 10 words), for example "Eight actions to raise your Compliance Ratio."
+closing_line: one short, encouraging sentence (maximum 18 words) that tells the user these actions can be pledged to improve their score.
+
+LONG-USE DURABLE ITEMS:
+Laptops, mobile phones, tablets, air conditioners, refrigerators, washing machines, TVs, fans, microwaves, geysers and similar appliances or electronics are long-use items. People keep them for years and do not throw them away quickly, so never tell the user to dispose of, replace or upgrade them as the first suggestion. Even when the item is hazardous or has a high Harm Score, the goal is to make it last longer and use it more sustainably.
+- Use category "repair", "reduce" or "reuse" for these items, not "dispose_properly" or "swap".
+- Suggest practical life-extending actions suited to the item, for example: replace a worn battery instead of the device, clean AC filters and fridge coils, use a protective case or screen guard, avoid overcharging, update software, service the appliance regularly, repair instead of replace, or set the AC to an efficient temperature.
+- Mention proper e-waste disposal, resale, donation or trade-in ONLY as a last resort, and only if the input says the item is broken, unrepairable or already being retired. In that case, never suggest throwing it in regular trash.
+- This rule overrides the hard-fail rule above: a hazardous long-use durable does not need to be the first item or require disposal. Put it first only if a life-extending action for it is the highest-impact entry.
+- Do not suggest buying a new or "more efficient" model unless the input states the current one is no longer functional.
+
+TONE & STYLE:
+- Plain language, genuinely useful, no jokes, no insults, no mysticism.
+- Aim the orders at habits and objects, never at people, their bodies, income or circumstances.
+
+Return STRICT JSON only, matching the schema.
 `;
 }

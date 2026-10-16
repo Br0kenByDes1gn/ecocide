@@ -95,7 +95,8 @@ inspection reticles, bureaucratic menace, deadpan machine judgment, satirical dr
 | Stamp ink red | `#c2322b` | DENIED, FINAL NOTICE |
 | Stamp ink green | `#2f7d3a` | APPROVED, EXEMPLARY |
 | Stamp ink amber | `#b45309` | PENDING REVIEW |
-| Compost brown | `#8b5a2b` | Folder tabs, ledger binding, case-file accents |
+| Compost brown | `#8b5a2b` | Folder tabs, ledger binding, case-file accents; the **injunction stamp** (an accepted verdict's issued orders — archive ink, deliberately not a tier ink) |
+| Disposition mark | tier **UI Theme Hex** outline + tier **Stamp Ink Hex** lettering | The caste stamp opposite the injunction's, stating what the Bureau intends to do with the household. The hex draws the border and the wash (so the six tiers stay distinguishable at a glance) while the matte ink carries the lettering: lime, yellow and orange are far too bright to read as ink on `#f1ead6`. Its glyphs are **single-colour line icons inheriting the same ink** (lucide, resolved from keys in the pack) — never colour emoji, which carry their own palette and break the flat stamped look. |
 
 ### 3.3 System Signal Colors
 
@@ -113,7 +114,9 @@ inspection reticles, bureaucratic menace, deadpan machine judgment, satirical dr
 ### 3.4 Compliance Tier Colors
 
 Used for the tier stamp, planet meter and glow. Always paired with the stamp text and
-meter position so color is never the only signal.
+meter position so color is never the only signal. The dossier's disposition mark
+(§3.2) uses the tier hex for its outline and the tier's stamp ink for its
+lettering.
 
 | Tier | Score | Status | Stamp | UI Theme Hex | Glow RGBA |
 | --- | --- | --- | --- | --- | --- |

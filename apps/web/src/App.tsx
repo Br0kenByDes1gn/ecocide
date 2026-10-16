@@ -3,6 +3,7 @@ import type { OraclePayload } from '@ecocide/types';
 import confetti from 'canvas-confetti';
 import { Bug, Globe, Volume2, VolumeX, Wallet } from 'lucide-react';
 import { HomePage } from './components/HomePage';
+import { InjunctionScreen } from './components/InjunctionScreen';
 import { AppealRecordsScreen } from './components/AppealRecordsScreen';
 import { AppealScreen } from './components/AppealScreen';
 import { ArbitrationDossier } from './components/ArbitrationDossier';
@@ -29,6 +30,7 @@ type ViewState =
   | 'appeal'
   | 'appeals'
   | 'registry'
+  | 'injunction'
   | 'debug';
 
 function parseCitizenIdFromUrl(): string | null {
@@ -59,6 +61,14 @@ function parseAppealIdFromUrl(): string | null {
   return searchParams.get('appeal');
 }
 
+/**
+ * The verdict filter on the injunction worksheet (`/injunction?dossier=<id>`),
+ * set by the injunction stamp on a dossier. Absent = the whole worksheet.
+ */
+function parseDossierFilterFromUrl(): string | null {
+  return new URLSearchParams(window.location.search).get('dossier');
+}
+
 function parseAppealsIdFromUrl(): string | null {
   const pathMatch = window.location.pathname.match(/\/appeals\/([a-zA-Z0-9_-]+)/);
   if (pathMatch?.[1]) return pathMatch[1];
@@ -79,6 +89,7 @@ export function App() {
     if (typeof window === 'undefined') return 'intro';
     if (IS_DEV && window.location.pathname === '/debug') return 'debug';
     if (isRegistryPath(window.location.pathname)) return 'registry';
+    if (window.location.pathname === '/injunction') return 'injunction';
     if (parseClaimIdFromUrl()) return 'claim';
     if (parseAppealsIdFromUrl()) return 'appeals';
     if (parseAppealIdFromUrl()) return 'appeal';
@@ -90,6 +101,9 @@ export function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [oracleData, setOracleData] = useState<OraclePayload | null>(null);
   const [evidenceUrl, setEvidenceUrl] = useState<string | undefined>(undefined);
+  const [dossierFilter, setDossierFilter] = useState<string | null>(() =>
+    typeof window === 'undefined' ? null : parseDossierFilterFromUrl()
+  );
   const [permalinkId, setPermalinkId] = useState<string | null>(null);
   /** Archive time of the open dossier (scan time, or record.createdAt). */
   const [sessionDate, setSessionDate] = useState<string | null>(null);
@@ -119,6 +133,15 @@ export function App() {
         // Pre-rename links keep working: normalize `/vault` to `/registry`.
         if (path !== '/registry') window.history.replaceState({}, '', '/registry');
         setViewState('registry');
+        setOracleData(null);
+        setPermalinkId(null);
+        setEvidenceUrl(undefined);
+        setSessionDate(null);
+        return;
+      }
+
+      if (path === '/injunction') {
+        setViewState('injunction');
         setOracleData(null);
         setPermalinkId(null);
         setEvidenceUrl(undefined);
@@ -159,6 +182,7 @@ export function App() {
           suggestions: record.suggestions,
           id: record.id,
           evidenceUrl: record.evidenceUrl,
+          acceptedAt: record.acceptedAt,
         };
         setOracleData(payload);
         setEvidenceUrl(record.evidenceUrl);
@@ -276,15 +300,17 @@ export function App() {
     window.history.pushState({}, '', '/scan');
   };
 
-  const goCitizen = () => {
-    if (!permalinkId) return;
-    setViewState('dossier');
-    window.history.pushState({}, '', `/citizen/${permalinkId}`);
-  };
-
   const goRegistry = () => {
     setViewState('registry');
     window.history.pushState({}, '', '/registry');
+  };
+
+  const goInjunction = (dossierId?: string) => {
+    const query = dossierId ? `?dossier=${encodeURIComponent(dossierId)}` : '';
+    setViewState('injunction');
+    window.history.pushState({}, '', `/injunction${query}`);
+    // The worksheet reads the filter at render, so nudge it to re-read.
+    setDossierFilter(dossierId ?? null);
   };
 
   /** Open any dossier by id (used by the registry's archive/ledger links). */
@@ -303,6 +329,7 @@ export function App() {
         suggestions: record.suggestions,
         id: record.id,
         evidenceUrl: record.evidenceUrl,
+        acceptedAt: record.acceptedAt,
       };
       setOracleData(payload);
       setEvidenceUrl(record.evidenceUrl);
@@ -325,7 +352,13 @@ export function App() {
     window.history.pushState({}, '', `/arbitration/${permalinkId}`);
   };
 
-  const handleClaimed = goCitizen;
+  // Accepting a verdict changes it (it is now terminal, and its injunction is
+  // being issued), so the in-memory payload is stale. Re-read the record before
+  // showing the dossier, or the sealed appeal states and the injunction stamp
+  // would only appear after a manual reload.
+  const handleClaimed = () => {
+    if (permalinkId) void handleOpenDossier(permalinkId);
+  };
 
   const handleOpenAppeals = () => {
     if (!permalinkId) return;
@@ -449,6 +482,17 @@ export function App() {
             INTRO
           </button>
 
+          {(viewState === 'registry' || viewState === 'dossier') && (
+            <button
+              type="button"
+              onClick={() => goInjunction()}
+              className="text-xs font-mono text-gray-400 hover:text-lime-400 border border-gray-800 hover:border-lime-500/50 px-3 py-1.5 rounded-lg bg-gray-950 transition-colors hidden md:block cursor-pointer"
+              title="Open the Environmental Injunction worksheet (/injunction)"
+            >
+              INJUNCTION
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => setIsMuted(soundFx.toggleMute())}
@@ -501,6 +545,7 @@ export function App() {
             onReset={handleReset}
             permalinkId={permalinkId || undefined}
             sessionDate={sessionDate || undefined}
+            onOpenInjunction={goInjunction}
           />
         )}
 
@@ -531,6 +576,7 @@ export function App() {
         {viewState === 'appeals' && (
           <AppealRecordsScreen
             permalinkId={permalinkId || undefined}
+            accepted={Boolean(oracleData?.acceptedAt)}
             onNewAppeal={handleNewAppeal}
             onAcceptCurrent={handleAcceptCurrent}
             onApplyAccepted={handleApplyAccepted}
@@ -541,6 +587,15 @@ export function App() {
           <CarbonRegistryScreen
             onOpenDossier={handleOpenDossier}
             onBeginAudit={handleProceedToScan}
+          />
+        )}
+
+        {viewState === 'injunction' && (
+          <InjunctionScreen
+            onOpenDossier={handleOpenDossier}
+            onBeginAudit={handleProceedToScan}
+            dossierFilter={dossierFilter || undefined}
+            onClearFilter={() => goInjunction()}
           />
         )}
       </main>

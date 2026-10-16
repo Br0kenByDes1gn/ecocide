@@ -124,11 +124,26 @@ apps/server/scripts/  # scan-cost audit
   calls (`oracle_inventory`, `oracle_classify`). Offline when no Gemini creds.
 - `GET /api/citizen/:id`, `GET /api/citizen/:id/appeals`,
   `POST /api/citizen/:id/appeal`, `POST /api/citizen/:id/appeals/:appealId/apply`.
+  **Acceptance is terminal** (`dossiers.accepted_at`): once a verdict is accepted
+  — the `ACCEPT VERDICT` claim — the classification is frozen and both appeal
+  endpoints refuse with 409. These permalink endpoints are public, so the rule is
+  enforced server-side, not just by hiding the buttons.
+- The **environmental injunction** (`src/injunction.ts`) is issued at acceptance,
+  from the frozen verdict (including any granted appeal), exactly once per
+  accepted verdict: the dossier's items are hashed, a cached checklist is reused
+  when unchanged, otherwise a text-only Gemini checklist is generated (or the
+  deterministic simulation offline) and one `injunction_tasks` row per action is
+  inserted, unique on (user, dossier, action). Completed rows are the citizen's
+  banked points; they are never re-issued.
 - `GET /api/census` — live audited-household counts per tier (display gate:
   only once ≥50 audits exist, art §7). `GET /api/evidence/:name`.
 - `GET /api/vault`, `POST /api/vault/link`, `POST /api/vault/charge`,
-  `GET /api/vault/ledger`, `/api/auth/*` (Better Auth email-OTP). These are the
-  Carbon Registry endpoints — the storage path keeps its `vault` name.
+  `GET /api/vault/ledger`, `GET /api/vault/injunction-tasks`,
+  `POST /api/vault/injunction-confirm`, `/api/auth/*` (Better Auth email-OTP).
+  These are the Carbon Registry endpoints — the storage path keeps its `vault`
+  name. `/link` is the acceptance; `/injunction-confirm` banks impact × effort
+  points, which lift the pooled index on read (`min(100, standing + bonus)`) —
+  the stored per-audit SI is never rewritten.
 - `GET /admin/queues` Bull Board (BullMQ mode + Basic auth only).
 - Prompt assembly is thin in `src/gemini.ts` (wraps lore builders, parses
   JSON, sanitizes model output); world copy comes from the pack.
@@ -145,8 +160,8 @@ apps/server/scripts/  # scan-cost audit
 ### apps/web
 
 - SPA flow in `src/App.tsx` (`/`, `/scan`, `/citizen/:id`, `/arbitration/:id`,
-  `/claim/:id`, `/appeal/:id`, `/appeals/:id`, `/registry` with `/vault`
-  redirecting, dev-only `/debug`).
+  `/claim/:id`, `/appeal/:id`, `/appeals/:id`, `/injunction` (optionally
+  `?dossier=<id>`), `/registry` with `/vault` redirecting, dev-only `/debug`).
 - `src/components/HomePage.tsx` — the landing screen (terminal + paper
   dossier panel); the global app header hides on the scan screen.
 - `src/components/ObjectScanner.tsx` (+ `ScannerHeader`, `UploadPanel`,
@@ -164,6 +179,38 @@ apps/server/scripts/  # scan-cost audit
   `RegistryPayment`) — `/registry`: the pooled carbon standing hero, the
   assessment archive and the demoted token account. Payment terminals charge
   via `lib/vault-api.ts` (API/storage names keep their `vault` spellings).
+- `src/components/InjunctionStamp.tsx` (+ `lib/useInjunction.ts`,
+  `lib/injunction-worksheet.ts`) — the mark placed in the dossier's reserved space
+  under IMPACT FINDINGS once an accepted verdict's orders exist. Issuance runs
+  *after* the acceptance response, so the space shows a pulsing line
+  (`INJUNCTION_STAMP.pending`, from the pack) while `useInjunction` waits: it
+  reads once, then polls on a bounded schedule (≤6 requests, 30s deadline),
+  makes no requests while the tab is hidden, and reads once on return. The poll
+  asks for one verdict (`?dossierId=`, served by `getInjunctionTasksByDossier`),
+  so its cost is the matching rows rather than the whole worksheet. Clicking the
+  mark opens `/injunction?dossier=<id>`; the worksheet splits the visible list
+  from the pooled bonus so filtering never moves the standing.
+- `src/components/DossierStamp.tsx` — the shared stamp idiom (hard border, tilt,
+  inset shadow, mono caps) used by **both** marks on the dossier, so they cannot
+  drift. `src/components/DispositionStamp.tsx` (+ `DispositionModal.tsx`) is the
+  other mark, on the left of the reserved space: the Bureau's disposition for the
+  household, from the tier's own `disposition` (label, icon keys, detail) in the
+  pack. No date — it is a statement of intent, not a filing. It is drawn with the
+  tier's hex as the border/wash and the tier's matte `stampInk` as the lettering,
+  and opens the detail in a modal (Escape / backdrop dismiss, mirroring
+  `CensusModal`). Glyphs are line icons whose keys the pack stores and
+  `src/lib/lore-icons.ts` resolves (`topics.icon` uses the same map) — no colour
+  emoji anywhere on the paper layer. Both marks wrap rather than collide on a
+  narrow screen; only the injunction mark plays a landing sound.
+- `src/components/DossierSheet.tsx` + `src/components/PaperDossierPanel.tsx` — the
+  dossier's two-column sheet and its paper half, rendered by **both** the page and
+  the PNG export. `src/lib/dossier-export.ts` rasterises that sheet off-screen
+  (fixed 1280px, 2×, `modern-screenshot` through an SVG `foreignObject`, with
+  canvases swapped for images and motion frozen) so DOWNLOAD CASE CARD produces the
+  page as it looks. **Never hand-paint a second design for the export** — the
+  previous canvas painter described an older page within a day and had to go. The
+  typewriter face is self-hosted (`apps/web/public/fonts/`) so the export is
+  deterministic and the PWA keeps its face offline.
 - Copy: all world strings live in the lore pack; inline UI strings are
   generic chrome, not story.
 

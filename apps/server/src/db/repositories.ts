@@ -1,4 +1,4 @@
-import { desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import type {
   ApiCallLog,
@@ -8,6 +8,8 @@ import type {
   CensusReport,
   CitizenAppeal,
   CitizenRecord,
+  InjunctionItem,
+  InjunctionTask,
   OraclePayload,
   Prophecy,
   ScanCostSummary,
@@ -23,7 +25,7 @@ import { CASTE_ORDER } from '@ecocide/types';
 import { hardFailCount, objectCount, topOffender } from '@ecocide/compliance';
 import { evidenceUrlFor } from '../evidence.js';
 import type { DbConnection } from './client.js';
-import { appeals, dossiers, scanApiLogs, walletLedger, wallets } from './schema.js';
+import { appeals, dossiers, injunctionTasks, scanApiLogs, walletLedger, wallets } from './schema.js';
 
 /**
  * Repository layer: the whole database surface of the app.
@@ -125,6 +127,7 @@ function mapRowToRecord(row: DossierRow): CitizenRecord {
     suggestions,
     evidenceUrl: row.evidence_filename ? evidenceUrlFor(row.evidence_filename) : undefined,
     ownerId: row.user_id || undefined,
+    acceptedAt: row.accepted_at || undefined,
   };
 }
 
@@ -147,6 +150,7 @@ function mapScanLogRow(row: ScanLogRow): ApiCallLog {
   };
 }
 
+type InjunctionTaskRow = typeof injunctionTasks.$inferSelect;
 type WalletRow = typeof wallets.$inferSelect;
 type WalletLedgerRow = typeof walletLedger.$inferSelect;
 
@@ -169,6 +173,23 @@ function mapLedgerRow(row: WalletLedgerRow): WalletLedgerEntry {
     ref: row.ref || undefined,
     balanceAfter: row.balance_after,
     createdAt: row.created_at,
+  };
+}
+
+function mapInjunctionTaskRow(row: InjunctionTaskRow): InjunctionTask {
+  return {
+    id: row.id,
+    action: row.action,
+    replaces: row.replaces,
+    why: row.why,
+    category: row.category as InjunctionTask['category'],
+    impact: row.impact as InjunctionTask['impact'],
+    effort: row.effort as InjunctionTask['effort'],
+    dossierId: row.dossier_id,
+    createdAt: row.created_at,
+    completed: row.completed,
+    completedAt: row.completed_at,
+    points: row.points,
   };
 }
 
@@ -214,6 +235,121 @@ export function createRepositories(db: DbConnection['db']) {
           paragraph_3: fields.paragraph_3,
         })
         .where(eq(dossiers.id, id));
+    },
+
+    /** Reads the cached injunction checklist for a dossier, if one was stored. */
+    async getCachedInjunction(
+      dossierId: string
+    ): Promise<{ hash: string; checklistJson: string } | null> {
+      const [row] = await db
+        .select({ injunction_json: dossiers.injunction_json, injunction_hash: dossiers.injunction_hash })
+        .from(dossiers)
+        .where(eq(dossiers.id, dossierId))
+        .limit(1);
+      if (!row?.injunction_json || !row.injunction_hash) return null;
+      return { hash: row.injunction_hash, checklistJson: row.injunction_json };
+    },
+
+    /** Caches the injunction checklist against the audit-items hash it was built from. */
+    async saveCachedInjunction(dossierId: string, hash: string, checklistJson: string): Promise<void> {
+      await db
+        .update(dossiers)
+        .set({ injunction_json: checklistJson, injunction_hash: hash })
+        .where(eq(dossiers.id, dossierId));
+    },
+
+    /** Appends freshly generated injunction tasks to a citizen's accumulated list. */
+    async addInjunctionTasks(
+      userId: string,
+      dossierId: string,
+      items: InjunctionItem[]
+    ): Promise<void> {
+      const createdAt = new Date().toISOString();
+      for (const item of items) {
+        // `onConflictDoNothing` covers both a model that emits the same action
+        // twice in one checklist and a retried issuance for the same verdict.
+        await db
+          .insert(injunctionTasks)
+          .values({
+            id: nanoid(12),
+            user_id: userId,
+            dossier_id: dossierId,
+            action: item.action,
+            replaces: item.replaces,
+            why: item.why,
+            category: item.category,
+            impact: item.impact,
+            effort: item.effort,
+            created_at: createdAt,
+          })
+          .onConflictDoNothing();
+      }
+    },
+
+    /** Lists a citizen's accumulated injunction tasks, newest first. */
+    async getInjunctionTasksByUser(userId: string): Promise<InjunctionTask[]> {
+      const rows = await db
+        .select()
+        .from(injunctionTasks)
+        .where(eq(injunctionTasks.user_id, userId))
+        .orderBy(desc(injunctionTasks.created_at));
+
+      return rows.map(mapInjunctionTaskRow);
+    },
+
+    /**
+     * The orders issued for ONE verdict — what the dossier page asks for while it
+     * waits for issuance, so the answer costs the matching rows rather than the
+     * citizen's whole worksheet. Rides the unique (user_id, dossier_id, action)
+     * index.
+     */
+    async getInjunctionTasksByDossier(
+      userId: string,
+      dossierId: string
+    ): Promise<InjunctionTask[]> {
+      const rows = await db
+        .select()
+        .from(injunctionTasks)
+        .where(and(eq(injunctionTasks.user_id, userId), eq(injunctionTasks.dossier_id, dossierId)))
+        .orderBy(desc(injunctionTasks.created_at));
+
+      return rows.map(mapInjunctionTaskRow);
+    },
+
+    /**
+     * Marks tasks completed (idempotent per row): only pending rows owned by
+     * the citizen flip. Returns the newly completed ids with their points.
+     */
+    async confirmInjunctionTasks(
+      userId: string,
+      confirmed: Array<{ id: string; points: number }>
+    ): Promise<Array<{ id: string; points: number }>> {
+      const done: Array<{ id: string; points: number }> = [];
+      if (confirmed.length === 0) return done;
+      const completedAt = new Date().toISOString();
+      const pending = await db
+        .select({ id: injunctionTasks.id })
+        .from(injunctionTasks)
+        .where(and(eq(injunctionTasks.user_id, userId), eq(injunctionTasks.completed, false)));
+      const pendingIds = new Set(pending.map((row) => row.id));
+      for (const { id, points } of confirmed) {
+        if (!pendingIds.has(id)) continue;
+        await db
+          .update(injunctionTasks)
+          .set({ completed: true, completed_at: completedAt, points })
+          .where(eq(injunctionTasks.id, id));
+        done.push({ id, points });
+      }
+      return done;
+    },
+
+    /** Sums every completed point a citizen has banked. */
+    async getInjunctionBonusTotal(userId: string): Promise<number> {
+      const rows = await db
+        .select({ points: injunctionTasks.points })
+        .from(injunctionTasks)
+        .where(and(eq(injunctionTasks.user_id, userId), eq(injunctionTasks.completed, true)));
+      return rows.reduce((sum, row) => sum + row.points, 0);
     },
 
     /** Persists an appeal filing + its ruling, linked to the original dossier. */
@@ -558,6 +694,22 @@ export function createRepositories(db: DbConnection['db']) {
     /** Attaches an (anonymous) dossier to a vault account. */
     async linkDossierToUser(dossierId: string, userId: string): Promise<void> {
       await db.update(dossiers).set({ user_id: userId }).where(eq(dossiers.id, dossierId));
+    },
+
+    /**
+     * Accepts a verdict: acceptance is terminal (it freezes the classification,
+     * closes appeals and issues the injunction). Sets the timestamp only the
+     * first time, so a repeated claim cannot re-accept or re-issue.
+     * Returns the acceptance time, or null when it was already accepted.
+     */
+    async acceptDossier(dossierId: string): Promise<string | null> {
+      const acceptedAt = new Date().toISOString();
+      const rows = await db
+        .update(dossiers)
+        .set({ accepted_at: acceptedAt })
+        .where(and(eq(dossiers.id, dossierId), isNull(dossiers.accepted_at)))
+        .returning({ id: dossiers.id });
+      return rows.length > 0 ? acceptedAt : null;
     },
 
     /**

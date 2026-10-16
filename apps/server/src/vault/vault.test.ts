@@ -132,6 +132,19 @@ function makeCleanPayload(): OraclePayload {
 /** `saveDossier` stamps ISO-ms timestamps; a tick keeps two saves ordered. */
 const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
 
+/**
+ * Issuance hangs off the claim without being awaited (a model call must not block
+ * the certification screen), so the test waits for the actions to land.
+ */
+async function waitForTasks(userId: string, timeoutMs = 5000) {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const tasks = await repositories.getInjunctionTasksByUser(userId);
+    if (tasks.length > 0 || Date.now() > deadline) return tasks;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+}
+
 describe('vault routes', () => {
   it('rejects unauthenticated access', async () => {
     const app = makeApp(null);
@@ -189,6 +202,8 @@ describe('vault routes', () => {
     expect(linked.linked).toBe(true);
     expect(linked.wallet.credits).toBe(VAULT_ALLOWANCE - VAULT_CLAIM_FEE);
     expect(linked.dossier.ownerId).toBe(USER_A);
+    // Accepting the verdict is part of the claim.
+    expect(linked.dossier.acceptedAt).toBeTruthy();
 
     // Idempotent: re-linking does not double-charge.
     const second = await app.request('/api/vault/link', {
@@ -202,6 +217,32 @@ describe('vault routes', () => {
 
     const ledger = await repositories.getWalletLedger(USER_A);
     expect(ledger.filter((e) => e.reason === 'claim_fee')).toHaveLength(1);
+  });
+
+  it('issues the injunction from the accepted verdict, exactly once', async () => {
+    const dossierId = await repositories.saveDossier(makePayload());
+    const app = makeApp(USER_A);
+    const link = () =>
+      app.request('/api/vault/link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dossierId }),
+      });
+
+    const first = await (await link()).json();
+    const acceptedAt = first.dossier.acceptedAt;
+    expect(acceptedAt).toBeTruthy();
+
+    const tasks = await waitForTasks(USER_A);
+    expect(tasks.length).toBeGreaterThan(0);
+    expect(tasks.every((task) => task.dossierId === dossierId)).toBe(true);
+    expect(tasks.every((task) => task.completed === false)).toBe(true);
+
+    // Re-linking neither re-accepts the verdict nor duplicates the actions.
+    const relinked = await (await link()).json();
+    expect(relinked.linked).toBe(false);
+    expect(relinked.dossier.acceptedAt).toBe(acceptedAt);
+    expect(await repositories.getInjunctionTasksByUser(USER_A)).toHaveLength(tasks.length);
   });
 
   it('refuses to bind a dossier already owned by another vault', async () => {
@@ -378,7 +419,94 @@ describe('vault routes', () => {
     expect(clamped.offset).toBe(0);
   });
 
+  it('scopes the orders to one verdict on request', async () => {
+    const app = makeApp(USER_A);
+    const first = await repositories.saveDossier(makePayload());
+    const second = await repositories.saveDossier(makePayload());
+    await repositories.addInjunctionTasks(USER_A, first, [
+      { action: 'Retire the pods.', replaces: 'coffee pod', why: 'W', category: 'reduce', impact: 'high', effort: 'easy' },
+      { action: 'Reuse the jar.', replaces: 'glass jar', why: 'W', category: 'reuse', impact: 'low', effort: 'easy' },
+    ]);
+    await repositories.addInjunctionTasks(USER_A, second, [
+      { action: 'Swap the bulb.', replaces: 'bulb', why: 'W', category: 'swap', impact: 'medium', effort: 'easy' },
+    ]);
+
+    // Bare request = the whole worksheet, which is what /injunction shows.
+    const all = await (await app.request('/api/vault/injunction-tasks')).json();
+    expect(all.tasks).toHaveLength(3);
+
+    // ?dossierId= is the small answer the dossier page polls while it waits for
+    // issuance: only this verdict's rows.
+    const scoped = await (
+      await app.request(`/api/vault/injunction-tasks?dossierId=${first}`)
+    ).json();
+    expect(scoped.tasks).toHaveLength(2);
+    expect(scoped.tasks.every((task) => task.dossierId === first)).toBe(true);
+
+    // A verdict with no orders of its own answers with nothing, not the rest.
+    const empty = await (
+      await app.request('/api/vault/injunction-tasks?dossierId=no-such-verdict')
+    ).json();
+    expect(empty.tasks).toEqual([]);
+
+    // Another citizen's scope never reaches these orders.
+    const foreign = await (
+      await makeApp(USER_B).request(`/api/vault/injunction-tasks?dossierId=${first}`)
+    ).json();
+    expect(foreign.tasks).toEqual([]);
+  });
+
   it('rejects unauthenticated ledger access', async () => {
     expect((await makeApp(null).request('/api/vault/ledger')).status).toBe(401);
+  });
+
+  it('confirms injunction tasks with impact x effort points, idempotently', async () => {
+    const app = makeApp(USER_A);
+    // Actions are issued against an accepted verdict, so seed real dossiers:
+    // the FK makes the provenance real rather than a free-form string.
+    const dossierA = await repositories.saveDossier(makePayload());
+    const dossierB = await repositories.saveDossier(makePayload());
+    await repositories.addInjunctionTasks(USER_A, dossierA, [
+      { action: 'A', replaces: 'x', why: 'W', category: 'reduce', impact: 'medium', effort: 'easy' },
+      { action: 'B', replaces: 'y', why: 'W', category: 'swap', impact: 'high', effort: 'hard' },
+    ]);
+    await repositories.addInjunctionTasks(USER_B, dossierB, [
+      { action: 'C', replaces: 'z', why: 'W', category: 'reuse', impact: 'low', effort: 'easy' },
+    ]);
+    const own = await repositories.getInjunctionTasksByUser(USER_A);
+    const foreign = (await repositories.getInjunctionTasksByUser(USER_B))[0];
+
+    const res = await app.request('/api/vault/injunction-confirm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ taskIds: [...own.map((t) => t.id), foreign.id, 'nope'] }),
+    });
+    const body = await res.json();
+    // medium(4) x easy(2) = 8; high(8) x hard(8) = 64; foreign + unknown ignored.
+    expect(body.confirmed).toHaveLength(2);
+    expect(body.bonusTotal).toBe(72);
+    expect(body.effectiveIndex).toBeLessThanOrEqual(100);
+
+    // Idempotent: confirming again yields nothing new.
+    const again = await (
+      await app.request('/api/vault/injunction-confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskIds: own.map((t) => t.id) }),
+      })
+    ).json();
+    expect(again.confirmed).toHaveLength(0);
+    expect(again.bonusTotal).toBe(72);
+
+    // Empty selection is a 400.
+    expect(
+      (
+        await app.request('/api/vault/injunction-confirm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ taskIds: [] }),
+        })
+      ).status
+    ).toBe(400);
   });
 });

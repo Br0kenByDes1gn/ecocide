@@ -335,6 +335,13 @@ app.post('/api/citizen/:id/appeal', async (c) => {
       return c.json({ error: 'Citizen record not found' }, 404);
     }
 
+      // Acceptance is terminal: the ruling is frozen and appeals are closed.
+      // Enforced here, not just in the UI — these permalink endpoints are public,
+      // so the rule has to hold without a session.
+      if (record.acceptedAt) {
+        return c.json({ error: 'This verdict was accepted — the ruling is final and appeals are closed' }, 409);
+      }
+
     const body = (await c.req.json().catch(() => ({}))) as AppealRequest;
     const appeal = (body.appeal || '').trim();
     if (!appeal) {
@@ -403,6 +410,11 @@ app.post('/api/citizen/:id/appeals/:appealId/apply', async (c) => {
     return c.json({ error: 'Citizen record not found' }, 404);
   }
 
+  // Re-arbitration rewrites the classification, so it closes with acceptance.
+  if (record.acceptedAt) {
+    return c.json({ error: 'This verdict was accepted — the ruling is final and cannot be re-arbitrated' }, 409);
+  }
+
   const appeal = (await repositories.getAppealsByDossier(id)).find((a) => a.id === appealId);
   if (!appeal) {
     return c.json({ error: 'Appeal not found for this citizen' }, 404);
@@ -410,7 +422,6 @@ app.post('/api/citizen/:id/appeals/:appealId/apply', async (c) => {
   if (!appeal.accepted || !appeal.newCaste) {
     return c.json({ error: 'Only an accepted appeal with a re-classification can be applied' }, 400);
   }
-
   // Re-arbitrate against the STORED inventory (no vision re-call).
   let fresh: ReArbitrationVerdict;
   if (geminiConfigured()) {

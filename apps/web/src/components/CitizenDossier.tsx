@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import type { OraclePayload } from '@ecocide/types';
 import { getFaction } from '@ecocide/types';
-import { CheckCircle2, ChevronDown, ChevronUp, Layers } from 'lucide-react';
-import { downloadHouseholdDossierPng } from '../lib/dossierCardPng';
+import { downloadHouseholdDossier } from '../lib/dossier-export';
 import { fullAuditReveal } from '../lib/useAuditReveal';
 import { useVault } from '../lib/useVault';
-import { soundFx } from '../lib/audio';
+import type { LensId } from '../lib/audit-lenses';
+import { useInjunctionStamp } from '../lib/useInjunction';
 import { DossierActions } from './DossierActions';
+import { DispositionModal } from './DispositionModal';
+import { DossierSheet } from './DossierSheet';
 import { HouseholdAuditCard } from './HouseholdAuditCard';
-import { DossierProphecy } from './DossierProphecy';
-import { PaperDossierHeader } from './PaperDossierHeader';
-import { PaperInventoryTable } from './PaperInventoryTable';
+import { PaperDossierPanel } from './PaperDossierPanel';
 
 interface CitizenDossierProps {
   payload: OraclePayload;
@@ -18,6 +18,8 @@ interface CitizenDossierProps {
   onReset: () => void;
   permalinkId?: string;
   sessionDate?: string;
+  /** Open the injunction worksheet filtered to this verdict (absent where there is none). */
+  onOpenInjunction?: (dossierId: string) => void;
 }
 
 /**
@@ -31,111 +33,97 @@ export const CitizenDossier: React.FC<CitizenDossierProps> = ({
   onReset,
   permalinkId,
   sessionDate,
+  onOpenInjunction,
 }) => {
-  const { user_profile, prophecy, audit, suggestions } = payload;
+  const { user_profile, audit } = payload;
   const reveal = fullAuditReveal(user_profile, audit);
   const { vault } = useVault();
 
-  const caseId = permalinkId || payload.id || null;
   // Citizen ID mirrors the registry "Registered to" identity (vault account email).
   const citizenId = vault?.user.email ?? (permalinkId ? `#${permalinkId}` : null);
   const [inventoryOpen, setInventoryOpen] = useState(false);
+  const [dispositionOpen, setDispositionOpen] = useState(false);
+  // The page owns the chosen lens so the PNG export can reproduce it.
+  const [lens, setLens] = useState<LensId>('neon-outline');
+  const [preparingPng, setPreparingPng] = useState(false);
 
-  const handleDownloadCard = () => {
-    downloadHouseholdDossierPng({ payload, permalinkId });
+  // Once the verdict is accepted the orders are issued in the background, so the
+  // stamp waits for them: immediate on a later visit, a short poll on the visit
+  // right after accepting.
+  const injunction = useInjunctionStamp(permalinkId, Boolean(payload.acceptedAt));
+
+  const handleDownloadCard = async () => {
+    if (preparingPng) return;
+    setPreparingPng(true);
+    try {
+      await downloadHouseholdDossier({
+        payload,
+        permalinkId,
+        evidenceUrl,
+        sessionDate,
+        citizenId,
+        lens,
+        injunctionStatus: injunction.status,
+      });
+    } catch (e) {
+      console.error('[Dossier] PNG export failed:', e);
+    } finally {
+      setPreparingPng(false);
+    }
   };
 
   return (
     <div className="w-full max-w-7xl mx-auto px-4 sm:px-6">
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:items-start">
-        <HouseholdAuditCard payload={payload} evidenceUrl={evidenceUrl} reveal={reveal} hideInventory />
+      <DossierSheet
+        card={
+          <HouseholdAuditCard
+            payload={payload}
+            evidenceUrl={evidenceUrl}
+            reveal={reveal}
+            lens={lens}
+            onLensChange={setLens}
+            hideInventory
+          />
+        }
+        panel={
+          <>
+            <PaperDossierPanel
+              payload={payload}
+              evidenceUrl={evidenceUrl}
+              permalinkId={permalinkId}
+              sessionDate={sessionDate}
+              citizenId={citizenId}
+              injunction={injunction}
+              onOpenInjunction={onOpenInjunction}
+              onOpenDisposition={() => setDispositionOpen(true)}
+              inventoryOpen={inventoryOpen}
+              onToggleInventory={() => setInventoryOpen((o) => !o)}
+            />
 
-        <div className="space-y-6">
-          <div className="paper-layer relative rounded-xl border border-[#d9cfb6] p-4 flex flex-col min-w-0 overflow-hidden">
-            <div
-              className="absolute inset-0 opacity-10 pointer-events-none"
-              style={{
-                backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+            <DossierActions
+              onReset={onReset}
+              onDownload={handleDownloadCard}
+              busy={preparingPng}
+              payload={payload}
+              share={{
+                permalinkId,
+                honorificTitle: user_profile.honorific_title,
+                factionName: '',
+                stampText: getFaction(user_profile.caste).stampText,
+                ratio: user_profile.biocarbon_ratio,
+                itemsScanned: audit.items.length,
               }}
             />
-            <PaperDossierHeader caseId={caseId} sessionDate={sessionDate} subtitle="IMPACT FINDINGS" citizenId={citizenId} largeIds subtitleBelowIds />
-            <div className="relative mt-[11px] rounded-sm border border-[#cfc4a8] bg-[#fbf7ea] p-3">
-              <button
-                type="button"
-                onClick={() => {
-                  soundFx.playClick();
-                  setInventoryOpen((o) => !o);
-                }}
-                className="w-full flex items-center justify-between text-xs font-mono text-[#1f2a1f] hover:text-[#6b7263] transition-colors cursor-pointer"
-              >
-                <span className="flex items-center gap-2">
-                  <Layers className="w-4 h-4 text-[#6b7263]" />
-                  AUDIT INVENTORY ({audit.items.length} ITEMS{audit.hardFails > 0 ? ` - ${audit.hardFails} FLAGGED` : ''})
-                </span>
-                {inventoryOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              </button>
+          </>
+        }
+      />
 
-              {inventoryOpen && (
-                <PaperInventoryTable items={audit.items} evidenceUrl={evidenceUrl} />
-              )}
-            </div>
-            <div className="relative mt-6">
-              <DossierProphecy
-                headline={prophecy.headline}
-                text1={prophecy.paragraph_1}
-                text2={prophecy.paragraph_2}
-                text3={prophecy.paragraph_3}
-                isTyping={false}
-                caste={user_profile.caste}
-                tone="paper"
-              />
-            </div>
-
-            {/* Remediation orders / pledges available */}
-            {suggestions.length > 0 && (
-              <div
-                className="relative mt-6 rounded-sm border border-[#cfc4a8] p-4"
-                style={{ letterSpacing: '1px' }}
-              >
-                <div className="flex items-center gap-2 border-b border-[#cfc4a8] pb-3">
-                  <CheckCircle2 className="w-5 h-5 text-[#1f2a1f]" />
-                  <h3 className="text-sm font-bold text-[#1f2a1f] tracking-wider uppercase">
-                    REMEDIATION ORDERS - PLEDGES AVAILABLE
-                  </h3>
-                </div>
-                <ul className="mt-4 space-y-3">
-                  {suggestions.map((s, i) => (
-                    <li key={i} className="flex items-start gap-3 text-sm text-[#2c3a2c]">
-                      <span className="text-[#1f2a1f] font-black shrink-0">+{s.impact_pct}%</span>
-                      <span className="leading-relaxed">
-                        {s.text}{' '}
-                        <span className="text-[#6b7263] text-xs">— {s.pledge}</span>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-                <p className="mt-4 text-[10px] text-[#6b7263]">
-                  ALL VALUES ARE ESTIMATES - SOURCE ON FILE - FILE AN APPEAL TO PLEDGE THESE ORDERS
-                </p>
-              </div>
-            )}
-          </div>
-
-          <DossierActions
-            onReset={onReset}
-            onDownload={handleDownloadCard}
-            payload={payload}
-            share={{
-              permalinkId,
-              honorificTitle: user_profile.honorific_title,
-              factionName: '',
-              stampText: getFaction(user_profile.caste).stampText,
-              ratio: user_profile.biocarbon_ratio,
-              itemsScanned: audit.items.length,
-            }}
-          />
-        </div>
-      </div>
+      <DispositionModal
+        isOpen={dispositionOpen}
+        onClose={() => setDispositionOpen(false)}
+        caste={user_profile.caste}
+        index={user_profile.biocarbon_ratio}
+      />
     </div>
   );
 };

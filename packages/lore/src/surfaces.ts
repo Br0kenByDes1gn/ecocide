@@ -83,6 +83,21 @@ export const REGISTRY_COPY = {
     verifying: 'Verifying...',
   },
 
+  /** The environmental injunction worksheet (route `/injunction`). */
+  injunction: {
+    title: 'Environmental Injunction',
+    hint: 'Binding orders issued against this household. Comply, then check each item.',
+    cleared: 'All orders complied with. The Bureau notes your obedience.',
+    closing: 'Pledge these actions to lift your score, one habit at a time.',
+    items: [
+      'Halt all single-use plastic procurement within 7 days',
+      'Divert compostables from landfill to the green bin',
+      'Switch remaining bulbs to low-draw lighting',
+      'Unplug idle electronics and chargers nightly',
+      'File proof of remediation with the Bureau',
+    ],
+  },
+
   /** The simulated payment terminal used by the claim and appeal flows. */
   terminal: {
     title: 'Carbon Registry Terminal',
@@ -104,3 +119,45 @@ export function standingTrendLabel(delta: number): string {
   const sign = delta > 0 ? '+' : '−';
   return `${sign}${Math.abs(delta)} vs prior record`;
 }
+
+/**
+ * The disposition mark's file — what the Bureau intends to do with the household,
+ * which the caste stamp on the dossier opens. The per-tier wording lives on the
+ * tiers themselves (`FactionDef.disposition`); this is the chrome around it.
+ */
+export const DISPOSITION_COPY = {
+  title: 'Bureau Disposition',
+  /** Tooltip on the mark itself — says what opening it does. */
+  open: "Open the Bureau's disposition for this household",
+  /** Label over the household's own index + its band. */
+  band: 'Assessment band',
+  index: 'Index',
+  /** Footer label over the tier's one-line verdict. */
+  verdict: 'Standing verdict',
+  close: 'Close file',
+} as const;
+
+/**
+ * The injunction stamp — the mark placed on an accepted verdict's dossier once
+ * its corrective orders have been issued (see `issueInjunction` on the server).
+ *
+ * Like the tier stamp, both the wording and the ink come from the pack so the
+ * stamp is never wrong: the ink is the art bible's *archive* ink
+ * (art_directions.md §3.2, "folder tabs, ledger binding, case-file accents"),
+ * which no tier uses, so this mark never reads as a verdict.
+ */
+export const INJUNCTION_STAMP = {
+  /** Headline of the stamp (the component uppercases it). */
+  label: 'Injunction issued',
+  /** Prefixed to the issuance date, e.g. "Filed 2026-10-16". */
+  dated: 'Filed',
+  /**
+   * Shown in the stamp's reserved space while the orders are being drafted —
+   * issuance happens after the acceptance response, so the dossier says who is
+   * working. Same register as the other in-flight lines ("Debiting registry
+   * ledger...").
+   */
+  pending: 'The Arbiter is drafting your orders...',
+  /** Archive ink — art_directions.md §3.2. */
+  ink: '#8b5a2b',
+} as const;

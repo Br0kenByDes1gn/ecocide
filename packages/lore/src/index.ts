@@ -6,7 +6,7 @@
 // ---------------------------------------------------------------------------
 
 export { IDENTITY } from './identity.js';
-export { REGISTRY_COPY, standingTrendLabel } from './surfaces.js';
+export { REGISTRY_COPY, INJUNCTION_STAMP, DISPOSITION_COPY, standingTrendLabel } from './surfaces.js';
 export { PALETTE, CONFETTI_COLORS } from './art.js';
 export {
   FACTIONS,
@@ -23,6 +23,7 @@ export {
 export type {
   FactionId,
   FactionDef,
+  FactionDisposition,
   FactionColorConfig,
   FactionTopic,
   FactionPromptBlocks,
@@ -36,16 +37,26 @@ export {
   dimensionRubricBlock,
   INVENTORY_JSON_SCHEMA,
   VERDICT_JSON_SCHEMA,
+  INJUNCTION_JSON_SCHEMA,
+  INJUNCTION_CATEGORIES,
+  INJUNCTION_IMPACTS,
+  INJUNCTION_EFFORTS,
   buildInventoryPrompt,
   buildVerdictPrompt,
   buildAppealPrompt,
   buildReArbitrationPrompt,
+  buildInjunctionPrompt,
 } from './prompts.js';
 export type {
   VerdictPromptInput,
   AppealPromptDossier,
   ReArbitrationPromptDossier,
   ReArbitrationPromptAppeal,
+  InjunctionCategory,
+  InjunctionImpact,
+  InjunctionEffort,
+  InjunctionPromptItem,
+  InjunctionPromptInput,
 } from './prompts.js';
 export {
   fnv1a,
@@ -58,6 +69,7 @@ export {
   generateSimulatedSuggestions,
   generateSimulatedAppealRuling,
   generateSimulatedReArbitrationCopy,
+  generateSimulatedInjunction,
 } from './simulate.js';
 export type {
   SimItem,
@@ -69,4 +81,7 @@ export type {
   SimAppealRuling,
   SimReArbitrationInput,
   SimReArbitrationCopy,
+  SimScoredItem,
+  SimInjunctionItem,
+  SimInjunctionChecklist,
 } from './simulate.js';
