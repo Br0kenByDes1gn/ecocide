@@ -300,16 +300,14 @@ export function createRepositories(db: DbConnection['db']) {
       const pending = await db
         .select({ id: injunctionTasks.id })
         .from(injunctionTasks)
-        .where(and(eq(injunctionTasks.user_id, userId), eq(injunctionTasks.completed, false)))
-        .all();
+        .where(and(eq(injunctionTasks.user_id, userId), eq(injunctionTasks.completed, false)));
       const pendingIds = new Set(pending.map((row) => row.id));
       for (const { id, points } of confirmed) {
         if (!pendingIds.has(id)) continue;
         await db
           .update(injunctionTasks)
           .set({ completed: true, completed_at: completedAt, points })
-          .where(eq(injunctionTasks.id, id))
-          .run();
+          .where(eq(injunctionTasks.id, id));
         done.push({ id, points });
       }
       return done;
@@ -317,11 +315,10 @@ export function createRepositories(db: DbConnection['db']) {
 
     /** Sums every completed point a citizen has banked. */
     async getInjunctionBonusTotal(userId: string): Promise<number> {
-      const rows = db
+      const rows = await db
         .select({ points: injunctionTasks.points })
         .from(injunctionTasks)
-        .where(and(eq(injunctionTasks.user_id, userId), eq(injunctionTasks.completed, true)))
-        .all();
+        .where(and(eq(injunctionTasks.user_id, userId), eq(injunctionTasks.completed, true)));
       return rows.reduce((sum, row) => sum + row.points, 0);
     },
 
