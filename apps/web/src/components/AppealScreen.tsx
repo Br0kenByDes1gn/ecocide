@@ -59,10 +59,12 @@ export const AppealScreen: React.FC<AppealScreenProps> = ({ payload, permalinkId
       setError('NO PERMANENT RECORD AVAILABLE FOR APPEAL.');
       return;
     }
-    const pledgeLines = [...pledges].map((i) => suggestions[i]?.pledge).filter(Boolean);
-    const fullAppeal = pledgeLines.length
-      ? `${base}\n\nPLEDGES OFFERED: ${pledgeLines.join(' // ')}`
-      : base;
+    // Send the selection as data: the server composes the "PLEDGES OFFERED" block
+    // into the text the tribunal reads, and stores the pledges with the filing.
+    const offered = [...pledges]
+      .map((i) => suggestions[i])
+      .filter((s): s is NonNullable<typeof s> => Boolean(s))
+      .map((s) => ({ text: s.text, pledge: s.pledge, impact_pct: s.impact_pct }));
 
     setPhase('loading');
     setError(null);
@@ -70,7 +72,7 @@ export const AppealScreen: React.FC<AppealScreenProps> = ({ payload, permalinkId
       const res = await fetch(`/api/citizen/${permalinkId}/appeal`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ appeal: fullAppeal }),
+        body: JSON.stringify({ appeal: base, pledges: offered }),
       });
       if (!res.ok) throw new Error(`Appeal server responded with ${res.status}`);
       onSubmitted();

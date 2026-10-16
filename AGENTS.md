@@ -128,6 +128,15 @@ apps/server/scripts/  # scan-cost audit
   — the `ACCEPT VERDICT` claim — the classification is frozen and both appeal
   endpoints refuse with 409. These permalink endpoints are public, so the rule is
   enforced server-side, not just by hiding the buttons.
+- **Pledges** are persisted when an appeal is *filed* (`appeals.pledges_json`, a
+  `PledgeRef[]`), and the **server composes** the `PLEDGES OFFERED: …` block into
+  the stored appeal text — the tribunal reads the prose, the record keeps the list,
+  and one composer keeps them equal. Phrase and impact are stored, not a suggestion
+  index: applying a granted appeal re-arbitrates the dossier and replaces its
+  suggestions, so an index would point at a list that no longer exists.
+  `GET /api/citizen/:id` returns `acceptedPledges`, derived from **granted** appeals
+  only (de-duplicated by phrase) — a rejected filing offered pledges it never had
+  accepted. Rows filed before that column exist read as `[]`.
 - The **environmental injunction** (`src/injunction.ts`) is issued at acceptance,
   from the frozen verdict (including any granted appeal), exactly once per
   accepted verdict: the dossier's items are hashed, a cached checklist is reused
@@ -220,6 +229,14 @@ apps/server/scripts/  # scan-cost audit
   previous canvas painter described an older page within a day and had to go. The
   typewriter face is self-hosted (`apps/web/public/fonts/`) so the export is
   deterministic and the PWA keeps its face offline.
+- `src/components/PaperDossierPanel.tsx` — the paper half of a dossier. Its
+  remediation block always lists the pledges, split into `PLEDGED` (from
+  `acceptedPledges`, in pledge green with the grant date) and `UNPLEDGED` (the
+  verdict's suggestions minus any already granted, matched by phrase so nothing is
+  listed twice). The split comes from `lib/pledges.ts`; the copy from
+  `REMEDIATION_COPY`. Once acceptance has closed the file the footer stops inviting
+  an appeal, and the audit card's tile counts the group its label names
+  (`Pledges available` = still unpledged, `Pledges on file` = granted).
 - `src/components/PaperDossierHeader.tsx` — the paper header shared by the
   arbitration and citizen dossiers (and the PNG export). Everything collapses under
   `sm:` — the recycling mark, the bureau title, the case/citizen ids and the

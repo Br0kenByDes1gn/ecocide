@@ -1,8 +1,9 @@
 import React from 'react';
 import type { OraclePayload } from '@ecocide/types';
-import { INJUNCTION_STAMP } from '@ecocide/lore';
+import { INJUNCTION_STAMP, PALETTE, REMEDIATION_COPY } from '@ecocide/lore';
 import { CheckCircle2, ChevronDown, ChevronUp, Layers } from 'lucide-react';
 import { soundFx } from '../lib/audio';
+import { splitPledges } from '../lib/pledges';
 import { DispositionStamp } from './DispositionStamp';
 import { DossierProphecy } from './DossierProphecy';
 import { InjunctionStamp } from './InjunctionStamp';
@@ -55,6 +56,9 @@ export const PaperDossierPanel: React.FC<PaperDossierPanelProps> = ({
 }) => {
   const { user_profile, prophecy, audit, suggestions } = payload;
   const caseId = permalinkId || payload.id || null;
+  // What the tribunal granted lives on the file, not in the suggestion list: a
+  // granted appeal re-arbitrates the dossier and replaces those suggestions.
+  const pledgeGroups = splitPledges(suggestions, payload.acceptedPledges);
 
   return (
     <div className="paper-layer relative rounded-xl border border-[#d9cfb6] p-4 flex flex-col min-w-0 overflow-hidden">
@@ -130,30 +134,76 @@ export const PaperDossierPanel: React.FC<PaperDossierPanelProps> = ({
         />
       </div>
 
-      {/* Remediation orders / pledges available */}
-      {suggestions.length > 0 && (
+      {/*
+        Remediation orders — the verdict's pledges, split by what the tribunal
+        granted and what was never pledged. Acceptance closes the file, so the
+        footer stops inviting an appeal at that point (see REMEDIATION_COPY).
+      */}
+      {pledgeGroups.pledged.length + pledgeGroups.unpledged.length > 0 && (
         <div className="relative mt-6 rounded-sm border border-[#cfc4a8] p-4" style={{ letterSpacing: '1px' }}>
           <div className="flex items-center gap-2 border-b border-[#cfc4a8] pb-3">
             <CheckCircle2 className="w-5 h-5 text-[#1f2a1f]" />
             <h3 className="text-sm font-bold text-[#1f2a1f] tracking-wider uppercase">
-              REMEDIATION ORDERS - PLEDGES AVAILABLE
+              {REMEDIATION_COPY.title}
             </h3>
           </div>
-          <ul className="mt-4 space-y-3">
-            {suggestions.map((s, i) => (
-              <li key={i} className="flex items-start gap-3 text-sm text-[#2c3a2c]">
-                <span className="text-[#1f2a1f] font-black shrink-0">+{s.impact_pct}%</span>
-                <span className="leading-relaxed">
-                  {s.text} <span className="text-[#6b7263] text-xs">— {s.pledge}</span>
-                </span>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-4 text-[10px] text-[#6b7263]">
-            ALL VALUES ARE ESTIMATES - SOURCE ON FILE - FILE AN APPEAL TO PLEDGE THESE ORDERS
+
+          {pledgeGroups.pledged.length > 0 && (
+            <>
+              <PledgeGroupHead label={REMEDIATION_COPY.pledged} tone="pledged" />
+              <ul className="mt-3 space-y-3">
+                {pledgeGroups.pledged.map((p, i) => (
+                  <li key={`pledged-${i}`} className="flex items-start gap-3 text-sm text-[#2c3a2c]">
+                    <span className="shrink-0 font-black" style={{ color: PLEDGE_GREEN }}>
+                      +{p.impact_pct}%
+                    </span>
+                    <span className="leading-relaxed">
+                      {p.text} <span className="text-[#6b7263] text-xs">— {p.pledge}</span>
+                      <span className="mt-0.5 block text-[10px] uppercase tracking-widest" style={{ color: PLEDGE_GREEN }}>
+                        {REMEDIATION_COPY.granted} {p.grantedAt.slice(0, 10)}
+                      </span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+
+          {pledgeGroups.unpledged.length > 0 && (
+            <>
+              <PledgeGroupHead label={REMEDIATION_COPY.unpledged} tone="plain" />
+              <ul className="mt-3 space-y-3">
+                {pledgeGroups.unpledged.map((s, i) => (
+                  <li key={`unpledged-${i}`} className="flex items-start gap-3 text-sm text-[#2c3a2c]">
+                    <span className="text-[#1f2a1f] font-black shrink-0">+{s.impact_pct}%</span>
+                    <span className="leading-relaxed">
+                      {s.text} <span className="text-[#6b7263] text-xs">— {s.pledge}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+
+          <p className="mt-4 text-[10px] text-[#6b7263] uppercase">
+            {payload.acceptedAt ? REMEDIATION_COPY.footerFinal : REMEDIATION_COPY.footerOpen}
           </p>
         </div>
       )}
     </div>
   );
 };
+
+/** Green: the art bible defines it for accepted pledges and success states. */
+const PLEDGE_GREEN = PALETTE.success;
+
+/** Sub-head that separates the granted pledges from the ones still offered. */
+const PledgeGroupHead: React.FC<{ label: string; tone: 'pledged' | 'plain' }> = ({ label, tone }) => (
+  <div
+    className="mt-4 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest"
+    style={{ color: tone === 'pledged' ? PLEDGE_GREEN : '#6b7263' }}
+  >
+    {tone === 'pledged' && <CheckCircle2 className="w-3.5 h-3.5" />}
+    {label}
+  </div>
+);

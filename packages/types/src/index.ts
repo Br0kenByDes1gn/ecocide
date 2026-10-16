@@ -126,6 +126,25 @@ export interface Suggestion {
   impact_pct: number;
 }
 
+/**
+ * A pledge a household offered with an appeal.
+ *
+ * Persisted on the appeal at filing (as text, not a suggestion index, so it
+ * survives the re-arbitration that rewrites the dossier's suggestions).
+ */
+export interface PledgeRef {
+  /** The remediation action it came from. */
+  text: string;
+  /** The short commitment phrase the tribunal reads, e.g. "Retire 1 per week". */
+  pledge: string;
+  impact_pct: number;
+}
+
+/** A pledge the tribunal granted, with the date it entered the file. */
+export interface AcceptedPledge extends PledgeRef {
+  grantedAt: string;
+}
+
 /** One corrective action on the environmental injunction checklist. */
 export interface InjunctionItem {
   action: string;
@@ -196,6 +215,8 @@ export interface OraclePayload {
   evidenceUrl?: string;
   /** Set once the citizen accepts the verdict — acceptance is terminal. */
   acceptedAt?: string;
+  /** Pledges granted on appeal, from `CitizenRecord.acceptedPledges`. */
+  acceptedPledges?: AcceptedPledge[];
 }
 
 export interface CitizenRecord {
@@ -206,6 +227,12 @@ export interface CitizenRecord {
   prophecy: Prophecy;
   audit: HouseholdAudit;
   suggestions: Suggestion[];
+  /**
+   * Pledges the tribunal granted on this dossier, in the order they were granted
+   * (populated by the permalink endpoint; derived from accepted appeals, so the
+   * dossier never has to reconstruct them from appeal prose).
+   */
+  acceptedPledges?: AcceptedPledge[];
   /** Served URL of the archived evidence photo (`/api/evidence/<id>.jpg`). */
   evidenceUrl?: string;
   /** Owning Carbon Registry account id (null/undefined while anonymous). */
@@ -229,6 +256,12 @@ export type ApiCallType = 'oracle_inventory' | 'oracle_classify';
 
 export interface AppealRequest {
   appeal: string;
+  /**
+   * Pledges offered with this filing. The server composes them into the stored
+   * appeal text, so the prose the tribunal reads and the record of what was
+   * offered can never disagree.
+   */
+  pledges?: PledgeRef[];
   /** Optional address to deliver the appeal ruling to by email. Not persisted. */
   email?: string;
 }
@@ -248,6 +281,8 @@ export interface CitizenAppeal {
   id: string;
   dossierId: string;
   appealText: string;
+  /** Pledges offered with this filing, in the order they were selected. */
+  pledges: PledgeRef[];
   accepted: boolean;
   newCaste?: Caste;
   newHonorificTitle?: string;

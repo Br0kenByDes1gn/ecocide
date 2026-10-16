@@ -6,7 +6,7 @@
 // ---------------------------------------------------------------------------
 
 export { IDENTITY } from './identity.js';
-export { REGISTRY_COPY, INJUNCTION_STAMP, DISPOSITION_COPY, standingTrendLabel } from './surfaces.js';
+export { REGISTRY_COPY, INJUNCTION_STAMP, DISPOSITION_COPY, REMEDIATION_COPY, standingTrendLabel } from './surfaces.js';
 export { PALETTE, CONFETTI_COLORS } from './art.js';
 export {
   FACTIONS,

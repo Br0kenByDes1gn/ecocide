@@ -3,6 +3,8 @@ import type { AuditItem, OraclePayload } from '@ecocide/types';
 import { getFaction, OVERRIDE_RULES } from '@ecocide/types';
 import { ArrowRightLeft, ChevronDown, ChevronUp, Layers, Shield, X } from 'lucide-react';
 import type { AuditRevealState } from '../lib/useAuditReveal';
+import { REMEDIATION_COPY } from '@ecocide/lore';
+import { splitPledges } from '../lib/pledges';
 import { drawAuditLens, ITEM_STATUS_COLORS, ITEM_STATUS_LABELS, LENSES, type LensId } from '../lib/audit-lenses';
 import { TierStamp } from './TierStamp';
 import { soundFx } from '../lib/audio';
@@ -57,6 +59,9 @@ export const HouseholdAuditCard: React.FC<HouseholdAuditCardProps> = ({
   hideInventory = false,
 }) => {
   const { user_profile, audit, suggestions } = payload;
+  // The tile names a group, so it counts that group: the pledges still open to
+  // the household before acceptance, and the ones actually on the file after it.
+  const pledgeGroups = splitPledges(suggestions, payload.acceptedPledges);
   const faction = getFaction(user_profile.caste);
   const [lensState, setLensState] = useState<LensId>(defaultLens);
   // Controlled when the page passes one, internal otherwise (the arbitration
@@ -367,9 +372,19 @@ export const HouseholdAuditCard: React.FC<HouseholdAuditCardProps> = ({
                     </span>
                   </div>
                   <div className="bg-black/40 p-2.5 rounded-lg border border-gray-800/80">
-                    <span className="text-gray-500 block text-[10px] uppercase">PLEDGES AVAILABLE</span>
+                    <span className="text-gray-500 block text-[10px] uppercase">
+                      {payload.acceptedAt ? REMEDIATION_COPY.tileOnFile : REMEDIATION_COPY.tileAvailable}
+                    </span>
                     <span className="text-teal-300 font-semibold">
-                      {reveal.isComplete ? suggestions.length : <Placeholder className="w-8 h-2.5" />}
+                      {reveal.isComplete ? (
+                        payload.acceptedAt ? (
+                          pledgeGroups.pledged.length
+                        ) : (
+                          pledgeGroups.unpledged.length
+                        )
+                      ) : (
+                        <Placeholder className="w-8 h-2.5" />
+                      )}
                     </span>
                   </div>
                 </div>

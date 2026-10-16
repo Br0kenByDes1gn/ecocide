@@ -11,7 +11,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { nanoid } from 'nanoid';
-import type { AppealRequest, AppealVerdict, OraclePayload, ScanRequest } from '@ecocide/types';
+import type { AppealRequest, AppealVerdict, OraclePayload, PledgeRef, ScanRequest } from '@ecocide/types';
 import { getCasteFromScore, simulateHouseholdScan, type Caste } from '@ecocide/types';
 import { householdRatio } from '@ecocide/compliance';
 import {
@@ -303,7 +303,10 @@ app.get('/api/citizen/:id', async (c) => {
   if (!record) {
     return c.json({ error: 'Subject dossier not found in the registry archives' }, 404);
   }
-  return c.json(record);
+  // What the file holds, derived from granted appeals: the verdict page needs it
+  // to show which pledges were actually accepted, and nothing else does.
+  const acceptedPledges = await repositories.getAcceptedPledges(id);
+  return c.json({ ...record, acceptedPledges });
 });
 
 // Live census of audited households (art §7: real counts, never invented)
@@ -327,6 +330,41 @@ app.get('/api/evidence/:name', (c) => {
 });
 
 // Citizen Appeal Arbitration Endpoint
+/** Filing ceiling: the appeal screen offers at most this many pledges. */
+const MAX_APPEAL_PLEDGES = 8;
+
+/**
+ * Keep only well-formed pledges from a filing: a phrase the tribunal can read, an
+ * action it came from, and an impact figure inside the 0–100 the rest of the app
+ * assumes. Anything else is dropped rather than stored half-formed.
+ */
+function sanitizePledges(input: unknown): PledgeRef[] {
+  if (!Array.isArray(input)) return [];
+  const out: PledgeRef[] = [];
+  for (const raw of input.slice(0, MAX_APPEAL_PLEDGES)) {
+    const entry = raw as Partial<PledgeRef> | null;
+    const pledge = typeof entry?.pledge === 'string' ? entry.pledge.trim() : '';
+    if (!pledge) continue;
+    const impact = Number(entry?.impact_pct);
+    out.push({
+      pledge,
+      text: typeof entry?.text === 'string' ? entry.text.trim() : pledge,
+      impact_pct: Number.isFinite(impact) ? Math.min(100, Math.max(0, Math.round(impact))) : 0,
+    });
+  }
+  return out;
+}
+
+/**
+ * Compose the offered pledges into the appeal text the tribunal reads. Mirrors the
+ * wording the appeal screen used to append client-side, so existing rulings and
+ * rulings from here on look the same to the model.
+ */
+function withPledgeBlock(appeal: string, pledges: PledgeRef[]): string {
+  if (pledges.length === 0) return appeal;
+  return `${appeal}\n\nPLEDGES OFFERED: ${pledges.map((p) => p.pledge).join(' // ')}`;
+}
+
 app.post('/api/citizen/:id/appeal', async (c) => {
   try {
     const id = c.req.param('id');
@@ -348,20 +386,27 @@ app.post('/api/citizen/:id/appeal', async (c) => {
       return c.json({ error: 'Appeal text is required' }, 400);
     }
 
+    // Pledges offered with the filing. The tribunal reads them inside the appeal
+    // text, so they are composed in here — one place builds both, which is what
+    // keeps the record of what was offered in step with the prose it came from.
+    const pledges = sanitizePledges(body.pledges);
+    const appealText = withPledgeBlock(appeal, pledges);
+
     let verdict: AppealVerdict;
     if (geminiConfigured()) {
-      const result = await generateAppealVerdict(record, appeal);
+      const result = await generateAppealVerdict(record, appealText);
       verdict = result.verdict;
     } else {
       console.warn('[Appeal] Gemini engine offline, using simulated appeal ruling.');
-      verdict = generateSimulatedAppealVerdict(record, appeal);
+      verdict = generateSimulatedAppealVerdict(record, appealText);
     }
 
     // Persist the appeal filing + ruling; the re-classification is applied to
     // the archive only when the citizen re-arbitrates (deferred).
     const appealId = await repositories.saveAppeal({
       dossierId: id,
-      appealText: appeal,
+      appealText,
+      pledges,
       accepted: verdict.accepted,
       newCaste: verdict.newCaste,
       newHonorificTitle: verdict.newHonorificTitle,

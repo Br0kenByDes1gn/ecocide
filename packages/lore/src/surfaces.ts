@@ -124,6 +124,28 @@ export function standingTrendLabel(delta: number): string {
 }
 
 /**
+ * The remediation-orders block on a dossier: the pledges offered against the
+ * verdict, split into the ones the tribunal granted and the ones still unpledged.
+ * The footer changes once acceptance has closed the file — after that there is no
+ * appeal left to file, so the block must not go on offering one.
+ */
+export const REMEDIATION_COPY = {
+  title: 'Remediation orders',
+  /** Group heads. */
+  pledged: 'Pledged',
+  unpledged: 'Unpledged',
+  /** Precedes a granted pledge's date. */
+  granted: 'Granted',
+  /** Footer while the verdict can still be appealed. */
+  footerOpen: 'All values are estimates - source on file - file an appeal to pledge these orders',
+  /** Footer once acceptance has made the ruling final. */
+  footerFinal: 'All values are estimates - source on file - verdict final, pledges on file stand',
+  /** Audit-card tile, before and after acceptance. */
+  tileAvailable: 'Pledges available',
+  tileOnFile: 'Pledges on file',
+} as const;
+
+/**
  * The disposition mark's file — what the Bureau intends to do with the household,
  * which the caste stamp on the dossier opens. The per-tier wording lives on the
  * tiers themselves (`FactionDef.disposition`); this is the chrome around it.

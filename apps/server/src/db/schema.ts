@@ -180,6 +180,13 @@ export const appeals = pgTable(
     id: text('id').primaryKey(),
     dossier_id: text('dossier_id').notNull(),
     appeal_text: text('appeal_text').notNull(),
+    /**
+     * Pledges offered with this filing (JSON array of PledgeRef). Kept as text
+     * rather than a suggestion index: applying a granted appeal re-arbitrates the
+     * dossier and rewrites its suggestions, so an index would point at a list that
+     * no longer exists. Rows filed before this column exist read as `[]`.
+     */
+    pledges_json: text('pledges_json').notNull().default('[]'),
     accepted: boolean('accepted').notNull().default(false),
     new_caste: text('new_caste'),
     new_honorific_title: text('new_honorific_title'),
