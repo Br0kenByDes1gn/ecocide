@@ -1,0 +1,51 @@
+---
+title: ECOCIDE — GCP Infrastructure (overview)
+---
+flowchart TB
+  subgraph USERS["Users"]
+    U["Citizens<br/>browser / PWA"]
+  end
+
+  subgraph DELIVERY["Delivery — keyless"]
+    GHA["GitHub Actions<br/>build and publish the image ·<br/>run migrations · deploy"]
+  end
+
+  subgraph GCP["Google Cloud project"]
+    EDGE["HTTPS<br/>custom domain, managed certificate"]
+    subgraph SVC["Cloud Run service"]
+      APP["One container running the API<br/>and the app together · scales to zero"]
+    end
+    MIG["Cloud Run job<br/>database migrations"]
+    subgraph STATE["Managed state"]
+      SQL[("Cloud SQL<br/>database")]
+      GCS[("Cloud Storage<br/>evidence photos")]
+    end
+    SEC["Secret Manager"]
+    VX["Vertex AI<br/>vision and text models"]
+  end
+
+  SMTP["Email relay (external)"]
+
+  U --> EDGE
+  EDGE --> APP
+  APP --> SQL
+  APP --> GCS
+  APP --> SEC
+  APP --> VX
+  APP --> SMTP
+  GHA -->|deploy| APP
+  GHA -->|migrate| MIG
+  MIG --> SQL
+
+  %% One pastel per block, instead of Mermaid's uniform cluster fill. The outer
+  %% project block stays near-neutral so the nested blocks read against it.
+  classDef uiBlock fill:#e3f0fa,stroke:#93c3e3
+  classDef deliveryBlock fill:#fde8ee,stroke:#e79fb4
+  classDef cloudBlock fill:#f7f8fa,stroke:#c9ced6
+  classDef logicBlock fill:#e4f6ec,stroke:#8fcfae
+  classDef dataBlock fill:#fdeee0,stroke:#e3b483
+  class USERS uiBlock
+  class DELIVERY deliveryBlock
+  class GCP cloudBlock
+  class SVC logicBlock
+  class STATE dataBlock

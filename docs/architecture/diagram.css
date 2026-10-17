@@ -1,0 +1,45 @@
+/* Heavier line work for the architecture diagrams.
+ *
+ * Mermaid's default flowchart CSS uses 1px for node borders, cluster borders and
+ * edges. These overrides thicken all three.
+ *
+ * !important is deliberate: Mermaid prefixes its rules with an id selector
+ * (#my-svg …), and a cssFile may be emitted before that block, so plain
+ * same-specificity rules would lose to it on source order.
+ *
+ * Arrowheads are NOT handled here — they are <marker> elements sized by
+ * markerWidth/markerHeight attributes, which CSS cannot set. patch-svg.mjs
+ * enlarges them, because with markerUnits="userSpaceOnUse" the arrowhead size
+ * is independent of the line's stroke-width.
+ *
+ * Nothing here touches .arrowMarkerPath: it matches both the visible markers
+ * (inline stroke-width:1) and the invisible "-margin" hit-area markers (inline
+ * stroke-width:0). An !important rule would override that inline 0 and paint
+ * opaque triangles over every arrow tip.
+ */
+
+/* Node borders. */
+.node rect,
+.node circle,
+.node ellipse,
+.node polygon,
+.node path {
+  stroke-width: 2px !important;
+}
+
+/* Block borders. */
+.cluster rect {
+  stroke-width: 2px !important;
+}
+
+/* Edge lines. The thickness classes are what Mermaid applies per-edge; the
+ * .path rule covers the plain case. */
+.edgePaths .path,
+.flowchart-link,
+.edge-thickness-normal {
+  stroke-width: 2.5px !important;
+}
+
+.edge-thickness-thick {
+  stroke-width: 3.5px !important;
+}

@@ -1,0 +1,54 @@
+---
+title: ECOCIDE — Technical Architecture
+---
+flowchart TB
+  subgraph CLIENT["Browser / PWA — apps/web (React 19 · Vite · Tailwind v4)"]
+    direction TB
+    ROUTES["SPA routes<br/>/ · /scan · /citizen/:id · /arbitration/:id<br/>/claim · /appeal · /inform · /appeals<br/>/registry · /injunction · /grid · /adjudicators"]
+    UI["Screens and dossier components<br/>ObjectScanner · ArbitrationDossier · HouseholdAuditCard<br/>PaperDossierPanel · CarbonRegistryScreen · InjunctionStamp"]
+    LIBS["lib/<br/>audit-lenses (canvas) · dossier-export (modern-screenshot)<br/>useVault · auth-client · vault-api · pledges · registry-phase"]
+    ROUTES --> UI --> LIBS
+  end
+
+  subgraph SERVER["apps/server — Hono on :3000 (also serves the built SPA same-origin)"]
+    direction TB
+    API["HTTP surface<br/>POST /api/oracle/scan · GET /api/citizen/:id<br/>POST /appeal · /appeals/:id/apply · /inform<br/>/api/vault/* (link · charge · ledger · injunction-*)<br/>/api/auth/* · /api/census · /api/evidence/:name · /api/health"]
+    PIPE["Two-pass oracle pipeline<br/>1. inventory (vision) → 2. compliance math → 3. classification (text)"]
+    DOMAIN["Domain modules<br/>access.ts (dossier gates) · informant.ts (tip bounty)<br/>injunction.ts (orders + payout) · evidence.ts (file store)<br/>cost.ts (token audit)"]
+    JOBS["Jobs and email<br/>BullMQ worker when REDIS_URL is set, else inline<br/>email templates (OTP · tip · verdict)"]
+    API --> PIPE
+    API --> DOMAIN
+    DOMAIN --> JOBS
+  end
+
+  subgraph PKGS["Workspace packages (build order: compliance → lore → types)"]
+    direction TB
+    COMP["@ecocide/compliance — pure math<br/>8 dimensions and weights · HarmScore · SI<br/>statuses · Step-5 overrides · householdRatio<br/>pooledIndex · registryStanding"]
+    LORE["@ecocide/lore — story and art surface<br/>identity · 6 factions (minScore bands)<br/>prompt builders and JSON schemas<br/>simulate.ts (offline determinism) · surfaces copy"]
+    TYPES["@ecocide/types — contracts<br/>Dossier · OraclePayload · PledgeRef<br/>economy.ts (tariff · points · reward units)"]
+  end
+
+  DB[("PostgreSQL via Drizzle<br/>prod: pg · local: PGlite in-process<br/>dossiers · appeals · ledger · injunction_tasks · auth")]
+  FILES[("Evidence files<br/>evidence/dossierId.ext<br/>served by /api/evidence/:name")]
+  REDIS[("Redis — dev only<br/>BullMQ · /admin/queues")]
+  GEMINI["Vertex AI / Gemini<br/>Pass 1 vision · Pass 2 text<br/>+ injunction checklist"]
+  SMTP["SMTP relay (Brevo)"]
+
+  LIBS -->|"fetch /api/* (session_token cookie)"| API
+  PIPE -->|"prompts + JSON schema"| LORE
+  PIPE -->|"ratings → H, SI, roll-up"| COMP
+  PIPE -->|"items → verdict dossiers"| TYPES
+  PIPE --> GEMINI
+  PIPE --> FILES
+  DOMAIN --> DB
+  API --> DB
+  JOBS --> SMTP
+  JOBS -.-> REDIS
+
+  %% One pastel per block, instead of Mermaid's uniform cluster fill.
+  classDef uiBlock fill:#e3f0fa,stroke:#93c3e3
+  classDef logicBlock fill:#e4f6ec,stroke:#8fcfae
+  classDef metaBlock fill:#f6f0dc,stroke:#d5c288
+  class CLIENT uiBlock
+  class SERVER logicBlock
+  class PKGS metaBlock

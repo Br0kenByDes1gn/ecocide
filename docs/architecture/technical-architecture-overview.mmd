@@ -1,0 +1,42 @@
+---
+title: ECOCIDE — Technical Architecture (overview)
+---
+flowchart TB
+  subgraph CLIENT["Client"]
+    PWA["Web app<br/>React SPA, installable as a PWA"]
+  end
+
+  subgraph APP["Application server — one process, serves the API and the app"]
+    API["API"]
+    PIPE["Two-pass audit pipeline<br/>photo to written verdict"]
+    MATH["Compliance engine<br/>deterministic scoring, no AI"]
+    STORY["Lore pack<br/>all copy, prompts and art"]
+    JOBS["Background jobs and email"]
+  end
+
+  subgraph DATA["Storage"]
+    DB[("Database<br/>assessments · appeals · ledger")]
+    FILES[("Evidence photos")]
+  end
+
+  AI["AI provider<br/>vision and text models"]
+  SMTP["Email relay"]
+
+  PWA -->|"HTTPS"| API
+  API --> PIPE
+  API --> JOBS
+  API --> DB
+  API --> FILES
+  PIPE -->|"inventory + verdict"| AI
+  PIPE -->|"scores every item"| MATH
+  PIPE -->|"prompts and copy"| STORY
+  JOBS --> SMTP
+  STORY -.->|"offline fallback when no AI credentials"| PIPE
+
+  %% One pastel per block, instead of Mermaid's uniform cluster fill.
+  classDef uiBlock fill:#e3f0fa,stroke:#93c3e3
+  classDef logicBlock fill:#e4f6ec,stroke:#8fcfae
+  classDef dataBlock fill:#fdeee0,stroke:#e3b483
+  class CLIENT uiBlock
+  class APP logicBlock
+  class DATA dataBlock

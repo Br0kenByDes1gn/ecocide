@@ -1,0 +1,77 @@
+---
+title: ECOCIDE — GCP Infrastructure
+---
+flowchart TB
+  subgraph USERS["External actors"]
+    U["Citizens<br/>browser / PWA"]
+    CI["GitHub Actions<br/>tag push v* or workflow_dispatch"]
+  end
+
+  subgraph GCP["GCP project ecocide-511407 · asia-southeast1"]
+    direction TB
+
+    DM["Cloud Run domain mapping<br/>ecocide.quest (managed cert · A + AAAA / CNAME)"]
+
+    subgraph RUN["Cloud Run service ecocide — one container, :3000"]
+      direction TB
+      APP["node dist/index.js<br/>Hono API + built SPA from /app/web/dist<br/>cpu 1 · mem 1Gi · concurrency 8 · 0–3 instances<br/>no-cpu-throttling (post-response emails) · gen2"]
+      APP --> APPAPI["/api/* · /admin/queues (basic auth, BullMQ mode only)"]
+    end
+
+    subgraph DATA["Stateful services"]
+      SQL[("Cloud SQL PostgreSQL ecocide-pg<br/>Enterprise · db-f1-micro · backups + PITR<br/>reachable over unix socket")]
+      GCS[("GCS bucket …-evidence<br/>mounted at /app/evidence<br/>write-once audit photos")]
+    end
+
+    SM["Secret Manager<br/>ecocide-db-url · ecocide-auth-secret · ecocide-smtp-pass"]
+    VX["Vertex AI<br/>gemini-3.8-flash · location=global<br/>ADC from the runtime service account"]
+
+    subgraph JOBS["Batch and DDL"]
+      MIG["Cloud Run job ecocide-migrate<br/>node dist/migrate-cli.js<br/>once per release, before traffic shift"]
+    end
+
+    AR["Artifact Registry<br/>asia-southeast1-docker.pkg.dev/ecocide-511407/ecocide"]
+
+    subgraph IAM["Identities (WIF — no static keys)"]
+      WIF["Workload Identity pool github<br/>provider github-actions<br/>attribute.repository == GITHUB_REPO"]
+      SA_RUN["SA ecocide-run@<br/>aiplatform.user · cloudsql.client<br/>secretmanager.secretAccessor<br/>logging.logWriter · monitoring.metricWriter<br/>storage.objectAdmin on the evidence bucket"]
+      SA_DEP["SA ecocide-deploy@<br/>run.developer · artifactregistry.writer<br/>cloudsql.client · cloudsql.viewer<br/>iam.serviceAccountUser"]
+    end
+  end
+
+  BREVO["Brevo SMTP<br/>smtp-relay.brevo.com:587"]
+
+  U -->|HTTPS| DM
+  DM --> RUN
+  APP -->|"unix socket + DSN from Secret Manager"| SQL
+  APP -->|"FUSE volume mount"| GCS
+  APP -->|"secrets injected as env"| SM
+  APP -->|"generateContent"| VX
+  APP -->|"OTP · tip · verdict email"| BREVO
+  MIG -->|"drizzle-kit migrations"| SQL
+  MIG -->|"DATABASE_URL"| SM
+
+  CI -->|"OIDC token"| WIF
+  WIF --> SA_DEP
+  SA_DEP -->|"docker push"| AR
+  SA_DEP -->|"jobs update + execute"| MIG
+  SA_DEP -->|"update --no-traffic → smoke /api/health → traffic shift"| RUN
+  AR -->|"image"| RUN
+  AR -->|"image"| MIG
+  SA_RUN -.->|"runtime identity"| RUN
+  SA_RUN -.->|"runtime identity"| MIG
+
+  %% One pastel per block, instead of Mermaid's uniform cluster fill. The outer
+  %% project block stays near-neutral so the nested blocks read against it.
+  classDef uiBlock fill:#e3f0fa,stroke:#93c3e3
+  classDef cloudBlock fill:#f7f8fa,stroke:#c9ced6
+  classDef logicBlock fill:#e4f6ec,stroke:#8fcfae
+  classDef dataBlock fill:#fdeee0,stroke:#e3b483
+  classDef deliveryBlock fill:#fde8ee,stroke:#e79fb4
+  classDef metaBlock fill:#f6f0dc,stroke:#d5c288
+  class USERS uiBlock
+  class GCP cloudBlock
+  class RUN logicBlock
+  class DATA dataBlock
+  class JOBS deliveryBlock
+  class IAM metaBlock
