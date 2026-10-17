@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Globe, Volume2, VolumeX, ArrowRight, ShieldAlert, Wallet, Bug } from 'lucide-react';
-import { IDENTITY, REGISTRY_COPY, ADJUDICATORS_ON_DUTY } from '@ecocide/lore';
+import { IDENTITY, REGISTRY_COPY, ADJUDICATORS_ON_DUTY, ADJUDICATORS_COPY, GRID_COPY } from '@ecocide/lore';
 import { soundFx } from '../lib/audio';
 
 interface HomePageProps {
@@ -136,6 +136,32 @@ export const HomePage: React.FC<HomePageProps> = ({
             <p className="mt-3 text-xs font-mono text-gray-500 tracking-wider text-center sm:text-left">
               {IDENTITY.secondaryLine}
             </p>
+
+            {/* Muted links to the two reading pages (labels come from the pack) */}
+            {(onOpenAbout || onOpenGrid) && (
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+                {onOpenAbout && (
+                  <button
+                    type="button"
+                    onClick={onOpenAbout}
+                    className="rounded-lg border border-gray-800 bg-gray-950 px-3 py-1.5 font-mono text-[11px] uppercase tracking-widest text-gray-400 transition-colors hover:border-lime-500/50 hover:text-lime-400 cursor-pointer"
+                    title="Meet the staff on duty (/adjudicators)"
+                  >
+                    {ADJUDICATORS_COPY.name}
+                  </button>
+                )}
+                {onOpenGrid && (
+                  <button
+                    type="button"
+                    onClick={onOpenGrid}
+                    className="rounded-lg border border-gray-800 bg-gray-950 px-3 py-1.5 font-mono text-[11px] uppercase tracking-widest text-gray-400 transition-colors hover:border-lime-500/50 hover:text-lime-400 cursor-pointer"
+                    title="Live oversight of the planet (/grid)"
+                  >
+                    {GRID_COPY.name}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
