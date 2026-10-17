@@ -37,6 +37,7 @@ const round4 = (n) => Math.round(n * 10000) / 10000;
 function parseObj(text) {
   const verts = [];
   const faces = [];
+  const lines = [];
   for (const line of text.split('\n')) {
     if (line.startsWith('v ')) {
       const [, x, y, z] = line.trim().split(/\s+/);
@@ -44,13 +45,18 @@ function parseObj(text) {
     } else if (line.startsWith('f ')) {
       const parts = line.trim().split(/\s+/).slice(1);
       faces.push(parts.map((p) => Number(p.split('/')[0]) - 1));
+    } else if (line.startsWith('l ')) {
+      // Line elements: a polyline of vertex indices (wireframe OBJs — e.g. the
+      // earth graticule — carry geometry this way, with no faces at all).
+      const parts = line.trim().split(/\s+/).slice(1);
+      if (parts.length >= 2) lines.push(parts.map((p) => Number(p.split('/')[0]) - 1));
     }
   }
-  return { verts, faces };
+  return { verts, faces, lines };
 }
 
 /** Weld vertices that share (rounded) coordinates so shared corners merge. */
-function weld(verts, faces) {
+function weld(verts, faces, lines) {
   const lookup = new Map();
   const welded = [];
   const remap = verts.map((v) => {
@@ -64,6 +70,7 @@ function weld(verts, faces) {
   return {
     verts: welded,
     faces: faces.map((f) => f.map((i) => remap[i])),
+    lines: lines.map((l) => l.map((i) => remap[i])),
   };
 }
 
@@ -102,14 +109,22 @@ function buildEdges(verts, faces) {
 
 function convert(name, text) {
   const raw = parseObj(text);
-  const { verts, faces } = weld(raw.verts, raw.faces);
+  const { verts, faces, lines } = weld(raw.verts, raw.faces, raw.lines);
   const edges = buildEdges(verts, faces);
 
   const normals = faces.map((f) => faceNormal(verts, f));
   const kept = [];
+  const seen = new Set();
+  const addEdge = (a, b) => {
+    if (a === b) return;
+    const key = a < b ? `${a},${b}` : `${b},${a}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    kept.push([a, b]);
+  };
   for (const [a, b, fs] of edges.values()) {
     if (MODE === 'full' || fs.length === 1) {
-      kept.push([a, b]);
+      addEdge(a, b);
       continue;
     }
     let maxAngle = 0;
@@ -121,7 +136,13 @@ function convert(name, text) {
         maxAngle = Math.max(maxAngle, (Math.acos(dot) * 180) / Math.PI);
       }
     }
-    if (maxAngle >= MIN_ANGLE) kept.push([a, b]);
+    if (maxAngle >= MIN_ANGLE) addEdge(a, b);
+  }
+
+  // Line elements are drawn whole: the fold-angle filter only plans to drop
+  // coplanar *face* subdivisions, and a graticule has no faces to subdivide.
+  for (const l of lines) {
+    for (let i = 0; i + 1 < l.length; i++) addEdge(l[i], l[i + 1]);
   }
 
   // strip unreferenced vertices, reindex

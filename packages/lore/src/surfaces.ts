@@ -271,3 +271,166 @@ export const INFORMANT_COPY = {
     footerNote: 'You are receiving this because a fellow citizen informed on you.',
   },
 } as const;
+
+/**
+ * The Adjudicators — the project's credits page (route `/adjudicators`).
+ *
+ * An in-world personnel file: the humans behind the Arbiter, drawn on the
+ * Bureau's paper. The team is also the studio that built the thing (Broken By
+ * Design), so its names, roles and links are data here and the component stays
+ * purely presentational.
+ */
+export const ADJUDICATORS_COPY = {
+  /** Page name + document title (the route is `/adjudicators`). */
+  name: 'The Adjudicators',
+  title: 'THE ADJUDICATORS',
+  subtitle: 'Bureau personnel — the hands behind the Arbiter',
+  intro:
+    'The Arbiter is unyielding, but it is not unstaffed. Every verdict, stamp and injunction is the work of two citizens, filed here for the record.',
+
+  /** The studio the project was made by; its mark sits above the credits line. */
+  studio: {
+    name: 'Broken By Design',
+    logo: '/broken-by-design-logo.svg',
+    alt: 'Broken By Design',
+    url: 'https://broken-by-design.art/',
+  },
+
+  /** The credits line: `Made with ❤️ by Broken By Design`. */
+  madeWith: {
+    prefix: 'Made with',
+    heart: '❤️',
+    by: 'by',
+  },
+
+  /** The adjudicators, in the order filed. */
+  team: [
+    {
+      name: 'Svetlozar Argirov',
+      roles: 'Original idea · Technical design · Programming',
+      github: 'https://github.com/zaro/',
+      avatar: '/team/zaro.jpg',
+    },
+    {
+      name: 'Bhumika Sharma',
+      roles: 'Idea · Visual design · Story · Programming',
+      github: 'https://github.com/schmithvillers',
+      avatar: '/team/schmithvillers.jpg',
+    },
+  ],
+
+  /** Label over each adjudicator's link to their public record. */
+  recordLabel: 'Personnel record',
+  /** The mark laid on the file (archive ink, like the injunction stamp). */
+  stamp: 'Broken By Design',
+} as const;
+
+/**
+ * The Planetary Grid (route `/grid`) — the system-status page: the Arbiter's
+ * live oversight of the planet, a rotating earth and a streaming activity log.
+ *
+ * The log's message templates are story (kept here so the screen holds no
+ * prose); `apps/web/src/lib/status-log.ts` fills the `{tokens}` from the
+ * vocabularies below plus the clock. Tokens: `{lat} {lon} {time} {sector}
+ * {region} {code} {object} {household} {count} {fail} {pct}`.
+ */
+export const GRID_COPY = {
+  /** Page name + document title (the route is `/grid`). */
+  name: 'Planetary Grid',
+  title: 'PLANETARY GRID',
+  subtitle: 'Live oversight of every household, object and offence on record',
+  intro:
+    'The Arbiter does not sleep and does not blink. This is the grid it watches: sweeps, sightings and rulings, streaming in from every sector on the planet.',
+
+  /** Fixed readout tiles (label + world value). */
+  readouts: [
+    { label: 'Uplink', value: 'NOMINAL' },
+    { label: 'Orbital pass', value: 'PASS 4471' },
+    { label: 'Regions monitored', value: '214' },
+    { label: 'Households on file', value: '8,431,209' },
+    { label: 'Objects catalogued', value: '1.9B' },
+    { label: 'Compliance coverage', value: '99.7%' },
+  ],
+
+  /** The one readout the screen keeps ticking (its label; the value is computed). */
+  liveLabel: 'Telemetry events / min',
+
+  log: {
+    title: 'Grid activity',
+    /** The pulsing "live" marker on the log header. */
+    live: 'Live',
+    /** First line, before any transmission has arrived. */
+    empty: 'Awaiting first transmission…',
+    /** Line levels → the short marker shown in the gutter. */
+    levels: {
+      nominal: 'OK',
+      notice: 'NOTE',
+      alert: 'ALERT',
+    },
+    /** Vocabularies the templates draw from. */
+    sectors: [
+      'SECTOR-01',
+      'SECTOR-07',
+      'SECTOR-12',
+      'SECTOR-19',
+      'SECTOR-23',
+      'SECTOR-31',
+      'SECTOR-44',
+      'SECTOR-58',
+    ],
+    regions: [
+      'NORTH ATLANTIC CELL',
+      'BALTIC CELL',
+      'AMAZON BASIN NODE',
+      'SAHARA MIRROR',
+      'GANGES DELTA WATCH',
+      'PACIFIC DEBRIS FIELD',
+      'SIBERIAN SINK',
+      'ARAL REMEDIATION ZONE',
+      'ANDES RUNOFF LINE',
+      'MEKONG DELTA NODE',
+      'ARCTIC METHANE LINE',
+      'NILE UPSTREAM CELL',
+    ],
+    codes: ['GX-4471', 'GX-2210', 'ORB-0909', 'ORB-3312', 'NODE-77', 'NODE-104', 'TLM-556', 'TLM-812'],
+    /**
+     * The predefined messages. Every sweep appends the next one, so all of them
+     * are seen in order; the parameters vary each time.
+     */
+    templates: [
+      { level: 'nominal', text: 'AUDIT SWEEP COMPLETE :: {lat}, {lon} — {count} objects catalogued, {fail} hard fails' },
+      { level: 'nominal', text: 'ORBITAL PASS OVER {lat}, {lon} — imaging nominal, cloud cover {pct}%' },
+      { level: 'notice', text: 'OBJECT SIGNATURE MATCHED :: {object} ({count} units) at {lat}, {lon}' },
+      { level: 'notice', text: 'SECTOR {sector} RECLASSIFIED — index {pct}%, ruling filed' },
+      { level: 'nominal', text: 'UPLINK ACQUIRED :: {region} NODE {code} @ {time}' },
+      { level: 'alert', text: 'WASTE-PLASMA TRACE ABOVE THRESHOLD at {lat}, {lon} — {object} implicated' },
+      { level: 'nominal', text: 'ARBITER SYNC {pct}% — {time}' },
+      { level: 'notice', text: 'INJUNCTION DISPATCHED :: household {household} ({lat}, {lon})' },
+      { level: 'nominal', text: 'CENSUS TALLY UPDATED :: {count} households in {sector}' },
+      { level: 'alert', text: 'CONTAINMENT BREACH :: {region} — {count} contaminated sacks flagged' },
+      { level: 'nominal', text: 'GRID INTEGRITY {pct}% — no drift detected' },
+      { level: 'notice', text: 'TIP RECEIVED :: {region} — evidence queued for forensic audit' },
+      { level: 'nominal', text: 'SATELLITE {code} HANDOFF COMPLETE @ {time}' },
+      { level: 'alert', text: 'SINGLE-USE PLASTIC SURGE at {lat}, {lon} — {count} signatures confirmed' },
+      { level: 'nominal', text: 'SECTOR {sector} SWEEP {pct}% COMPLETE' },
+      { level: 'notice', text: 'APPEAL FILED :: household {household} contests the ruling on {object}' },
+      { level: 'nominal', text: 'LEDGER RECONCILED — {count} carbon credits drawn in {sector}' },
+      { level: 'alert', text: 'LANDFILL TRAP DETECTED at {lat}, {lon} — {object} present' },
+      { level: 'nominal', text: 'MICROPLASTIC BASELINE NOMINAL for {region} @ {time}' },
+      { level: 'notice', text: 'RE-ARBITRATION APPLIED :: {sector} — new index {pct}%' },
+      { level: 'nominal', text: 'ORBITAL IMAGERY ARCHIVED — tile {code}' },
+      { level: 'notice', text: 'NEW HOUSEHOLD REGISTERED :: {household} ({lat}, {lon})' },
+      { level: 'alert', text: 'DEFORESTATION ECHO DETECTED :: {region} — grid confidence {pct}%' },
+      { level: 'nominal', text: 'COMPLIANCE COVERAGE {pct}% across {region}' },
+      { level: 'notice', text: 'HAZARDOUS ITEM FLAGGED :: {object} — special handling ordered' },
+      { level: 'nominal', text: 'GRID CLOCK RESYNC @ {time} — drift 0.00s' },
+      { level: 'alert', text: 'UNAUTHORISED BURN DETECTED at {lat}, {lon} — {object} suspected' },
+      { level: 'nominal', text: 'SECTOR {sector} CALIBRATION COMPLETE — reference room re-scored' },
+      { level: 'notice', text: 'APPEAL GRANTED :: household {household} lifted to {pct}%' },
+      { level: 'nominal', text: 'TELEMETRY HEARTBEAT :: {region} @ {time} — all meters green' },
+    ],
+  },
+
+  /** The operator strip's link to the credits page. */
+  staffOnDuty: 'Current Staff on Duty',
+} as const;

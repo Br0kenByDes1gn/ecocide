@@ -14,6 +14,8 @@ import { ClaimScreen } from './components/ClaimScreen';
 import { DebugBench } from './components/DebugBench';
 import { CarbonRegistryScreen } from './components/CarbonRegistryScreen';
 import { InformantScreen } from './components/InformantScreen';
+import { AboutScreen } from './components/AboutScreen';
+import { GridScreen } from './components/GridScreen';
 import { IDENTITY, REGISTRY_COPY, CONFETTI_COLORS } from '@ecocide/lore';
 import { soundFx } from './lib/audio';
 
@@ -33,6 +35,8 @@ type ViewState =
   | 'appeals'
   | 'registry'
   | 'injunction'
+  | 'about'
+  | 'grid'
   | 'debug';
 
 function parseCitizenIdFromUrl(): string | null {
@@ -93,12 +97,24 @@ function isRegistryPath(path: string): boolean {
   return path === '/registry' || path === '/vault';
 }
 
+/** The credits page. `/about` is an alias, normalised to `/adjudicators`. */
+function isAdjudicatorsPath(path: string): boolean {
+  return path === '/adjudicators' || path === '/about';
+}
+
+/** The Planetary Grid — the system-status page. */
+function isGridPath(path: string): boolean {
+  return path === '/grid';
+}
+
 export function App() {
   const [viewState, setViewState] = useState<ViewState>(() => {
     if (typeof window === 'undefined') return 'intro';
     if (IS_DEV && window.location.pathname === '/debug') return 'debug';
     if (isRegistryPath(window.location.pathname)) return 'registry';
     if (window.location.pathname === '/injunction') return 'injunction';
+    if (isAdjudicatorsPath(window.location.pathname)) return 'about';
+    if (isGridPath(window.location.pathname)) return 'grid';
     if (parseClaimIdFromUrl()) return 'claim';
     if (parseAppealsIdFromUrl()) return 'appeals';
     if (parseAppealIdFromUrl()) return 'appeal';
@@ -152,6 +168,26 @@ export function App() {
 
       if (path === '/injunction') {
         setViewState('injunction');
+        setOracleData(null);
+        setPermalinkId(null);
+        setEvidenceUrl(undefined);
+        setSessionDate(null);
+        return;
+      }
+
+      if (isAdjudicatorsPath(path)) {
+        // `/about` is an alias: keep one canonical URL for the credits page.
+        if (path !== '/adjudicators') window.history.replaceState({}, '', '/adjudicators');
+        setViewState('about');
+        setOracleData(null);
+        setPermalinkId(null);
+        setEvidenceUrl(undefined);
+        setSessionDate(null);
+        return;
+      }
+
+      if (isGridPath(path)) {
+        setViewState('grid');
         setOracleData(null);
         setPermalinkId(null);
         setEvidenceUrl(undefined);
@@ -328,6 +364,18 @@ export function App() {
     setDossierFilter(dossierId ?? null);
   };
 
+  /** The credits page (/adjudicators) reached from the landing footer. */
+  const goAbout = () => {
+    setViewState('about');
+    window.history.pushState({}, '', '/adjudicators');
+  };
+
+  /** The Planetary Grid (/grid) — the system-status page. */
+  const goGrid = () => {
+    setViewState('grid');
+    window.history.pushState({}, '', '/grid');
+  };
+
   /** Open any dossier by id (used by the registry's archive/ledger links). */
   const handleOpenDossier = async (id: string) => {
     setIsLoading(true);
@@ -444,6 +492,8 @@ export function App() {
         isMuted={isMuted}
         onToggleMute={() => setIsMuted(soundFx.toggleMute())}
         onGoRegistry={goRegistry}
+        onOpenAbout={goAbout}
+        onOpenGrid={goGrid}
         onOpenDebug={IS_DEV ? handleOpenDebug : undefined}
         isDev={IS_DEV}
       />
@@ -622,6 +672,10 @@ export function App() {
             onClearFilter={() => goInjunction()}
           />
         )}
+
+        {viewState === 'about' && <AboutScreen />}
+
+        {viewState === 'grid' && <GridScreen onOpenAdjudicators={goAbout} />}
       </main>
 
       {/* Footer System Status (hidden on the scan + arbitration screens — those carry their own) */}

@@ -8,6 +8,10 @@ interface HomePageProps {
   isMuted?: boolean;
   onToggleMute?: () => void;
   onGoRegistry?: () => void;
+  /** Open the credits page (/adjudicators). */
+  onOpenAbout?: () => void;
+  /** Open the system-status page (/grid). */
+  onOpenGrid?: () => void;
   onOpenDebug?: () => void;
   isDev?: boolean;
 }
@@ -17,6 +21,8 @@ export const HomePage: React.FC<HomePageProps> = ({
   isMuted = false,
   onToggleMute,
   onGoRegistry,
+  onOpenAbout,
+  onOpenGrid,
   onOpenDebug,
   isDev = false,
 }) => {
@@ -241,8 +247,28 @@ export const HomePage: React.FC<HomePageProps> = ({
             <span>DETERMINISTIC COMPLIANCE MATH: ACTIVE</span>
             <span className="text-lime-700">{IDENTITY.auditProtocol}</span>
           </div>
-          <div className="flex items-center gap-4 text-gray-600">
-            <span>{IDENTITY.backronym}</span>
+          <div className="flex items-center gap-3 text-gray-600">
+            <span className="hidden lg:inline">{IDENTITY.backronym}</span>
+            {onOpenGrid && (
+              <button
+                type="button"
+                onClick={onOpenGrid}
+                className="border border-gray-800 hover:border-lime-500/50 px-2.5 py-1 rounded-lg bg-gray-950 text-gray-400 hover:text-lime-400 transition-colors uppercase tracking-widest cursor-pointer"
+                title="Live oversight of the planet (/grid)"
+              >
+                Planetary Grid
+              </button>
+            )}
+            {onOpenAbout && (
+              <button
+                type="button"
+                onClick={onOpenAbout}
+                className="border border-gray-800 hover:border-lime-500/50 px-2.5 py-1 rounded-lg bg-gray-950 text-gray-400 hover:text-lime-400 transition-colors uppercase tracking-widest cursor-pointer"
+                title="The humans behind the Arbiter (/adjudicators)"
+              >
+                Adjudicators
+              </button>
+            )}
           </div>
         </div>
       </footer>

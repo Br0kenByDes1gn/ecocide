@@ -18,6 +18,11 @@ export interface DossierStampProps {
   subline?: string;
   /** Tooltip. */
   title?: string;
+  /**
+   * When set, the stamp becomes an external link (opens in a new tab). Takes
+   * precedence over `onClick`; both make the mark look interactive.
+   */
+  href?: string;
   /** Makes the stamp a control; without it the mark is inert. */
   onClick?: () => void;
 }
@@ -43,6 +48,7 @@ export const DossierStamp: React.FC<DossierStampProps> = ({
   icons,
   subline,
   title,
+  href,
   onClick,
 }) => {
   const [landed, setLanded] = useState(false);
@@ -55,10 +61,11 @@ export const DossierStamp: React.FC<DossierStampProps> = ({
   }, []);
 
   const edge = borderColor ?? ink;
+  const interactive = Boolean(href || onClick);
   const className = `${
     landed ? 'stamp-land' : 'opacity-0'
   } px-4 py-2 text-left font-mono font-black uppercase tracking-widest select-none transition-transform hover:scale-[1.03] ${
-    onClick ? 'cursor-pointer' : 'cursor-default'
+    interactive ? 'cursor-pointer' : 'cursor-default'
   }`;
 
   const style: React.CSSProperties = {
@@ -86,6 +93,21 @@ export const DossierStamp: React.FC<DossierStampProps> = ({
       {subline && <span className="mt-1 block text-[9px] font-bold opacity-80">{subline}</span>}
     </>
   );
+
+  if (href) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        title={title}
+        className={className}
+        style={style}
+      >
+        {body}
+      </a>
+    );
+  }
 
   if (!onClick) {
     return (

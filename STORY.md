@@ -214,7 +214,16 @@ address a verdict and collects a one-credit bounty; copy in
 `packages/lore/src/surfaces.ts` — `INFORMANT_COPY`) · dossier + download card
 (`CitizenDossier.tsx`, `PaperDossierPanel.tsx`, `lib/dossier-export.ts`) · carbon registry
 (`CarbonRegistryScreen.tsx` + `RegistryUnlock.tsx`; copy in
-`packages/lore/src/surfaces.ts` — `REGISTRY_COPY`) · census
+`packages/lore/src/surfaces.ts` — `REGISTRY_COPY`) · credits
+(`AboutScreen.tsx` — the Bureau personnel file at `/adjudicators`, reached from
+the landing footer: the Broken By Design mark, the `Made with ❤️ by` line and
+the roster with self-hosted avatars; copy + team in
+`packages/lore/src/surfaces.ts` — `ADJUDICATORS_COPY`, art in
+`apps/web/public/`) · system status (`GridScreen.tsx` — the Planetary Grid at
+`/grid`: the rotating earth wireframe, live readouts and the streaming activity
+log; copy, readout labels and the 30 log templates in
+`packages/lore/src/surfaces.ts` — `GRID_COPY`, formatting in
+`apps/web/src/lib/status-log.ts`) · census
 (`CensusModal.tsx`) · dev bench (`DebugBench.tsx`).
 
 ## 9. Zero-token workflow (no AI spend)
@@ -234,8 +243,11 @@ address a verdict and collects a one-credit bounty; copy in
       verdict lines, prompt blocks, simulated copy, stylePrompts, titles.
       Keep ids stable.
 - [ ] Rewrite `prompts.ts` voice + tone (keep the JSON schemas' contracts).
-- [ ] Rewrite `surfaces.ts` (`REGISTRY_COPY`): the Carbon Registry page, its
-      standing hero, the assessment archive and the payment terminal copy.
+- [ ] Rewrite `surfaces.ts`: the Carbon Registry page (`REGISTRY_COPY` — its
+      standing hero, the assessment archive and the payment terminal), the tip
+      screen (`INFORMANT_COPY`), the credits page (`ADJUDICATORS_COPY` — but
+      leave the real team's names, roles and links alone) and the Planetary Grid
+      (`GRID_COPY` — readouts + the log templates).
 - [ ] Replace the landing copy (`HomePage.tsx`) and the scanner chrome
       (`ScannerHeader.tsx`, `UploadPanel.tsx`, `AnalysisPanel.tsx`).
 - [ ] Redesign palette (`art.ts` + `index.css`), favicon, PWA meta, lenses.

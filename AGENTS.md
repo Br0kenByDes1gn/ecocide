@@ -114,8 +114,11 @@ apps/server/scripts/  # scan-cost audit
   rulings, re-arbitration copy.
 - `surfaces.ts` — `REGISTRY_COPY` (+ `standingTrendLabel`): the Carbon
   Registry page, its standing hero, the assessment archive, the token account
-  and the payment terminal copy. World strings only; mechanical chrome stays
-  inline in components.
+  and the payment terminal copy. Also `INFORMANT_COPY` (the tip screen + its
+  email), `ADJUDICATORS_COPY` (the credits page and its team roster) and
+  `GRID_COPY` (the Planetary Grid's readouts + its 30 log message templates,
+  filled by `apps/web/src/lib/status-log.ts`). World strings only; mechanical
+  chrome stays inline in components.
 
 ### apps/server
 
@@ -216,7 +219,8 @@ apps/server/scripts/  # scan-cost audit
 ### apps/web
 
 - SPA flow in `src/App.tsx` (`/`, `/scan`, `/citizen/:id`, `/arbitration/:id`,
-  `/claim/:id`, `/appeal/:id`, `/inform/:id`, `/appeals/:id`, `/injunction` (optionally
+  `/claim/:id`, `/appeal/:id`, `/inform/:id`, `/appeals/:id`,
+  `/adjudicators` with `/about` redirecting, `/grid`, `/injunction` (optionally
   `?dossier=<id>`), `/registry` with `/vault` redirecting, dev-only `/debug`).
 - `src/components/ArbitrationDossier.tsx` — the verdict page. Beside
   `ACCEPT VERDICT` and `APPEAL`, when a permalink exists, it offers
@@ -230,7 +234,20 @@ apps/server/scripts/  # scan-cost audit
   `INFORMANT_COPY` from the pack; the call is
   `lib/vault-api.ts#submitInformantEvidence`.
 - `src/components/HomePage.tsx` — the landing screen (terminal + paper
-  dossier panel); the global app header hides on the scan screen.
+  dossier panel); the global app header hides on the scan screen. Its footer
+  carries the only link to the credits page.
+- `src/components/AboutScreen.tsx` — `/adjudicators` (the credits page, `/about`
+  redirects): a Bureau personnel file on the paper layer — the Broken By Design
+  mark, the `Made with ❤️ by Broken By Design` line and the studio stamp (all
+  linking to the studio site) and the two-person roster with self-hosted GitHub
+  avatars (`public/team/`) and profile links. Copy and the roster come from
+  `ADJUDICATORS_COPY`; the logo is `public/broken-by-design-logo.svg`.
+- `src/components/GridScreen.tsx` — `/grid`, the Planetary Grid: the rotating
+  earth wireframe (the scanner's `AssetWireframe` with `models={['earth_wireframe']}`
+  + `motion="spin"`, at a larger size), a readout strip and an activity log that
+  prepends the 30 `GRID_COPY.log` templates every ~3s (newest on top, paused
+  while the tab is hidden, last 60 kept). Its operator strip links to the credits
+  page. Copy in `GRID_COPY`; formatting in `src/lib/status-log.ts`.
 - `src/components/ObjectScanner.tsx` (+ `ScannerHeader`, `UploadPanel`,
   `EvidenceDropZone`, `AssetWireframe`, `AnalysisPanel`) — capture a room
   (camera/upload/drag-drop) with the audit-area category chips, then the
@@ -324,7 +341,7 @@ apps/server/scripts/  # scan-cost audit
 | `pnpm test` | Vitest across packages (hermetic) |
 | `pnpm scan-costs` | Token/cost audit from the local DB |
 | `pnpm --filter @ecocide/server db:reset-allowance` | One-off repair: re-base every wallet onto the current allowance, writing a reconciling ledger entry |
-| `pnpm wireframes` | Convert `models-src/*.obj` → `apps/web/src/lib/asset-wireframes.ts` |
+| `pnpm wireframes` | Convert `models-src/*.obj` → `apps/web/src/lib/asset-wireframes.ts` (face meshes **and** `l` line elements, e.g. the earth graticule) |
 | `pnpm --filter @ecocide/server db:generate` | drizzle-kit generate (schema → `apps/server/drizzle`) |
 
 Dev without AI tokens: `/debug` bench (six exhibit rooms, one per tier),

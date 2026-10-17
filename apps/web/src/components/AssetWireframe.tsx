@@ -4,6 +4,19 @@ import { WIREFRAME_MODELS } from '../lib/asset-wireframes';
 
 interface AssetWireframeProps {
   className?: string;
+  /**
+   * Restrict the catalog to these model names (from `models-src/`). Omit to use
+   * every converted model (the scanner's behaviour); an unknown name is ignored.
+   */
+  models?: readonly string[];
+  /**
+   * `tumble` (default) is the scanner's drifting, spotlight-lit object that
+   * cycles through the catalog. `spin` holds one model and turns it about its
+   * polar axis at a fixed tilt — a planet — with no object cycling.
+   */
+  motion?: 'tumble' | 'spin';
+  /** Projected radius as a fraction of the frame's half-height (default 0.62). */
+  fit?: number;
 }
 
 type Vec3 = [number, number, number];
@@ -38,6 +51,7 @@ const MODELS = WIREFRAME_MODELS.map((model) => {
   for (const [x, y, z] of model.verts) maxRadius = Math.max(maxRadius, Math.hypot(x, y, z));
   const scale = maxRadius > 0 ? 1 / maxRadius : 1;
   return {
+    name: model.name,
     verts: model.verts.map(([x, y, z]) => [x * scale, y * scale, z * scale] as Vec3),
     edges: model.edges,
   };
@@ -50,8 +64,16 @@ const MODELS = WIREFRAME_MODELS.map((model) => {
  * near. Cycles through the model catalog with a soft crossfade; renders a
  * single static frame (fixed pose + parked spotlight) under reduced motion
  * (art §3.6/§13). Purely decorative — no audit data is derived from it.
+ *
+ * `models` + `motion="spin"` reuse the same projection for the Planetary Grid's
+ * rotating earth, at a larger size.
  */
-export const AssetWireframe: React.FC<AssetWireframeProps> = ({ className }) => {
+export const AssetWireframe: React.FC<AssetWireframeProps> = ({
+  className,
+  models,
+  motion = 'tumble',
+  fit,
+}) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
@@ -60,31 +82,43 @@ export const AssetWireframe: React.FC<AssetWireframeProps> = ({ className }) => 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    const spin = motion === 'spin';
+    // A restricted catalog: the planet asks for one model, the scanner for all.
+    const catalog =
+      models && models.length > 0 ? MODELS.filter((m) => models.includes(m.name)) : MODELS;
+    const list = catalog.length > 0 ? catalog : MODELS;
+
     const rand = mulberry32(((Date.now() >>> 0) ^ ((Math.random() * 0xffffffff) | 0)) >>> 0);
     const TAU = Math.PI * 2;
     const CAM_D = 5; // camera distance, in model units (model radius = 1)
-    const FIT = 0.62; // projected radius as a fraction of the frame radius
+    const FIT = fit ?? 0.62; // projected radius as a fraction of the frame radius
     const SPOT_RADIUS = 0.7; // spotlight reach, in model units
 
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     // Rotation wander: each axis velocity drifts between slow sine terms so
-    // the tumble never settles on a fixed axis or visibly loops.
-    const wanderAxis = () => ({
-      base: 0.14 + rand() * 0.22,
-      a1: 0.05 + rand() * 0.16,
-      f1: 0.02 + rand() * 0.05,
-      p1: rand() * TAU,
-      a2: 0.04 + rand() * 0.13,
-      f2: 0.04 + rand() * 0.08,
-      p2: rand() * TAU,
-    });
+    // the tumble never settles on a fixed axis or visibly loops. In spin mode
+    // the drift is zeroed and only the polar axis turns.
+    const wanderAxis = () =>
+      spin
+        ? { base: 0, a1: 0, f1: 0, p1: 0, a2: 0, f2: 0, p2: 0 }
+        : {
+            base: 0.14 + rand() * 0.22,
+            a1: 0.05 + rand() * 0.16,
+            f1: 0.02 + rand() * 0.05,
+            p1: rand() * TAU,
+            a2: 0.04 + rand() * 0.13,
+            f2: 0.04 + rand() * 0.08,
+            p2: rand() * TAU,
+          };
     const ax = wanderAxis();
     const ay = wanderAxis();
     const az = wanderAxis();
-    let rx = 0.35;
-    let ry = -0.5;
-    let rz = 0.1;
+    // Planet: fixed axial tilt + a steady turn about the polar (Y) axis.
+    let rx = spin ? 0.42 : 0.35;
+    let ry = spin ? -0.62 : -0.5;
+    let rz = spin ? 0.14 : 0.1;
+    if (spin) ay.base = 0.3; // rad/s
 
     // Spotlight: incommensurate frequencies make the Lissajous path wander
     // without ever exactly repeating.
@@ -99,11 +133,12 @@ export const AssetWireframe: React.FC<AssetWireframeProps> = ({ className }) => 
     };
     const spotPos: Vec3 = [0, 0, 0];
 
-    // Object cycling: hold, then crossfade into a different model.
+    // Object cycling: hold, then crossfade into a different model. Disabled in
+    // spin mode, which holds its single model.
     const HOLD_MIN = 9.5;
     const HOLD_JITTER = 4.5;
     const FADE = 0.75;
-    let modelIndex = Math.floor(rand() * MODELS.length);
+    let modelIndex = spin ? 0 : Math.floor(rand() * list.length);
     let swapAt = HOLD_MIN + rand() * HOLD_JITTER;
     let fadeStart = 0;
     let fading = false;
@@ -121,7 +156,7 @@ export const AssetWireframe: React.FC<AssetWireframeProps> = ({ className }) => 
 
       ctx.clearRect(0, 0, w, h);
 
-      const model = MODELS[modelIndex];
+      const model = list[modelIndex];
       const cosX = Math.cos(rx);
       const sinX = Math.sin(rx);
       const cosY = Math.cos(ry);
@@ -252,7 +287,7 @@ export const AssetWireframe: React.FC<AssetWireframeProps> = ({ className }) => 
           objAlpha = 1 - ft * 2;
         } else {
           if (!swapped) {
-            modelIndex = (modelIndex + 1 + Math.floor(rand() * (MODELS.length - 1))) % MODELS.length;
+            modelIndex = (modelIndex + 1 + Math.floor(rand() * (list.length - 1))) % list.length;
             swapped = true;
           }
           objAlpha = (ft - 0.5) * 2;
@@ -262,7 +297,7 @@ export const AssetWireframe: React.FC<AssetWireframeProps> = ({ className }) => 
           swapped = false;
           swapAt = t + HOLD_MIN + rand() * HOLD_JITTER;
         }
-      } else if (t >= swapAt) {
+      } else if (!spin && t >= swapAt) {
         fading = true;
         fadeStart = t;
       }
