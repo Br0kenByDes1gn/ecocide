@@ -1,0 +1,325 @@
+{
+  "schemaVersion": 1,
+  "environment": {
+    "generatedAt": "2026-10-17T07:48:44.785Z",
+    "commit": "51ec0607f2e8eae2b38507dac0acd05884ab0e6a",
+    "commitShort": "51ec0607",
+    "dirty": true,
+    "node": "v24.13.0",
+    "platform": "linux 7.2.9-201.fc44.x86_64",
+    "arch": "x64",
+    "cpuModel": "AMD Ryzen 7 PRO 4750U with Radeon Graphics",
+    "cpuCount": 16,
+    "totalMemMb": 45865,
+    "distBuiltAt": "2026-10-17T07:28:45.238Z",
+    "distStale": false
+  },
+  "run": {
+    "id": "postgres-offline",
+    "engine": "postgres",
+    "engineLabel": "PostgreSQL in a disposable container (production-like)",
+    "engineVersion": "PostgreSQL 17.11 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+    "databaseLabel": "PostgreSQL (127.0.0.1:32773)",
+    "mode": "offline",
+    "model": "simulated-engine",
+    "engineReportedByServer": "offline simulation",
+    "bootMs": 1284,
+    "corpus": "synthetic (seeded, 24 generated 640x480 JPEGs)",
+    "warmup": 20,
+    "scansPerLevel": 200,
+    "concurrencyLevels": [
+      1,
+      4,
+      8,
+      16
+    ],
+    "primary": {
+      "concurrency": 1,
+      "scans": 200,
+      "errors": 0,
+      "wallMs": {
+        "count": 200,
+        "min": 53.55,
+        "max": 102.11,
+        "mean": 74.17,
+        "p50": 74.01,
+        "p90": 89.56,
+        "p95": 91.41,
+        "p99": 94.81,
+        "sum": 14834.53
+      },
+      "payloadBytes": {
+        "count": 200,
+        "min": 4192,
+        "max": 6583,
+        "mean": 5404.37,
+        "p50": 5346.5,
+        "p90": 6334,
+        "p95": 6415,
+        "p99": 6583,
+        "sum": 1080874
+      },
+      "serverTotalMs": {
+        "count": 200,
+        "min": 46,
+        "max": 91,
+        "mean": 66.42,
+        "p50": 66,
+        "p90": 82,
+        "p95": 84,
+        "p99": 87.02,
+        "sum": 13285
+      },
+      "pass1Ms": {
+        "count": 200,
+        "min": 1,
+        "max": 1,
+        "mean": 1,
+        "p50": 1,
+        "p90": 1,
+        "p95": 1,
+        "p99": 1,
+        "sum": 200
+      },
+      "pass2Ms": {
+        "count": 200,
+        "min": 1,
+        "max": 1,
+        "mean": 1,
+        "p50": 1,
+        "p90": 1,
+        "p95": 1,
+        "p99": 1,
+        "sum": 200
+      },
+      "overheadMs": {
+        "count": 200,
+        "min": 44,
+        "max": 89,
+        "mean": 64.42,
+        "p50": 64,
+        "p90": 80,
+        "p95": 82,
+        "p99": 85.02,
+        "sum": 12885
+      },
+      "promptTokens": {
+        "count": 200,
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "p50": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 0,
+        "sum": 0
+      },
+      "outputTokens": {
+        "count": 200,
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "p50": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 0,
+        "sum": 0
+      },
+      "totalTokens": {
+        "count": 200,
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "p50": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 0,
+        "sum": 0
+      },
+      "costUsdPerScan": {
+        "mean": 0,
+        "p95": 0,
+        "total": 0
+      },
+      "erroredScans": 0,
+      "retriedScans": 0,
+      "errorSamples": []
+    },
+    "concurrencyCurve": [
+      {
+        "concurrency": 1,
+        "scans": 200,
+        "wallSeconds": 14.84,
+        "scansPerSec": 13.48,
+        "wallMsP50": 74.01,
+        "wallMsP95": 91.41,
+        "errors": 0
+      },
+      {
+        "concurrency": 4,
+        "scans": 200,
+        "wallSeconds": 12.18,
+        "scansPerSec": 16.43,
+        "wallMsP50": 239.44,
+        "wallMsP95": 292.92,
+        "errors": 0
+      },
+      {
+        "concurrency": 8,
+        "scans": 200,
+        "wallSeconds": 11.49,
+        "scansPerSec": 17.41,
+        "wallMsP50": 454.23,
+        "wallMsP95": 576.51,
+        "errors": 0
+      },
+      {
+        "concurrency": 16,
+        "scans": 200,
+        "wallSeconds": 11.03,
+        "scansPerSec": 18.14,
+        "wallMsP50": 879.25,
+        "wallMsP95": 1194.23,
+        "errors": 0
+      }
+    ],
+    "endpoints": [
+      {
+        "count": 60,
+        "min": 0.67,
+        "max": 1.68,
+        "mean": 0.91,
+        "p50": 0.82,
+        "p90": 1.15,
+        "p95": 1.47,
+        "p99": 1.65,
+        "sum": 54.43,
+        "name": "health",
+        "path": "/api/health",
+        "requests": 60,
+        "concurrency": 1,
+        "errors": 0,
+        "errorSamples": [],
+        "rps": 1099,
+        "bytesMean": 190
+      },
+      {
+        "count": 60,
+        "min": 1.92,
+        "max": 8.48,
+        "mean": 3.01,
+        "p50": 2.55,
+        "p90": 4.05,
+        "p95": 4.3,
+        "p99": 6.08,
+        "sum": 180.65,
+        "name": "census",
+        "path": "/api/census",
+        "requests": 60,
+        "concurrency": 1,
+        "errors": 0,
+        "errorSamples": [],
+        "rps": 331.9,
+        "bytesMean": 406
+      },
+      {
+        "count": 60,
+        "min": 2.55,
+        "max": 6.19,
+        "mean": 3.98,
+        "p50": 3.53,
+        "p90": 5.76,
+        "p95": 5.92,
+        "p99": 6.06,
+        "sum": 238.86,
+        "name": "citizen/:id",
+        "path": "/api/citizen/12peHGe5FK",
+        "requests": 60,
+        "concurrency": 1,
+        "errors": 0,
+        "errorSamples": [],
+        "rps": 251,
+        "bytesMean": 5545
+      },
+      {
+        "count": 60,
+        "min": 1.01,
+        "max": 4.09,
+        "mean": 1.81,
+        "p50": 1.91,
+        "p90": 2.17,
+        "p95": 2.34,
+        "p99": 3.26,
+        "sum": 108.38,
+        "name": "evidence/:name",
+        "path": "/api/evidence/12peHGe5FK.jpg",
+        "requests": 60,
+        "concurrency": 1,
+        "errors": 0,
+        "errorSamples": [],
+        "rps": 552.9,
+        "bytesMean": 27463
+      },
+      {
+        "count": 30,
+        "min": 59.52,
+        "max": 78.8,
+        "mean": 66.49,
+        "p50": 66.03,
+        "p90": 71.42,
+        "p95": 72.11,
+        "p99": 76.97,
+        "sum": 1994.74,
+        "name": "oracle/scan",
+        "path": "/api/oracle/scan",
+        "requests": 30,
+        "concurrency": 1,
+        "errors": 0,
+        "errorSamples": [],
+        "rps": 15,
+        "bytesMean": 5349
+      }
+    ],
+    "byTier": [
+      {
+        "caste": "statistically-average-polluter",
+        "tierName": "Statistically Average Polluter",
+        "count": 132,
+        "tokensMean": 0,
+        "costUsdMean": 0,
+        "totalMsP50": 223.5
+      },
+      {
+        "caste": "power-grid-liability",
+        "tierName": "Power Grid Liability",
+        "count": 72,
+        "tokensMean": 0,
+        "costUsdMean": 0,
+        "totalMsP50": 214.5
+      },
+      {
+        "caste": "high-impact-offender",
+        "tierName": "High-Impact Habitual Offender",
+        "count": 496,
+        "tokensMean": 0,
+        "costUsdMean": 0,
+        "totalMsP50": 248.5
+      },
+      {
+        "caste": "marginally-acceptable-human",
+        "tierName": "Marginally Acceptable Human",
+        "count": 100,
+        "tokensMean": 0,
+        "costUsdMean": 0,
+        "totalMsP50": 240
+      }
+    ],
+    "math": {
+      "calls": 50000,
+      "itemsPerCall": 14,
+      "usPerCall": 3.565,
+      "usPerItem": 0.2546,
+      "checksum": 3050000
+    }
+  }
+}

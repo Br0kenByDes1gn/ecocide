@@ -121,6 +121,16 @@ Rollback is a `workflow_dispatch` run with the previous `image_tag`, or
 `gcloud run services update-traffic`. Rolling the app back does **not** roll the
 schema back — hence the additive-only rule.
 
+## Performance
+
+The measured behaviour of the pipeline in §2 — per-pass model latency, tokens,
+cost, throughput and endpoint percentiles — lives in
+[`performance/PERFORMANCE.md`](./performance/PERFORMANCE.md), produced by the
+benchmark harness in `apps/server/scripts/` (`pnpm bench`, `pnpm bench:report`).
+It is deliberately not a diagram: the numbers are regenerated from a controlled
+run against a throwaway database, and the report is a pure function of the JSON
+those runs write to `docs/performance/data/`.
+
 ## Block colours
 
 Mermaid paints every `subgraph` with one `clusterBkg` (a pale yellow), so per-block

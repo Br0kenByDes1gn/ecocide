@@ -1,0 +1,260 @@
+{
+  "schemaVersion": 1,
+  "environment": {
+    "generatedAt": "2026-10-17T07:50:52.388Z",
+    "commit": "51ec0607f2e8eae2b38507dac0acd05884ab0e6a",
+    "commitShort": "51ec0607",
+    "dirty": true,
+    "node": "v24.13.0",
+    "platform": "linux 7.2.9-201.fc44.x86_64",
+    "arch": "x64",
+    "cpuModel": "AMD Ryzen 7 PRO 4750U with Radeon Graphics",
+    "cpuCount": 16,
+    "totalMemMb": 45865,
+    "distBuiltAt": "2026-10-17T07:28:45.238Z",
+    "distStale": false
+  },
+  "run": {
+    "id": "postgres-live",
+    "engine": "postgres",
+    "engineLabel": "PostgreSQL in a disposable container (production-like)",
+    "engineVersion": "PostgreSQL 17.11 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+    "databaseLabel": "PostgreSQL (127.0.0.1:32774)",
+    "mode": "live",
+    "model": "gemini-3.8-flash",
+    "engineReportedByServer": "Vertex AI · ecocide-511407 · global (billed via Google Cloud)",
+    "bootMs": 1272,
+    "corpus": "real evidence photos: /home/zaro/ai-cup/ecocide/apps/server/data/evidence (8 files ≥ 4096B)",
+    "warmup": 1,
+    "scansPerLevel": 5,
+    "concurrencyLevels": [
+      1
+    ],
+    "primary": {
+      "concurrency": 1,
+      "scans": 5,
+      "errors": 0,
+      "wallMs": {
+        "count": 5,
+        "min": 12656.54,
+        "max": 20952.61,
+        "mean": 17822.34,
+        "p50": 18315,
+        "p90": 20588.55,
+        "p95": 20770.58,
+        "p99": 20916.2,
+        "sum": 89111.7
+      },
+      "payloadBytes": {
+        "count": 5,
+        "min": 2436,
+        "max": 3445,
+        "mean": 2781.8,
+        "p50": 2576,
+        "p90": 3268.2,
+        "p95": 3356.6,
+        "p99": 3427.32,
+        "sum": 13909
+      },
+      "serverTotalMs": {
+        "count": 5,
+        "min": 12647,
+        "max": 20943,
+        "mean": 17811,
+        "p50": 18302,
+        "p90": 20578.2,
+        "p95": 20760.6,
+        "p99": 20906.52,
+        "sum": 89055
+      },
+      "pass1Ms": {
+        "count": 5,
+        "min": 6430,
+        "max": 10751,
+        "mean": 8760.6,
+        "p50": 8452,
+        "p90": 10478.6,
+        "p95": 10614.8,
+        "p99": 10723.76,
+        "sum": 43803
+      },
+      "pass2Ms": {
+        "count": 5,
+        "min": 4507,
+        "max": 11534,
+        "mean": 9006.6,
+        "p50": 10667,
+        "p90": 11251.2,
+        "p95": 11392.6,
+        "p99": 11505.72,
+        "sum": 45033
+      },
+      "overheadMs": {
+        "count": 5,
+        "min": 35,
+        "max": 53,
+        "mean": 43.8,
+        "p50": 45,
+        "p90": 50.2,
+        "p95": 51.6,
+        "p99": 52.72,
+        "sum": 219
+      },
+      "promptTokens": {
+        "count": 5,
+        "min": 4411,
+        "max": 4466,
+        "mean": 4428.8,
+        "p50": 4418,
+        "p90": 4453.2,
+        "p95": 4459.6,
+        "p99": 4464.72,
+        "sum": 22144
+      },
+      "outputTokens": {
+        "count": 5,
+        "min": 1587,
+        "max": 2934,
+        "mean": 2340.8,
+        "p50": 2532,
+        "p90": 2819.6,
+        "p95": 2876.8,
+        "p99": 2922.56,
+        "sum": 11704
+      },
+      "totalTokens": {
+        "count": 5,
+        "min": 6021,
+        "max": 7400,
+        "mean": 6769.6,
+        "p50": 6947,
+        "p90": 7266.4,
+        "p95": 7333.2,
+        "p99": 7386.64,
+        "sum": 33848
+      },
+      "costUsdPerScan": {
+        "mean": 0.002482,
+        "p95": 0.002873,
+        "total": 0.012412
+      },
+      "erroredScans": 0,
+      "retriedScans": 0,
+      "errorSamples": []
+    },
+    "concurrencyCurve": [
+      {
+        "concurrency": 1,
+        "scans": 5,
+        "wallSeconds": 89.11,
+        "scansPerSec": 0.06,
+        "wallMsP50": 18315,
+        "wallMsP95": 20770.58,
+        "errors": 0
+      }
+    ],
+    "endpoints": [
+      {
+        "count": 60,
+        "min": 1.44,
+        "max": 4.41,
+        "mean": 2.36,
+        "p50": 2.35,
+        "p90": 2.85,
+        "p95": 3.14,
+        "p99": 3.77,
+        "sum": 141.87,
+        "name": "health",
+        "path": "/api/health",
+        "requests": 60,
+        "concurrency": 1,
+        "errors": 0,
+        "errorSamples": [],
+        "rps": 422,
+        "bytesMean": 235
+      },
+      {
+        "count": 60,
+        "min": 2.28,
+        "max": 6.72,
+        "mean": 3.43,
+        "p50": 3.45,
+        "p90": 4.11,
+        "p95": 4.25,
+        "p99": 5.33,
+        "sum": 205.73,
+        "name": "census",
+        "path": "/api/census",
+        "requests": 60,
+        "concurrency": 1,
+        "errors": 0,
+        "errorSamples": [],
+        "rps": 291.5,
+        "bytesMean": 398
+      },
+      {
+        "count": 60,
+        "min": 2.84,
+        "max": 12.17,
+        "mean": 5.58,
+        "p50": 5.86,
+        "p90": 6.55,
+        "p95": 6.6,
+        "p99": 9.03,
+        "sum": 334.55,
+        "name": "citizen/:id",
+        "path": "/api/citizen/B8FP8e2io8",
+        "requests": 60,
+        "concurrency": 1,
+        "errors": 0,
+        "errorSamples": [],
+        "rps": 179.3,
+        "bytesMean": 3632
+      },
+      {
+        "count": 60,
+        "min": 1.39,
+        "max": 6.96,
+        "mean": 2.58,
+        "p50": 2.28,
+        "p90": 3.71,
+        "p95": 4.43,
+        "p99": 5.9,
+        "sum": 154.62,
+        "name": "evidence/:name",
+        "path": "/api/evidence/B8FP8e2io8.jpg",
+        "requests": 60,
+        "concurrency": 1,
+        "errors": 0,
+        "errorSamples": [],
+        "rps": 387.6,
+        "bytesMean": 85839
+      }
+    ],
+    "byTier": [
+      {
+        "caste": "high-impact-offender",
+        "tierName": "High-Impact Habitual Offender",
+        "count": 4,
+        "tokensMean": 6859,
+        "costUsdMean": 0.002544,
+        "totalMsP50": 19166.5
+      },
+      {
+        "caste": "statistically-average-polluter",
+        "tierName": "Statistically Average Polluter",
+        "count": 1,
+        "tokensMean": 6414,
+        "costUsdMean": 0.002236,
+        "totalMsP50": 17132
+      }
+    ],
+    "math": {
+      "calls": 50000,
+      "itemsPerCall": 14,
+      "usPerCall": 3.267,
+      "usPerItem": 0.2333,
+      "checksum": 3050000
+    }
+  }
+}

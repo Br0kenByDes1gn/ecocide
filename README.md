@@ -86,6 +86,27 @@ cost audit (`pnpm scan-costs`).
 4. Archived evidence photos land in `apps/server/data/evidence/`
    (override with `EVIDENCE_DIR`).
 
+## Performance
+
+`pnpm bench` measures the audit pipeline and the API by driving a real server
+process over HTTP, and `pnpm bench:report` renders the results into
+[`docs/performance/PERFORMANCE.md`](docs/performance/PERFORMANCE.md) with charts.
+
+```bash
+pnpm build          # the bench spawns apps/server/dist
+pnpm bench:matrix   # PGlite + Postgres, offline (free — no tokens)
+pnpm bench --db=postgres --mode=live --live-n=5 --live-confirm=yes   # real tokens
+pnpm bench:report   # regenerates the report + charts from docs/performance/data/
+```
+
+Each run provisions a **throwaway** database (a fresh PGlite directory, or a
+disposable `postgres:17-alpine` container) and a throwaway evidence directory, so
+`apps/server/data` is never touched. Offline runs force `GEMINI_MODE=off` and cost
+nothing; live runs are gated behind `--live-confirm=yes`. Per-pass latency comes
+from the `scan_api_logs` rows the server writes (including the `scan_total` row
+that records each audit's true wall clock), and the report is a pure function of
+the JSON in `docs/performance/data/`.
+
 ## Repository layout
 
 ```
@@ -119,5 +140,7 @@ SQLite needed.
 
 See [`AGENTS.md`](AGENTS.md) for the developer/agent brief,
 [`STORY.md`](STORY.md) for the lore-pack authoring guide,
-[`art_directions.md`](art_directions.md) for the visual bible, and
-[`compliance_formula.md`](compliance_formula.md) for the score formula.
+[`art_directions.md`](art_directions.md) for the visual bible,
+[`compliance_formula.md`](compliance_formula.md) for the score formula, and
+[`docs/performance/PERFORMANCE.md`](docs/performance/PERFORMANCE.md) for the
+measured performance report.

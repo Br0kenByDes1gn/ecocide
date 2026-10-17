@@ -10,6 +10,8 @@
     "migrate": "node dist/migrate-cli.js",
     "db:generate": "drizzle-kit generate",
     "scan-costs": "node scripts/show-scan-costs.mjs",
+    "bench": "node scripts/bench-scans.mjs",
+    "bench:report": "node scripts/render-perf-report.mjs",
     "db:reset-allowance": "tsx scripts/reset-allowance.ts"
   },
   "dependencies": {

@@ -10,7 +10,10 @@
     "build": "pnpm --filter @ecocide/compliance build && pnpm --filter @ecocide/lore build && pnpm --filter @ecocide/types build && pnpm --filter @ecocide/server build && pnpm --filter @ecocide/web build",
     "test": "vitest run",
     "wireframes": "node scripts/wireframes.mjs",
-    "scan-costs": "pnpm --filter @ecocide/server scan-costs"
+    "scan-costs": "pnpm --filter @ecocide/server scan-costs",
+    "bench": "pnpm --filter @ecocide/server bench",
+    "bench:matrix": "pnpm bench --db=pglite --mode=offline && pnpm bench --db=postgres --mode=offline",
+    "bench:report": "pnpm --filter @ecocide/server bench:report"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
