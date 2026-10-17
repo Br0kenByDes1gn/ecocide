@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Caste, OraclePayload } from '@ecocide/types';
 import { getFaction } from '@ecocide/types';
-import { IDENTITY } from '@ecocide/lore';
+import { IDENTITY, ADJUDICATORS_ON_DUTY } from '@ecocide/lore';
 import { ArrowRight, Gavel, ShieldCheck, UserSearch } from 'lucide-react';
 import { PaperDossierHeader } from './PaperDossierHeader';
 import { PaperInventoryTable } from './PaperInventoryTable';
@@ -19,6 +19,10 @@ interface ArbitrationDossierProps {
   onAppeal?: () => void;
   /** Navigate to the informant screen (/inform/:id). Only wired when a permalink exists. */
   onInform?: () => void;
+  /** Open the Planetary Grid (/grid). */
+  onOpenGrid?: () => void;
+  /** Open the credits page (/adjudicators). */
+  onOpenAdjudicators?: () => void;
 }
 
 /** Subtle paper-noise texture (same recipe as the landing dossier panel). */
@@ -45,6 +49,8 @@ export const ArbitrationDossier: React.FC<ArbitrationDossierProps> = ({
   onClaim,
   onAppeal,
   onInform,
+  onOpenGrid,
+  onOpenAdjudicators,
 }) => {
   const { user_profile, prophecy, audit } = payload;
 
@@ -279,9 +285,25 @@ export const ArbitrationDossier: React.FC<ArbitrationDossierProps> = ({
               {IDENTITY.secondaryLine}
             </p>
             <div className="flex items-center gap-2 text-[10px] font-mono text-gray-500">
-              <span className="w-2 h-2 rounded-full bg-lime-400 animate-pulse" />
-              <span>OBJECT AUDIT ENGINE ONLINE | {IDENTITY.entityName.toUpperCase()}</span>
-              <span className="text-lime-700">{IDENTITY.auditProtocol}</span>
+              <button
+                type="button"
+                onClick={onOpenGrid}
+                disabled={!onOpenGrid}
+                className="flex items-center gap-2 transition-colors hover:text-lime-400 cursor-pointer disabled:cursor-default disabled:hover:text-gray-500"
+                title="Open the Planetary Grid (/grid)"
+              >
+                <span className="w-2 h-2 rounded-full bg-lime-400 animate-pulse" />
+                <span>OBJECT AUDIT ENGINE ONLINE | {IDENTITY.entityName.toUpperCase()}</span>
+              </button>
+              <button
+                type="button"
+                onClick={onOpenAdjudicators}
+                disabled={!onOpenAdjudicators}
+                className="whitespace-nowrap text-lime-700 transition-colors hover:text-lime-400 cursor-pointer disabled:cursor-default disabled:hover:text-lime-700"
+                title="Meet the staff on duty (/adjudicators)"
+              >
+                {ADJUDICATORS_ON_DUTY}
+              </button>
             </div>
           </div>
         </div>

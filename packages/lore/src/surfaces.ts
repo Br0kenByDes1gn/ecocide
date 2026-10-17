@@ -326,6 +326,13 @@ export const ADJUDICATORS_COPY = {
 } as const;
 
 /**
+ * The footer tag that stands in for the audit protocol and links to the credits
+ * page: the number of adjudicators on duty is the roster size, so it can never
+ * drift from the team list.
+ */
+export const ADJUDICATORS_ON_DUTY = `Staff on duty - ${ADJUDICATORS_COPY.team.length}`;
+
+/**
  * The Planetary Grid (route `/grid`) — the system-status page: the Arbiter's
  * live oversight of the planet, a rotating earth and a streaming activity log.
  *

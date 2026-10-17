@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Globe, Volume2, VolumeX, ArrowRight, ShieldAlert, Wallet, Bug } from 'lucide-react';
-import { IDENTITY, REGISTRY_COPY } from '@ecocide/lore';
+import { IDENTITY, REGISTRY_COPY, ADJUDICATORS_ON_DUTY } from '@ecocide/lore';
 import { soundFx } from '../lib/audio';
 
 interface HomePageProps {
@@ -239,36 +239,30 @@ export const HomePage: React.FC<HomePageProps> = ({
       {/* Footer */}
       <footer className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 border-t border-gray-900/60">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] font-mono text-gray-500">
-          <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onOpenGrid}
+            disabled={!onOpenGrid}
+            className="flex items-center gap-2 transition-colors hover:text-lime-400 cursor-pointer disabled:cursor-default disabled:hover:text-gray-500"
+            title="Open the Planetary Grid (/grid)"
+          >
             <span className="w-1.5 h-1.5 rounded-full bg-lime-400 animate-pulse" />
             <span>OBJECT AUDIT ENGINE ONLINE | {IDENTITY.entityName.toUpperCase()}</span>
-          </div>
+          </button>
           <div className="flex items-center gap-4">
             <span>DETERMINISTIC COMPLIANCE MATH: ACTIVE</span>
-            <span className="text-lime-700">{IDENTITY.auditProtocol}</span>
+            <button
+              type="button"
+              onClick={onOpenAbout}
+              disabled={!onOpenAbout}
+              className="whitespace-nowrap text-lime-700 transition-colors hover:text-lime-400 cursor-pointer disabled:cursor-default disabled:hover:text-lime-700"
+              title="Meet the staff on duty (/adjudicators)"
+            >
+              {ADJUDICATORS_ON_DUTY}
+            </button>
           </div>
           <div className="flex items-center gap-3 text-gray-600">
             <span className="hidden lg:inline">{IDENTITY.backronym}</span>
-            {onOpenGrid && (
-              <button
-                type="button"
-                onClick={onOpenGrid}
-                className="border border-gray-800 hover:border-lime-500/50 px-2.5 py-1 rounded-lg bg-gray-950 text-gray-400 hover:text-lime-400 transition-colors uppercase tracking-widest cursor-pointer"
-                title="Live oversight of the planet (/grid)"
-              >
-                Planetary Grid
-              </button>
-            )}
-            {onOpenAbout && (
-              <button
-                type="button"
-                onClick={onOpenAbout}
-                className="border border-gray-800 hover:border-lime-500/50 px-2.5 py-1 rounded-lg bg-gray-950 text-gray-400 hover:text-lime-400 transition-colors uppercase tracking-widest cursor-pointer"
-                title="The humans behind the Arbiter (/adjudicators)"
-              >
-                Adjudicators
-              </button>
-            )}
           </div>
         </div>
       </footer>

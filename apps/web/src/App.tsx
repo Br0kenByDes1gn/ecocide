@@ -16,7 +16,7 @@ import { CarbonRegistryScreen } from './components/CarbonRegistryScreen';
 import { InformantScreen } from './components/InformantScreen';
 import { AboutScreen } from './components/AboutScreen';
 import { GridScreen } from './components/GridScreen';
-import { IDENTITY, REGISTRY_COPY, CONFETTI_COLORS } from '@ecocide/lore';
+import { IDENTITY, REGISTRY_COPY, CONFETTI_COLORS, ADJUDICATORS_ON_DUTY } from '@ecocide/lore';
 import { soundFx } from './lib/audio';
 
 const IS_DEV = import.meta.env.DEV;
@@ -623,6 +623,8 @@ export function App() {
             onClaim={permalinkId ? handleOpenClaim : undefined}
             onAppeal={permalinkId ? handleOpenAppeal : undefined}
             onInform={permalinkId ? handleOpenInform : undefined}
+            onOpenGrid={goGrid}
+            onOpenAdjudicators={goAbout}
           />
         )}
 
@@ -681,13 +683,25 @@ export function App() {
       {/* Footer System Status (hidden on the scan + arbitration screens — those carry their own) */}
       {viewState !== 'scanning' && viewState !== 'arbitration' && (
       <footer className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-gray-900 pt-2 mt-2 pb-2 flex flex-col sm:flex-row items-center justify-between text-[11px] font-mono text-gray-500 gap-2">
-        <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={goGrid}
+          className="flex items-center gap-2 transition-colors hover:text-lime-400 cursor-pointer"
+          title="Open the Planetary Grid (/grid)"
+        >
           <span className="w-2 h-2 rounded-full bg-lime-400 animate-pulse" />
           <span>OBJECT AUDIT ENGINE ONLINE | {IDENTITY.entityName.toUpperCase()}</span>
-        </div>
+        </button>
         <div className="flex items-center gap-4">
           <span>DETERMINISTIC COMPLIANCE MATH: ACTIVE</span>
-          <span className="text-lime-700">{IDENTITY.auditProtocol}</span>
+          <button
+            type="button"
+            onClick={goAbout}
+            className="whitespace-nowrap text-lime-700 transition-colors hover:text-lime-400 cursor-pointer"
+            title="Meet the staff on duty (/adjudicators)"
+          >
+            {ADJUDICATORS_ON_DUTY}
+          </button>
         </div>
       </footer>
       )}
