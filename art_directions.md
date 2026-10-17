@@ -1,7 +1,7 @@
 # ECOCIDE — Visual Style & Art Direction Bible
 
 **Tagline:** TBD
-**Secondary line (near the appeal button):** Guilty until pledged.
+**Secondary line (near the appeal button):** Guilty until proven compliant.
 
 > Use this document as the single source of truth when generating artwork, illustrations,
 > marketing images, stamps, or any visual asset for the application.
@@ -26,7 +26,7 @@ excess, and the only defence is real pledged action.
 | --- | --- |
 | Logo lockup / landing page | Carbon Excess Eliminator |
 | Stamps and short formats | Excess Carbon. Eliminated. |
-| Appeal button area | Guilty until pledged. |
+| Appeal button area | Guilty until proven compliant. |
 
 ### 1.3 Tone rules
 
@@ -400,7 +400,7 @@ or people.
    switches to the plain paper-layer panel with the serious reasoning.
 4. **Verdict Actions**: ACCEPT VERDICT = solid lime pill (black text), FILE APPEAL = solid
    amber pill (black text), under a pulsing `VERDICT DELIVERED` status line and the secondary
-   line `Guilty until pledged.`
+   line `Guilty until proven compliant.`
 5. **Appeal Tribunal**: replaces the payment terminal. Courtroom-terminal layout with a plea
    text box, a pledge picker tied to detected items, a live credibility meter (specific,
    feasible, impactful), and the Arbiter's in-character reply. Prompt-injection attempts

@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import type { OraclePayload } from '@ecocide/types';
 import { appealFeeUnits } from '@ecocide/types';
 import { Loader2, Recycle, Send, ShieldCheck } from 'lucide-react';
+import { IDENTITY } from '@ecocide/lore';
 import { RegistryPayment } from './RegistryPayment';
 import { DossierBarcode } from './PaperDossierHeader';
 import { useVault } from '../lib/useVault';
@@ -159,7 +160,7 @@ export const AppealScreen: React.FC<AppealScreenProps> = ({ payload, permalinkId
             <p className="text-sm text-[#6b7263]">
               Current designation:{' '}
               <span className="text-[#1f2a1f] font-bold">{user_profile.honorific_title}</span>.
-              Guilty until pledged.
+              {' '}{IDENTITY.secondaryLine}
             </p>
           </div>
 

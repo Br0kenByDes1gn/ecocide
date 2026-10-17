@@ -25,7 +25,7 @@ formula: **`compliance_formula.md`**.
 | `entityName` | `AI Supreme Arbiter of Consumption` | the in-world decider (prompts, scanner copy, emails, footer) |
 | `entityShortName` | `the Arbiter` | mid-sentence reference |
 | `tagline` | `Carbon Excess Eliminator` | logo lockup / landing (art §1.2) |
-| `secondaryLine` | `Guilty until pledged.` | near the appeal button (art §1.2) |
+| `secondaryLine` | `Guilty until proven compliant.` | near the appeal button (art §1.2) |
 | `backronym` | `Excess Carbon Offence Case Investigation & Disposal Engine` | footer / deck (art §1.1) |
 | `auditProtocol` | `PROTOCOL-9` | stamped on case files |
 

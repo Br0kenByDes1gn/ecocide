@@ -14,7 +14,7 @@ export const IDENTITY = {
   /** Primary tagline (logo lockup / landing page). */
   tagline: 'Biosphere Threat Convergence',
   /** Secondary line near the appeal button (art §1.2). */
-  secondaryLine: 'Guilty until pledged.',
+  secondaryLine: 'Guilty until proven compliant.',
   /** Bureaucratic backronym (footer, About page, deck). */
   backronym:
     'Excess Carbon Offence Case Investigation & Disposal Engine',
