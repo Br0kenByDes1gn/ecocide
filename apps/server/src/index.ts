@@ -185,6 +185,8 @@ app.get('/api/health', (c) => {
 // The evidence photo is written to disk; the DB stores only the file name.
 // ---------------------------------------------------------------------------
 app.post('/api/oracle/scan', async (c) => {
+  // Wall clock for the whole audit, logged as a `scan_total` row below.
+  const scanStartedAt = performance.now();
   try {
     const body = await c.req.json<ScanRequest>();
     const { image, category } = body;
@@ -290,6 +292,22 @@ app.post('/api/oracle/scan', async (c) => {
         status: 'success',
       });
     }
+
+    // End-to-end audit duration: request receipt → dossier persisted. Excludes
+    // the optional verdict email below, which is delivery, not the audit.
+    await repositories.logApiCall({
+      dossierId: id,
+      callType: 'scan_total',
+      provider: inventory?.usage.provider ?? 'mock',
+      model: inventory?.usage.model ?? 'simulated-engine',
+      promptTokens: 0,
+      candidatesTokens: 0,
+      thoughtsTokens: 0,
+      totalTokens: 0,
+      costUsd: 0,
+      durationMs: Math.round(performance.now() - scanStartedAt),
+      status: 'success',
+    });
 
     // Optional: deliver the verdict to the address supplied with the scan
     const email = normalizeEmail(body.email);

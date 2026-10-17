@@ -88,13 +88,19 @@ for (const [idx, dossier] of dossiers.entries()) {
   const { rows: logs } = await db.query(LOGS_SQL, [dossier.id]);
   const scanIndex = idx + 1;
 
-  const scanTotalCost = logs.reduce((sum, l) => sum + Number(l.cost_usd || 0), 0);
-  const scanPromptTokens = logs.reduce((sum, l) => sum + (l.prompt_tokens || 0), 0);
-  const scanOutputTokens = logs.reduce((sum, l) => sum + (l.candidates_tokens || 0), 0);
-  const scanTotalTokens = logs.reduce((sum, l) => sum + (l.total_tokens || 0), 0);
-  const scanDurationMs = logs.reduce((sum, l) => sum + (l.duration_ms || 0), 0);
+  // `scan_total` is the audit's own wall clock, not a model call: it carries
+  // zeros and is kept out of the call list, the token sums and the call count.
+  const scanTotalRow = logs.find((l) => l.call_type === 'scan_total');
+  const apiLogs = logs.filter((l) => l.call_type !== 'scan_total');
 
-  grandTotalCalls += logs.length;
+  const scanTotalCost = apiLogs.reduce((sum, l) => sum + Number(l.cost_usd || 0), 0);
+  const scanPromptTokens = apiLogs.reduce((sum, l) => sum + (l.prompt_tokens || 0), 0);
+  const scanOutputTokens = apiLogs.reduce((sum, l) => sum + (l.candidates_tokens || 0), 0);
+  const scanTotalTokens = apiLogs.reduce((sum, l) => sum + (l.total_tokens || 0), 0);
+  const summedCallDurationMs = apiLogs.reduce((sum, l) => sum + (l.duration_ms || 0), 0);
+  const scanDurationMs = scanTotalRow ? Number(scanTotalRow.duration_ms || 0) : summedCallDurationMs;
+
+  grandTotalCalls += apiLogs.length;
   grandTotalCost += scanTotalCost;
   grandTotalPromptTokens += scanPromptTokens;
   grandTotalOutputTokens += scanOutputTokens;
@@ -124,10 +130,10 @@ for (const [idx, dossier] of dossiers.entries()) {
   );
   console.log('    \x1b[90m' + '─'.repeat(88) + '\x1b[0m');
 
-  if (logs.length === 0) {
+  if (apiLogs.length === 0) {
     console.log('    \x1b[90m(No individual API call logs recorded for this audit)\x1b[0m');
   } else {
-    for (const log of logs) {
+    for (const log of apiLogs) {
       const typeStr = log.call_type;
       const modelStr = log.model;
       const latencyStr = `${Number(log.duration_ms).toLocaleString()}ms`;
@@ -158,13 +164,24 @@ for (const [idx, dossier] of dossiers.entries()) {
   const scanCostStr = `$${scanTotalCost.toFixed(6)}`;
   console.log(
     `    \x1b[1m\x1b[32mSCAN TOTAL:\x1b[0m        ` +
-      `${logs.length} API call${logs.length === 1 ? '' : 's'}`.padEnd(25) +
+      `${apiLogs.length} API call${apiLogs.length === 1 ? '' : 's'}`.padEnd(25) +
       `${scanDurationMs.toLocaleString()}ms`.padStart(10) +
       `${scanPromptTokens.toLocaleString()}`.padStart(9) +
       `${scanOutputTokens.toLocaleString()}`.padStart(9) +
       `${scanTotalTokens.toLocaleString()}`.padStart(8) +
       `  \x1b[1m\x1b[33m${scanCostStr.padStart(10)}\x1b[0m`
   );
+  if (scanTotalRow) {
+    console.log(
+      `    \x1b[90m└─ End-to-end audit: ${scanDurationMs.toLocaleString()}ms ` +
+        `(model calls: ${summedCallDurationMs.toLocaleString()}ms, ` +
+        `overhead: ${(scanDurationMs - summedCallDurationMs).toLocaleString()}ms)\x1b[0m`
+    );
+  } else {
+    console.log(
+      `    \x1b[90m└─ No scan_total row (older audit) — duration is the sum of model calls.\x1b[0m`
+    );
+  }
   console.log('');
 }
 

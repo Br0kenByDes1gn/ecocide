@@ -537,13 +537,18 @@ export function createRepositories(db: DbConnection['db']) {
             .from(scanApiLogs)
             .where(eq(scanApiLogs.dossier_id, dossier.id))
             .orderBy(scanApiLogs.created_at);
-          const apiCalls = rawLogs.map(mapScanLogRow);
+          // `scan_total` is the scan's own wall clock, not a model call: it is
+          // excluded from the call list and the token/cost sums (it carries
+          // zeros) and used as the scan duration when present.
+          const allRows = rawLogs.map(mapScanLogRow);
+          const apiCalls = allRows.filter((c) => c.callType !== 'scan_total');
+          const scanTotal = allRows.find((c) => c.callType === 'scan_total');
 
           const totalCostUsd = Number(
             apiCalls.reduce((sum, c) => sum + (c.costUsd || 0), 0).toFixed(6)
           );
           const totalTokens = apiCalls.reduce((sum, c) => sum + (c.totalTokens || 0), 0);
-          const totalDurationMs = apiCalls.reduce((sum, c) => sum + (c.durationMs || 0), 0);
+          const summedDurationMs = apiCalls.reduce((sum, c) => sum + (c.durationMs || 0), 0);
 
           return {
             dossierId: dossier.id,
@@ -554,7 +559,7 @@ export function createRepositories(db: DbConnection['db']) {
             headline: dossier.headline,
             totalCostUsd,
             totalTokens,
-            totalDurationMs,
+            totalDurationMs: scanTotal?.durationMs ?? summedDurationMs,
             apiCalls,
           };
         })

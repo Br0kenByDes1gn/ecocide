@@ -217,10 +217,26 @@ describe('postgres database dossier repository', () => {
     });
     expect(call2Id).toBeDefined();
 
+    // The scan's own wall clock — not a model call, so no tokens and no cost.
+    await repositories.logApiCall({
+      dossierId,
+      callType: 'scan_total',
+      provider: 'google',
+      model: 'gemini-3.8-flash',
+      promptTokens: 0,
+      candidatesTokens: 0,
+      thoughtsTokens: 0,
+      totalTokens: 0,
+      costUsd: 0,
+      durationMs: 5400,
+      status: 'success',
+    });
+
     const logs = await repositories.getScanApiLogs(dossierId);
-    expect(logs.length).toBe(2);
+    expect(logs.length).toBe(3);
     expect(logs[0].callType).toBe('oracle_inventory');
     expect(logs[1].callType).toBe('oracle_classify');
+    expect(logs[2].callType).toBe('scan_total');
 
     const summaries = await repositories.getRecentScansWithCosts(5);
     const target = summaries.find((s) => s.dossierId === dossierId);
@@ -228,7 +244,10 @@ describe('postgres database dossier repository', () => {
     expect(target?.caste).toBe('carbon-neutral-legend');
     expect(target?.totalTokens).toBe(1760 + 1220);
     expect(target?.totalCostUsd).toBeCloseTo(0.00054 + 0.00039, 5);
+    // scan_total is excluded from the call list and drives the scan duration.
     expect(target?.apiCalls.length).toBe(2);
+    expect(target?.apiCalls.every((c) => c.callType !== 'scan_total')).toBe(true);
+    expect(target?.totalDurationMs).toBe(5400);
   });
 
   it('updateDossierAppeal rewrites classification columns while preserving the rest', async () => {

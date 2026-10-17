@@ -267,7 +267,13 @@ export interface ScanRequest {
   email?: string;
 }
 
-export type ApiCallType = 'oracle_inventory' | 'oracle_classify';
+/**
+ * `scan_total` is not a model call: it carries the whole audit's wall-clock
+ * duration (request receipt → dossier persisted) with zero tokens and zero
+ * cost, so per-scan latency is measured server-side rather than inferred by
+ * summing the two model calls. Aggregates keep it out of the call list.
+ */
+export type ApiCallType = 'oracle_inventory' | 'oracle_classify' | 'scan_total';
 
 export interface AppealRequest {
   appeal: string;
