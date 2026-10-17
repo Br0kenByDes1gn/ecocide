@@ -66,6 +66,39 @@ export default defineConfig({
     devServiceWorkerCleanup(),
     VitePWA({
       registerType: 'autoUpdate',
+      // The manifest's icons, the apple-touch-icon and the favicon head links
+      // are generated from `public/favicon.svg` at build time by
+      // @vite-pwa/assets-generator (preset minimal-2023): a real 192 + 512 PNG
+      // pair, a padded 512 maskable icon and a 180 apple-touch-icon. The previous
+      // hand-written entry declared `192x192 512x512` on a 64px SVG, which Chrome
+      // rejects as too small — and that is what withheld the install promotion.
+      pwaAssets: {
+        // Preset minimal-2023 with our own ink: the generator's default maskable
+        // and apple-touch backgrounds are white, which would put a white tile
+        // behind the dark Arbiter mark. Everything here is on the app's void.
+        preset: {
+          transparent: {
+            sizes: [64, 192, 512],
+            favicons: [[48, 'favicon.ico']],
+            padding: 0,
+            resizeOptions: { background: '#080b08' },
+          },
+          maskable: {
+            // Padded into the Android safe zone (the mark's hexagon tips would
+            // otherwise be clipped by the mask).
+            sizes: [512],
+            padding: 0.15,
+            resizeOptions: { background: '#080b08' },
+          },
+          apple: {
+            sizes: [180],
+            padding: 0,
+            resizeOptions: { background: '#080b08' },
+          },
+        },
+        image: 'public/favicon.svg',
+        overrideManifestIcons: true,
+      },
       includeAssets: ['favicon.svg', 'fonts/special-elite-latin.woff2', 'fonts/special-elite-latin-ext.woff2'],
       workbox: {
         // Never let the SPA navigation fallback swallow API calls, and always
@@ -79,6 +112,7 @@ export default defineConfig({
         ],
       },
       manifest: {
+        id: '/',
         name: 'ECOCIDE',
         short_name: 'ECOCIDE',
         description: 'Carbon Excess Eliminator — the Arbiter audits your household objects.',
@@ -86,12 +120,29 @@ export default defineConfig({
         background_color: '#080b08',
         display: 'standalone',
         orientation: 'portrait',
-        icons: [
+        // `icons` is injected by pwaAssets (see above). The screenshots feed
+        // Android's richer install dialog; one `narrow` entry is required for it.
+        screenshots: [
           {
-            src: 'favicon.svg',
-            sizes: '192x192 512x512',
-            type: 'image/svg+xml',
-            purpose: 'any maskable',
+            src: 'screenshots/landing-narrow.png',
+            sizes: '1080x1920',
+            type: 'image/png',
+            form_factor: 'narrow',
+            label: 'Audit your household and receive the verdict',
+          },
+          {
+            src: 'screenshots/grid-narrow.png',
+            sizes: '1080x1920',
+            type: 'image/png',
+            form_factor: 'narrow',
+            label: 'Watch the Planetary Grid in real time',
+          },
+          {
+            src: 'screenshots/grid-wide.png',
+            sizes: '1920x1080',
+            type: 'image/png',
+            form_factor: 'wide',
+            label: 'The Planetary Grid — live oversight',
           },
         ],
       },

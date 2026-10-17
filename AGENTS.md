@@ -329,6 +329,16 @@ apps/server/scripts/  # scan-cost audit
   same reason: a `shrink-0` block in a non-wrapping row can only be cut off.
 - Copy: all world strings live in the lore pack; inline UI strings are
   generic chrome, not story.
+- **PWA installability** is generated, not hand-written: `pwaAssets` in
+  `vite.config.ts` (`@vite-pwa/assets-generator`, preset tuned to a
+  `#080b08` background) rasterises `public/favicon.svg` into the manifest's
+  `pwa-64/192/512.png` + `maskable-icon-512x512.png`, the `apple-touch-icon`
+  and `favicon.ico`, and injects the head links. Never hand-write
+  `manifest.icons`: the old `{ src: 'favicon.svg', sizes: '192x192 512x512' }`
+  pointed at a 64px drawing, which Chrome rejects (no icon ≥144px) and with it
+  the install promotion. The `icons` entry is overridden by the plugin;
+  `screenshots` (real PNGs in `public/screenshots/`, exact declared sizes) feed
+  Android's richer install dialog.
 
 ## 4. Commands
 
