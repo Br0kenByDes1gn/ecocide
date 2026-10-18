@@ -43,12 +43,16 @@ declare -A SECRET_MAP=(
   [BETTER_AUTH_SECRET]=ecocide-auth-secret
   [SMTP_PASS]=ecocide-smtp-pass
   [DATABASE_URL]=ecocide-db-url
+  # The queue URL carries the Memorystore AUTH string, so it is a secret.
+  [REDIS_URL]=ecocide-redis-url
+  [BULL_BOARD_PASS]=ecocide-bull-pass
 )
 
 # Space-delimited allow-list of plain env vars (delimiters make the case match).
 SERVICE_ENV_KEYS=" NODE_ENV AUTO_MIGRATE EVIDENCE_DIR BETTER_AUTH_URL APP_BASE_URL
   GEMINI_MODE GEMINI_PROJECT GEMINI_LOCATION GEMINI_MODEL
-  SMTP_HOST SMTP_PORT SMTP_SECURE SMTP_USER MAIL_FROM MAIL_REPLY_TO "
+  SMTP_HOST SMTP_PORT SMTP_SECURE SMTP_USER MAIL_FROM MAIL_REPLY_TO
+  BULL_BOARD_USER "
 
 # Credentials that must NOT be set in Vertex mode: the runtime service account's
 # ADC is used, and an API key here would silently switch billing/engine or ship a

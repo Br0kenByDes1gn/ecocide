@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# One-time Google Cloud setup for ECOCIDE (Cloud Run + Cloud SQL + GCS).
+# One-time Google Cloud setup for ECOCIDE (Cloud Run + Cloud SQL + GCS + Memorystore).
 #
 # Creates everything the tag-triggered workflow in .github/workflows/deploy-gcp.yml
 # expects to already exist. Idempotent-ish: re-running reports "already exists"
@@ -9,8 +9,12 @@
 #   ./deploy/gcp/setup.sh                 # uses the defaults below
 #   PROJECT=my-proj REGION=europe-west1 ./deploy/gcp/setup.sh
 #
-# Everything here is billable except the IAM plumbing: Cloud SQL is the one
-# always-on cost (~$9-12/mo at the smallest tier).
+# Two things here are billable and always-on: Cloud SQL (~$9-12/mo at the smallest
+# tier) and the job queue's Memorystore Basic instance (1 GiB, no free tier, low
+# tens of dollars a month). The queue is not optional in production: without
+# REDIS_URL the job dispatcher runs inline, which puts a model call inside the
+# acceptance request and loses the queue's retries. See deploy/gcp/README.md
+# ("Job queue"). Everything else is IAM plumbing or scales to zero.
 set -euo pipefail
 
 PROJECT="${PROJECT:-ecocide-511407}"
@@ -38,6 +42,11 @@ SQL_USER="${SQL_USER:-ecocide}"
 # Shared-core machine type on the Enterprise edition (see the create command).
 SQL_TIER="${SQL_TIER:-db-f1-micro}"
 EVIDENCE_BUCKET="${EVIDENCE_BUCKET:-${PROJECT}-evidence}"
+# BullMQ queue: Memorystore Redis, reachable from Cloud Run over Direct VPC egress
+# on the default network (no Serverless VPC connector to pay for).
+REDIS_INSTANCE="${REDIS_INSTANCE:-ecocide-queue}"
+REDIS_RANGE="${REDIS_RANGE:-ecocide-redis-range}"
+VPC_NETWORK="${VPC_NETWORK:-default}"
 RUN_SA="ecocide-run@${PROJECT}.iam.gserviceaccount.com"
 DEPLOY_SA="ecocide-deploy@${PROJECT}.iam.gserviceaccount.com"
 SERVICE="ecocide"
@@ -56,6 +65,9 @@ gcloud services enable \
   storage.googleapis.com \
   iamcredentials.googleapis.com \
   monitoring.googleapis.com \
+  redis.googleapis.com \
+  servicenetworking.googleapis.com \
+  compute.googleapis.com \
   --project "$PROJECT"
 
 say "Artifact Registry ($REGION)"
@@ -111,7 +123,7 @@ echo "Bound '${GITHUB_REPO}' (from $(git config --get remote.origin.url 2>/dev/n
 echo "This must match GitHub's OIDC 'repository' claim exactly, case included —"
 echo "if a tag push fails to authenticate, see the Troubleshooting section of deploy/gcp/README.md."
 
-say "Cloud SQL (PostgreSQL) — the always-on cost"
+say "Cloud SQL (PostgreSQL) — an always-on cost"
 if exists gcloud sql instances describe "$SQL_INSTANCE" --project "$PROJECT"; then
   echo "instance $SQL_INSTANCE already exists"
 else
@@ -154,6 +166,31 @@ exists gcloud storage buckets describe "gs://${EVIDENCE_BUCKET}" --project "$PRO
 gcloud storage buckets add-iam-policy-binding "gs://${EVIDENCE_BUCKET}" --quiet \
   --member "serviceAccount:${RUN_SA}" --role roles/storage.objectAdmin >/dev/null
 
+say "Job queue (Memorystore Redis)"
+# Memorystore lives on a private IP, so it needs private services access: one
+# reserved range, peered to the VPC that Cloud Run egresses through.
+exists gcloud compute addresses describe "$REDIS_RANGE" --global --project "$PROJECT" ||
+  gcloud compute addresses create "$REDIS_RANGE" \
+    --global --purpose=VPC_PEERING --prefix-length=24 \
+    --network="$VPC_NETWORK" --project "$PROJECT"
+
+if gcloud services vpc-peerings list --network="$VPC_NETWORK" --project "$PROJECT" \
+     --format='value(service)' 2>/dev/null | grep -q servicenetworking.googleapis.com; then
+  echo "private services access already connected"
+else
+  gcloud services vpc-peerings connect \
+    --service=servicenetworking.googleapis.com \
+    --ranges="$REDIS_RANGE" --network="$VPC_NETWORK" --project "$PROJECT"
+fi
+
+# Basic 1 GiB, Redis 7, AUTH + server-side TLS: the URL becomes `rediss://:AUTH@IP`.
+exists gcloud redis instances describe "$REDIS_INSTANCE" --region "$REGION" --project "$PROJECT" ||
+  gcloud redis instances create "$REDIS_INSTANCE" \
+    --size=1 --tier=basic --redis-version=redis_7_0 \
+    --region "$REGION" --network "$VPC_NETWORK" \
+    --auth-enabled --transit-encryption-mode=SERVER_AUTHENTICATION \
+    --display-name "ECOCIDE job queue (BullMQ)" --project "$PROJECT"
+
 say "Secrets"
 # DATABASE_URL uses the Cloud SQL unix socket mounted by --add-cloudsql-instances.
 if [ -n "$DB_PASSWORD" ]; then
@@ -183,12 +220,43 @@ else
   echo "!! ecocide-smtp-pass created with a placeholder — add the real Brevo SMTP key."
 fi
 
+# BullMQ needs the instance's private IP + AUTH string. The URL lives in Secret
+# Manager because it carries the credential; copy it into .env.production only if
+# you want sync-env.sh to own it (it is idempotent if the value is unchanged).
+if exists gcloud secrets describe ecocide-redis-url --project "$PROJECT"; then
+  echo "ecocide-redis-url already exists"
+else
+  REDIS_HOST="$(gcloud redis instances describe "$REDIS_INSTANCE" --region "$REGION" \
+    --project "$PROJECT" --format='value(host)')"
+  REDIS_AUTH="$(gcloud redis instances get-auth-string "$REDIS_INSTANCE" --region "$REGION" \
+    --project "$PROJECT" --format='value(authString)')"
+  printf '%s' "rediss://:${REDIS_AUTH}@${REDIS_HOST}:6379" |
+    gcloud secrets create ecocide-redis-url \
+      --project "$PROJECT" --replication-policy=automatic --data-file=-
+  echo "ecocide-redis-url created (rediss://…@${REDIS_HOST}:6379)"
+fi
+
+# Password for the Bull Board dashboard (/admin/queues). Generated once and
+# printed here — put it in .env.production together with BULL_BOARD_USER.
+if exists gcloud secrets describe ecocide-bull-pass --project "$PROJECT"; then
+  echo "ecocide-bull-pass already exists"
+else
+  BULL_BOARD_PASSWORD="$(openssl rand -hex 24)"
+  printf '%s' "$BULL_BOARD_PASSWORD" | gcloud secrets create ecocide-bull-pass \
+    --project "$PROJECT" --replication-policy=automatic --data-file=-
+  echo "!! Bull Board password (save it, it is not shown again): ${BULL_BOARD_PASSWORD}"
+fi
+
 cat <<EOF
 
 \033[1mNext: first deploy\033[0m
   1. Add the Brevo SMTP key:  printf '%s' '<smtp-key>' | gcloud secrets versions add ecocide-smtp-pass --project $PROJECT --data-file=-
   2. Build + push the image:  gcloud builds submit --project $PROJECT --tag ${REGION}-docker.pkg.dev/${PROJECT}/${AR_REPO}/ecocide:v0.1.0 .
   3. Create the migrate job:  see deploy/gcp/README.md (step "Migrate job")
-  4. Deploy the service:      see deploy/gcp/README.md (step "Deploy")
-  5. Map the domain + point BETTER_AUTH_URL/APP_BASE_URL at it (deploy/gcp/README.md)
+  4. Deploy the service:      see deploy/gcp/README.md (step "Deploy") — it needs
+     the Direct VPC egress flags and REDIS_URL, or /api/health will report
+     "jobs": "inline" and the release smoke test will refuse the deploy
+  5. Dashboard (optional):    put BULL_BOARD_USER + the printed BULL_BOARD_PASS in
+     .env.production, then ./deploy/gcp/sync-env.sh --apply
+  6. Map the domain + point BETTER_AUTH_URL/APP_BASE_URL at it (deploy/gcp/README.md)
 EOF

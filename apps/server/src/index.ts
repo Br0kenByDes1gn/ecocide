@@ -171,6 +171,13 @@ app.get('/api/health', (c) => {
     auditProtocol: 'PROTOCOL-9',
     engine: geminiModeLabel(),
     mail: mailStatus,
+    // How async work is dispatched: `bullmq` means a durable Redis-backed queue
+    // (production), `inline` means the handler runs in the request's process (dev,
+    // tests, or a deployment with no REDIS_URL — where issuance is fire-and-forget
+    // and retried by the next page load instead of by the queue). The release
+    // smoke test fails on `inline`, so a queue-less production deploy cannot ship
+    // quietly.
+    jobs: jobSystem.dispatcher.mode,
     timestamp: new Date().toISOString(),
   });
 });

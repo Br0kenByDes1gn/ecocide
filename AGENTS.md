@@ -161,8 +161,8 @@ apps/server/scripts/  # scan-cost audit
   unique on (user, dossier, action). Completed rows are the citizen's banked
   points; they are never re-issued.
 - **Filing is a durable bit, and issuance is retried.** `issueInjunction` runs as
-  the `injunction:issue` queue job (enqueued by `/link`, `jobs/enqueue.ts`; inline
-  in dev/tests), and again from the dossier page's **first read**
+  the `injunction:issue` queue job (enqueued by `/link`, `jobs/enqueue.ts`), and
+  again from the dossier page's **first read**
   (`GET /api/vault/injunction-tasks?dossierId=…&ensure=1`) whenever an accepted
   verdict has no `dossiers.injunction_issued_at`. That flag is written **last** —
   the single "filed" bit, and the date the stamp prints. Three outcomes:
@@ -172,8 +172,17 @@ apps/server/scripts/  # scan-cost audit
   nothing cached or flagged, so the queue's 5 attempts and the next page load both
   retry). The job's `jobId` is removed on completion *and* on final failure, or a
   retained failed job would swallow every later enqueue. Model calls are logged to
-  `scan_api_logs` as `oracle_injunction`. The public record exposes only
+  `scan_api_logs` as `oracle_injunction` and carry a 25s abort so a hung call cannot
+  hold a request or a worker slot. The public record exposes only
   `injunctionFiledAt` + `injunctionOrders` (a count) — never the actions.
+- **Dispatch mode matters.** With `REDIS_URL` (production: Memorystore) the job
+  runs on the durable BullMQ queue and `enqueue` awaits only `queue.add`. Without
+  it — dev, tests, and the PGlite smoke path — the dispatcher runs the handler
+  **inline in the calling process**, and `enqueueInjunction` therefore does *not*
+  wait: awaiting would put a model call inside `/link` and inside the dossier read.
+  `issueInjunction` is single-flight per verdict, so the acceptance job and the
+  page's retry share one execution in either mode. `/api/health` reports
+  `jobs: 'bullmq' | 'inline'` and the release workflow fails on `inline`.
 - `GET /api/census` — live audited-household counts per tier (display gate:
   only once ≥50 audits exist, art §7). `GET /api/evidence/:name`.
 - **Money is carbon credits.** One credit is one tonne of CO₂e; the ledger counts
@@ -218,7 +227,9 @@ apps/server/scripts/  # scan-cost audit
   bonus used to be pooled client-side on one screen only, which made `/registry`
   and `/injunction` disagree about the same account. The lift is derived on read:
   the stored per-audit SI is never rewritten.
-- `GET /admin/queues` Bull Board (BullMQ mode + Basic auth only).
+- `GET /admin/queues` Bull Board (BullMQ mode + `BULL_BOARD_USER`/`BULL_BOARD_PASS`
+  only; production runs Memorystore via `REDIS_URL`, so the dashboard is mounted
+  there once both are set).
 - Prompt assembly is thin in `src/gemini.ts` (wraps lore builders, parses
   JSON, sanitizes model output); world copy comes from the pack.
 - DB: PostgreSQL + Drizzle via `pg` (`DATABASE_URL`) or **PGlite** in-process

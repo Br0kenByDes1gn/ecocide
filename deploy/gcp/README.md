@@ -7,13 +7,20 @@ Internet ──► Cloud Run service "ecocide" (:3000, HTTPS, managed cert)
                ├── serves the built SPA from /app/web/dist
                ├── talks to Cloud SQL (PostgreSQL) over the Cloud SQL unix socket
                ├── reads/writes audit photos on a mounted GCS bucket (/app/evidence)
-               └── calls Vertex AI with the runtime service account's ADC
+               ├── calls Vertex AI with the runtime service account's ADC
+               └── enqueues async jobs on Memorystore Redis (Direct VPC egress)
 Cloud Run job "ecocide-migrate" applies drizzle-kit migrations, once per release
 Artifact Registry holds the images; GitHub Actions deploys on tag push (WIF, no keys)
 ```
 
 Everything is one container (API + SPA) because the web app calls `/api/*`
 same-origin and auth is a `session_token` cookie.
+
+The queue is part of that container too: with `REDIS_URL` set, the app runs an
+in-process BullMQ worker against Memorystore (`jobs: "bullmq"` in `/api/health`).
+Without it the dispatcher runs jobs **inline**, which is fine for dev — but in
+production it means a model call inside the acceptance request and no retries, so
+the release smoke test refuses an inline deployment.
 
 ## 0. Local development needs none of this
 
@@ -39,10 +46,13 @@ Two things to know about the local database:
 
 Creates: the APIs, the Artifact Registry repo, the runtime and deployer service
 accounts (+ their roles), the GitHub Workload Identity pool/provider bound to your
-repository, the Cloud SQL instance/database/user, the evidence bucket, and the
-`ecocide-db-url` / `ecocide-auth-secret` / `ecocide-smtp-pass` secrets.
+repository, the Cloud SQL instance/database/user, the evidence bucket, the
+Memorystore queue (private services access + a Basic 1 GiB Redis 7 instance with
+AUTH and TLS), and the `ecocide-db-url` / `ecocide-auth-secret` /
+`ecocide-smtp-pass` / `ecocide-redis-url` / `ecocide-bull-pass` secrets.
 
-Then add the real Brevo SMTP key (see `deploy/gcp/setup.sh` for the one-liner).
+Then add the real Brevo SMTP key (see `deploy/gcp/setup.sh` for the one-liner), and
+note the Bull Board password the script prints once.
 
 ### Or: keep the whole config in a gitignored file
 
@@ -59,8 +69,8 @@ $EDITOR .env.production          # secrets included; single-quote values with sp
 
 | Key | Destination |
 | --- | --- |
-| `BETTER_AUTH_SECRET`, `SMTP_PASS`, `DATABASE_URL` | Secret Manager (new version; skipped when unchanged) |
-| `NODE_ENV`, `AUTO_MIGRATE`, `EVIDENCE_DIR`, `BETTER_AUTH_URL`, `APP_BASE_URL`, `GEMINI_*`, `SMTP_*`, `MAIL_FROM`, `MAIL_REPLY_TO` | plain service env |
+| `BETTER_AUTH_SECRET`, `SMTP_PASS`, `DATABASE_URL`, `REDIS_URL`, `BULL_BOARD_PASS` | Secret Manager (new version; skipped when unchanged) |
+| `NODE_ENV`, `AUTO_MIGRATE`, `EVIDENCE_DIR`, `BETTER_AUTH_URL`, `APP_BASE_URL`, `GEMINI_*`, `SMTP_*`, `MAIL_FROM`, `MAIL_REPLY_TO`, `BULL_BOARD_USER` | plain service env |
 | anything else | **hard error** — a typo'd secret can't silently become a plain-text env var |
 
 It never writes without `--apply`, never prints a value, refuses `GEMINI_API_KEY` /
@@ -140,12 +150,19 @@ gcloud run deploy ecocide \
   --timeout=300 \
   --no-cpu-throttling \
   --execution-environment=gen2 \
+  --network=default --subnet=default --vpc-egress=private-ranges-only \
   --add-cloudsql-instances=ecocide-511407:asia-southeast1:ecocide-pg \
   --add-volume=name=evidence,type=cloud-storage,bucket=ecocide-511407-evidence \
   --add-volume-mount=volume=evidence,mount-path=/app/evidence \
-  --set-secrets=BETTER_AUTH_SECRET=ecocide-auth-secret:latest,DATABASE_URL=ecocide-db-url:latest,SMTP_PASS=ecocide-smtp-pass:latest \
+  --set-secrets=BETTER_AUTH_SECRET=ecocide-auth-secret:latest,DATABASE_URL=ecocide-db-url:latest,SMTP_PASS=ecocide-smtp-pass:latest,REDIS_URL=ecocide-redis-url:latest \
   --set-env-vars='^|^NODE_ENV=production|AUTO_MIGRATE=false|EVIDENCE_DIR=/app/evidence|BETTER_AUTH_URL=https://ecocide.quest|APP_BASE_URL=https://ecocide.quest|GEMINI_MODE=vertex|GEMINI_PROJECT=ecocide-511407|GEMINI_LOCATION=global|GEMINI_MODEL=gemini-3.8-flash|SMTP_HOST=smtp-relay.brevo.com|SMTP_PORT=587|SMTP_SECURE=false|SMTP_USER=your-brevo-login@example.com|MAIL_FROM=ECOCIDE <no-reply@ecocide.quest>'
 ```
+
+The VPC flags are what let the container reach Memorystore's **private** IP —
+`--vpc-egress=private-ranges-only` keeps all other egress on the public path, so
+Vertex and Cloud SQL are unaffected. Without them the queue connects nowhere and
+`/api/health` reports `jobs: "inline"` (the revision still starts: ioredis retries
+in the background rather than crashing the boot, and the queue's jobs simply wait).
 
 `--service-account=ecocide-run@…` for the same reason as the job — and here the failure is
 quieter: without it the revision cannot inject secrets, has no `cloudsql.client` (the app
@@ -161,13 +178,48 @@ Flags that are not cosmetic:
 | Flag | Why |
 | --- | --- |
 | `--service-account` | Everything the app is allowed to do lives on this identity. |
-| `--no-cpu-throttling` | The OTP/verdict emails are sent after the HTTP response (fire-and-forget jobs). With throttled CPU the container is frozen at that point and **emails silently never send**. |
-| `--concurrency=8`, `--max-instances=3` | One scan is two Gemini calls taking 15-30s, and accepting a verdict adds a third (the injunction checklist). The default concurrency of 80 on a 1 GiB instance is an OOM and a bill. |
+| `--no-cpu-throttling` | The OTP/verdict emails are sent after the HTTP response, and the BullMQ worker keeps polling between requests. With throttled CPU the container is frozen at that point and **emails silently never send**, while a queued injunction stalls until the next request. |
+| `--network` / `--subnet` / `--vpc-egress` | Direct VPC egress to Memorystore's private IP. No Serverless VPC connector to pay for; `private-ranges-only` leaves public egress alone. |
+| `--concurrency=8`, `--max-instances=3` | One scan is two Gemini calls taking 15-30s, and accepting a verdict adds a third (the injunction checklist, now in the worker). The default concurrency of 80 on a 1 GiB instance is an OOM and a bill. |
 | `--add-volume` (GCS) | Audit photos are files (AGENTS.md rule 4) and are written once, never modified — safe on FUSE, and no code change. Swap to the GCS SDK inside `evidence.ts` if FUSE memory ever bites. |
 | `AUTO_MIGRATE=false` | The migrate job owns DDL. |
 | `--execution-environment=gen2` | Required for volume mounts. |
 
 `SMTP_USER` must be your Brevo login address; `SMTP_PASS` is a **Brevo SMTP key** (SMTP & API → SMTP), not the API key. Verify `ecocide.quest` in Brevo and publish SPF/DKIM/DMARC — and merge `include:spf.brevo.com` into the single existing SPF record if you already have one.
+
+### Job queue (Memorystore Redis)
+
+`setup.sh` provisions one Basic 1 GiB Redis 7 instance (`ecocide-queue`) with AUTH
+and server-side TLS, and stores the resulting `rediss://:AUTH@IP:6379` URL as the
+`ecocide-redis-url` secret. The app connects with `ioredis` and runs the BullMQ
+**worker in the same container** — there is no second service to deploy.
+
+What the queue buys, and what inline mode costs without it:
+
+| | With Redis (`jobs: "bullmq"`) | Without (`jobs: "inline"`) |
+| --- | --- | --- |
+| `/link` (accept a verdict) | `queue.add`, milliseconds; the injunction is issued by the worker | the request **waits for the model call** (5-15s) |
+| Failed issuance | 5 retries, 5s exponential backoff, deduped by `jobId` | one attempt; the page-load retry is the only recovery |
+| Concurrent asks | `jobId` + single-flight: one model call | single-flight within the process only |
+| `/admin/queues` | mounted when `BULL_BOARD_USER`/`BULL_BOARD_PASS` are set | 404 |
+
+Operational notes:
+
+- **Scale to zero still works.** A job is enqueued by the request that is already
+  running on an instance, and that instance's worker processes it. A job waiting
+  out a retry backoff can be delayed if the instance goes idle; it drains when the
+  next request boots an instance (the dossier's poll is usually enough). If that
+  ever bites, `--min-instances=1` guarantees a worker — at the cost of a always-on
+  instance.
+- **`--max-instances=3` means up to three workers** on one queue; BullMQ hands each
+  job to exactly one of them.
+- **`--no-cpu-throttling` matters more now**: the worker polls between requests.
+- **`/api/health` reports the mode**, and the release workflow **fails the deploy**
+  when it is `inline`. If you ever see that, the causes are, in order: no
+  `REDIS_URL` in `--set-secrets`, a missing `--vpc-*` egress flag, or Memorystore
+  not yet created.
+- **Cost**: Memorystore Basic 1 GiB has no free tier (low tens of dollars a month);
+  Cloud SQL remains the other always-on line item.
 
 ## 5. Domain
 
@@ -279,26 +331,29 @@ Its output is the whole point of the no-traffic step: the previous revision is s
 serving, so nothing is broken for users. The assertions are deliberate —
 `database == "PostgreSQL Active"` catches a wrong/unreachable DSN, `engine` starting
 with `Vertex AI` catches a silent fallback to the offline simulation (the runtime
-service account is missing `roles/aiplatform.user`), and `mail` catches a bad Brevo
-key. `mail` is `checking` while the SMTP handshake runs in the background, so the test
-waits for it to settle: `error` **fails the deploy**, `disabled` only warns (that's a
-deliberate choice, not a misconfiguration).
+service account is missing `roles/aiplatform.user`), `jobs == "bullmq"` catches a
+deployment with no queue (no `REDIS_URL`, or no VPC path to Memorystore), and `mail`
+catches a bad Brevo key. `mail` is `checking` while the SMTP handshake runs in the
+background, so the test waits for it to settle: `error` **fails the deploy**,
+`disabled` only warns (that's a deliberate choice, not a misconfiguration).
 
-`GET /api/health` therefore reports the active driver, the AI engine and the mail
-status — check it by hand when anything smells off.
+`GET /api/health` therefore reports the active driver, the AI engine, the mail
+status and the job dispatcher — check it by hand when anything smells off.
 
 ## Operating notes
 
-- `GET /api/health` reports the active driver, the Gemini engine and the mail status
-  (`smtp` / `disabled` / `error`). In CI all three are asserted: `PostgreSQL Active`,
-  `Vertex AI …` — if the engine says *offline simulation*, the runtime service account
-  is missing `roles/aiplatform.user` — and a mailer that isn't in a failing state.
+- `GET /api/health` reports the active driver, the Gemini engine, the mail status
+  (`smtp` / `disabled` / `error`) and the job dispatcher (`bullmq` / `inline`). In CI all
+  of them are asserted: `PostgreSQL Active`, `Vertex AI …` — if the engine says *offline
+  simulation*, the runtime service account is missing `roles/aiplatform.user` — `bullmq`
+  for the queue, and a mailer that isn't in a failing state.
 - Config lives on the service, not in the repo: releases only swap the image, so a
   secret rotation reaches production on the next revision. See the `sync-env.sh`
   section above; `.env.production` is the gitignored source of truth.
-- Cloud SQL is the only always-on cost (~$9-12/mo on `db-f1-micro`); Cloud Run scales
-  to zero. **Set a billing budget alert** — every household scan is two paid Gemini calls
-  on a public endpoint.
+- Two always-on costs now: Cloud SQL (~$9-12/mo on `db-f1-micro`) and the Memorystore
+  queue (Basic 1 GiB, low tens of dollars a month). Cloud Run still scales to zero.
+  **Set a billing budget alert** — every household scan is two paid Gemini calls on a
+  public endpoint.
 - The instance is created on the **Enterprise** edition, which is what makes a shared-core
   tier possible: new instances default to Enterprise Plus, where the cheapest tier is
   `db-perf-optimized-N-2` (roughly 10× the price). `db-f1-micro`/`db-g1-small` are not

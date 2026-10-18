@@ -175,8 +175,38 @@ describe('injunction issuance', () => {
     );
   });
 
-  it('leaves a failed filing unfiled, so the next attempt retries it', async () => {
+  it('shares one run between concurrent asks for the same verdict', async () => {
+    // Inline mode fires issuance without waiting (acceptance) while the dossier's
+    // `ensure=1` read can ask again a moment later. Both must ride one execution,
+    // or the model is paid for twice and the rows race each other.
     const dossierId = await repositories.saveDossier(payload());
+    await repositories.acceptDossier(dossierId);
+
+    let inserts = 0;
+    const counting = {
+      ...repositories,
+      addInjunctionTasks: async (
+        userId: string,
+        id: string,
+        items: Parameters<Repositories['addInjunctionTasks']>[2]
+      ) => {
+        inserts += 1;
+        return repositories.addInjunctionTasks(userId, id, items);
+      },
+    };
+
+    const [first, second] = await Promise.all([
+      issueInjunction({ repositories: counting, userId: USER, dossierId }),
+      issueInjunction({ repositories: counting, userId: USER, dossierId }),
+    ]);
+
+    expect(inserts).toBe(1);
+    expect(first).toBe(second);
+    expect(first.status).toBe('filed');
+    expect(await repositories.getInjunctionTasksByUser(USER)).toHaveLength(first.issued);
+  });
+
+  it('leaves a failed filing unfiled, so the next attempt retries it', async () => {    const dossierId = await repositories.saveDossier(payload());
     await repositories.acceptDossier(dossierId);
 
     // The checklist generated, but the rows never committed.

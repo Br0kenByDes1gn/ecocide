@@ -527,6 +527,17 @@ function sanitizeInjunctionItem(raw: any): InjunctionItem | null {
 }
 
 /**
+ * How long the injunction model call may take before it is aborted.
+ *
+ * The dossier page gives up waiting after 30s (`INJUNCTION_POLL_DEADLINE_MS`), so
+ * a call that outlives 25s can no longer be useful to the reader who asked for it,
+ * and an unbounded call would hold a queue slot (or, inline, an HTTP request)
+ * until Cloud Run's 300s request timeout. Aborting leaves the verdict unfiled, so
+ * the queue retries and the next page load asks again.
+ */
+export const INJUNCTION_CALL_TIMEOUT_MS = 25_000;
+
+/**
  * Runs the injunction checklist through Gemini (text-only, small).
  *
  * `rawItemCount` is how many entries the model returned, before sanitizing:
@@ -551,6 +562,8 @@ export async function generateInjunctionChecklist(dossier: CitizenRecord): Promi
       responseMimeType: 'application/json',
       responseJsonSchema: INJUNCTION_JSON_SCHEMA,
       temperature: 0.7,
+      // A hung call must not hold the request (inline) or a worker slot forever.
+      abortSignal: AbortSignal.timeout(INJUNCTION_CALL_TIMEOUT_MS),
     },
   });
 

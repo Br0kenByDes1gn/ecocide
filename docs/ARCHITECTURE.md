@@ -63,8 +63,9 @@ Two planes, and it is worth reading them separately:
 
 - **Runtime** — users reach a Cloud Run service through a managed HTTPS
   certificate. That one container serves the API and the app, and reaches its
-  database, its evidence bucket, its secrets, its AI provider and its email relay.
-  It scales to zero, so the database is the only always-on cost.
+  database, its evidence bucket, its secrets, its AI provider, its email relay and
+  its job queue. It scales to zero, so the database and the queue are the
+  always-on costs.
 - **Delivery** — GitHub Actions builds the image, runs migrations and deploys.
   It is **keyless**: there are no service-account JSON keys anywhere in the
   repo or in CI.
@@ -86,8 +87,9 @@ The production shape is deliberately flat — **no Kubernetes**, one container:
 | --- | --- |
 | Cloud Run service `ecocide` | API + built SPA, `:3000`, scales to zero, 0–3 instances, `--no-cpu-throttling`, gen2 |
 | Cloud SQL `ecocide-pg` | PostgreSQL over a unix socket; Enterprise edition on `db-f1-micro`, backups + PITR |
+| Memorystore `ecocide-queue` | Redis 7 (Basic 1 GiB, AUTH + TLS) on a private IP via Direct VPC egress; backs the BullMQ job queue |
 | GCS evidence bucket | Volume-mounted at `/app/evidence` via FUSE; write-once audit photos |
-| Secret Manager | `ecocide-db-url`, `ecocide-auth-secret`, `ecocide-smtp-pass` injected as env |
+| Secret Manager | `ecocide-db-url`, `ecocide-auth-secret`, `ecocide-smtp-pass`, `ecocide-redis-url`, `ecocide-bull-pass` injected as env |
 | Vertex AI | Gemini via ADC on the runtime service account — no API key in the image |
 | Artifact Registry | Holds the images; the service and the migrate job both pull from it |
 | Cloud Run job `ecocide-migrate` | Runs `dist/migrate-cli.js` once per release, before the traffic shift |
@@ -114,7 +116,8 @@ simulation because `aiplatform.user` is missing.
 4. **deploy a revision with no traffic** (`--no-traffic --tag=candidate`).
 5. **smoke-test** `/api/health` on the candidate URL — asserts `PostgreSQL Active`,
    an engine starting with `Vertex AI` (this is what catches the silent fallback),
-   and a mailer that is not in a failing state.
+   `jobs: "bullmq"` (so a deployment with no queue cannot ship), and a mailer that
+   is not in a failing state.
 6. **shift traffic.** A failed smoke test leaves the previous revision serving.
 
 Rollback is a `workflow_dispatch` run with the previous `image_tag`, or

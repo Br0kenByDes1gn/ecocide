@@ -519,20 +519,27 @@ describe('vault routes', () => {
 
   it('retries a missing injunction only for the verdict owner', async () => {
     // An accepted verdict with no orders: exactly the state a failed issuance
-    // leaves behind. The dossier page's first read asks for them again.
+    // leaves behind. The dossier page's first read asks for them again — inline,
+    // that ask is fire-and-forget, so the rows land a moment later (the page's
+    // poll is what picks them up).
     const accepted = await repositories.saveDossier(makePayload());
     await repositories.linkDossierToUser(accepted, USER_A);
     await repositories.acceptDossier(accepted);
     expect(await repositories.getInjunctionFiledAt(accepted)).toBeNull();
 
+    await makeApp(USER_A).request(
+      `/api/vault/injunction-tasks?dossierId=${accepted}&ensure=1`
+    );
+    const issued = await waitForTasks(USER_A);
+    expect(issued.length).toBeGreaterThan(0);
+    expect(await repositories.getInjunctionFiledAt(accepted)).toBeTruthy();
+
     const ownerRead = await (
       await makeApp(USER_A).request(`/api/vault/injunction-tasks?dossierId=${accepted}&ensure=1`)
     ).json();
-    // The dispatcher runs inline in tests, so the retry has already landed.
     expect(ownerRead.filed).toBe(true);
-    expect(ownerRead.tasks.length).toBeGreaterThan(0);
-    expect(ownerRead.orders).toBe(ownerRead.tasks.length);
-    expect(await repositories.getInjunctionFiledAt(accepted)).toBeTruthy();
+    expect(ownerRead.tasks.length).toBe(issued.length);
+    expect(ownerRead.orders).toBe(issued.length);
 
     // Someone else's verdict is never issued on their behalf — and the answer
     // still reports the filing (the public record), with no rows of their own.

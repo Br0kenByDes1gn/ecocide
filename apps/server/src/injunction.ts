@@ -71,8 +71,29 @@ export interface IssueInjunctionOptions {
  * checklist) so the queue job retries with backoff and the next page load can
  * try again. Returns `skipped` when there is nothing to do — the verdict is not
  * accepted, or its orders are already on file.
+ *
+ * **Single-flight.** Concurrent asks for one verdict share a single execution.
+ * That matters in inline mode, where the acceptance request fires the issuance
+ * without waiting and the dossier's `ensure=1` read can ask a moment later: both
+ * would otherwise pay for the same model call (and race the same rows). With
+ * Redis the `jobId` already dedupes pending jobs; this covers the rest.
  */
-export async function issueInjunction(
+const inFlight = new Map<string, Promise<IssueInjunctionResult>>();
+
+export function issueInjunction(
+  options: IssueInjunctionOptions
+): Promise<IssueInjunctionResult> {
+  const existing = inFlight.get(options.dossierId);
+  if (existing) return existing;
+
+  const run = runIssueInjunction(options).finally(() => {
+    inFlight.delete(options.dossierId);
+  });
+  inFlight.set(options.dossierId, run);
+  return run;
+}
+
+async function runIssueInjunction(
   options: IssueInjunctionOptions
 ): Promise<IssueInjunctionResult> {
   const { repositories, userId, dossierId } = options;

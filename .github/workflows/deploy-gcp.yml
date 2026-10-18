@@ -136,6 +136,12 @@ jobs:
           jq -e '.engine | startswith("Vertex AI")' /tmp/health.json >/dev/null \
             || fail "Gemini engine is offline — check the runtime SA's aiplatform.user role"
 
+          # No Redis means the dispatcher runs inline: a model call inside the
+          # acceptance request and no queue retries. That is a dev fallback, not a
+          # production posture, so refuse the release.
+          jq -e '.jobs == "bullmq"' /tmp/health.json >/dev/null \
+            || fail "job queue is inline — set REDIS_URL (ecocide-redis-url) and allow Direct VPC egress to Memorystore"
+
           # A wrong Brevo key must fail the deploy, not a citizen's login.
           # "disabled" is a deliberate choice (no SMTP configured), so it only warns.
           case "$MAIL" in
