@@ -1,0 +1,233 @@
+{
+  "capturedAt": "2026-10-18T05:07:45.617Z",
+  "viewports": [
+    "mobile",
+    "desktop"
+  ],
+  "shots": [
+    {
+      "name": "landing",
+      "caption": "The landing screen: terminal + paper dossier, the audit starts here.",
+      "viewport": "mobile",
+      "route": "/",
+      "routePattern": "/",
+      "file": "mobile/01-landing.png"
+    },
+    {
+      "name": "scanner",
+      "caption": "The household scanner: camera, drag-and-drop or file upload.",
+      "viewport": "mobile",
+      "route": "/scan",
+      "routePattern": "/scan",
+      "file": "mobile/02-scanner.png"
+    },
+    {
+      "name": "verdict",
+      "caption": "The verdict: tier, index, per-item findings and the three acts.",
+      "viewport": "mobile",
+      "route": "/arbitration/eZGSwu_YRD",
+      "routePattern": "/arbitration/:id",
+      "file": "mobile/03-verdict.png"
+    },
+    {
+      "name": "claim-locked",
+      "caption": "Claiming a verdict: the payment terminal, registry locked.",
+      "viewport": "mobile",
+      "route": "/claim/eZGSwu_YRD",
+      "routePattern": "/claim/:id",
+      "file": "mobile/04-claim-locked.png"
+    },
+    {
+      "name": "registry-locked",
+      "caption": "The Carbon Registry before unlocking.",
+      "viewport": "mobile",
+      "route": "/registry",
+      "routePattern": "/registry",
+      "file": "mobile/05-registry-locked.png"
+    },
+    {
+      "name": "appeal-form",
+      "caption": "Filing an appeal: the citizen states their case and offers pledges.",
+      "viewport": "mobile",
+      "route": "/appeal/eZGSwu_YRD",
+      "routePattern": "/appeal/:id",
+      "file": "mobile/06-appeal-form.png"
+    },
+    {
+      "name": "appeal-records",
+      "caption": "The ruling on appeal, archived on the verdict.",
+      "viewport": "mobile",
+      "route": "/appeals/eZGSwu_YRD",
+      "routePattern": "/appeals/:id",
+      "file": "mobile/07-appeal-records.png"
+    },
+    {
+      "name": "registry-unlocked",
+      "caption": "The registry unlocked: pooled standing, archive and the carbon account.",
+      "viewport": "mobile",
+      "route": "/registry",
+      "routePattern": "/registry",
+      "file": "mobile/08-registry-unlocked.png"
+    },
+    {
+      "name": "claim-authorize",
+      "caption": "The certification fee, quoted in carbon credits.",
+      "viewport": "mobile",
+      "route": "/claim/eZGSwu_YRD",
+      "routePattern": "/claim/:id",
+      "file": "mobile/09-claim-authorize.png"
+    },
+    {
+      "name": "citizen-accepted",
+      "caption": "The accepted verdict: sealed ruling, disposition mark and injunction stamp.",
+      "viewport": "mobile",
+      "route": "/citizen/eZGSwu_YRD",
+      "routePattern": "/citizen/:id",
+      "file": "mobile/10-citizen-accepted.png"
+    },
+    {
+      "name": "injunction",
+      "caption": "The environmental injunction: the corrective orders for the accepted verdict.",
+      "viewport": "mobile",
+      "route": "/injunction",
+      "routePattern": "/injunction",
+      "file": "mobile/11-injunction.png"
+    },
+    {
+      "name": "informant",
+      "caption": "Submitting a verdict as evidence against another household.",
+      "viewport": "mobile",
+      "route": "/inform/eZGSwu_YRD",
+      "routePattern": "/inform/:id",
+      "file": "mobile/12-informant.png"
+    },
+    {
+      "name": "adjudicators",
+      "caption": "The Adjudicators: who runs the Bureau.",
+      "viewport": "mobile",
+      "route": "/adjudicators",
+      "routePattern": "/adjudicators",
+      "file": "mobile/13-adjudicators.png"
+    },
+    {
+      "name": "grid",
+      "caption": "The Planetary Grid: live system status and activity log.",
+      "viewport": "mobile",
+      "route": "/grid",
+      "routePattern": "/grid",
+      "file": "mobile/14-grid.png"
+    },
+    {
+      "name": "landing",
+      "caption": "The landing screen: terminal + paper dossier, the audit starts here.",
+      "viewport": "desktop",
+      "route": "/",
+      "routePattern": "/",
+      "file": "desktop/01-landing.png"
+    },
+    {
+      "name": "scanner",
+      "caption": "The household scanner: camera, drag-and-drop or file upload.",
+      "viewport": "desktop",
+      "route": "/scan",
+      "routePattern": "/scan",
+      "file": "desktop/02-scanner.png"
+    },
+    {
+      "name": "verdict",
+      "caption": "The verdict: tier, index, per-item findings and the three acts.",
+      "viewport": "desktop",
+      "route": "/arbitration/R6nusyh2bI",
+      "routePattern": "/arbitration/:id",
+      "file": "desktop/03-verdict.png"
+    },
+    {
+      "name": "claim-locked",
+      "caption": "Claiming a verdict: the payment terminal, registry locked.",
+      "viewport": "desktop",
+      "route": "/claim/R6nusyh2bI",
+      "routePattern": "/claim/:id",
+      "file": "desktop/04-claim-locked.png"
+    },
+    {
+      "name": "registry-locked",
+      "caption": "The Carbon Registry before unlocking.",
+      "viewport": "desktop",
+      "route": "/registry",
+      "routePattern": "/registry",
+      "file": "desktop/05-registry-locked.png"
+    },
+    {
+      "name": "appeal-form",
+      "caption": "Filing an appeal: the citizen states their case and offers pledges.",
+      "viewport": "desktop",
+      "route": "/appeal/R6nusyh2bI",
+      "routePattern": "/appeal/:id",
+      "file": "desktop/06-appeal-form.png"
+    },
+    {
+      "name": "appeal-records",
+      "caption": "The ruling on appeal, archived on the verdict.",
+      "viewport": "desktop",
+      "route": "/appeals/R6nusyh2bI",
+      "routePattern": "/appeals/:id",
+      "file": "desktop/07-appeal-records.png"
+    },
+    {
+      "name": "registry-unlocked",
+      "caption": "The registry unlocked: pooled standing, archive and the carbon account.",
+      "viewport": "desktop",
+      "route": "/registry",
+      "routePattern": "/registry",
+      "file": "desktop/08-registry-unlocked.png"
+    },
+    {
+      "name": "claim-authorize",
+      "caption": "The certification fee, quoted in carbon credits.",
+      "viewport": "desktop",
+      "route": "/claim/R6nusyh2bI",
+      "routePattern": "/claim/:id",
+      "file": "desktop/09-claim-authorize.png"
+    },
+    {
+      "name": "citizen-accepted",
+      "caption": "The accepted verdict: sealed ruling, disposition mark and injunction stamp.",
+      "viewport": "desktop",
+      "route": "/citizen/R6nusyh2bI",
+      "routePattern": "/citizen/:id",
+      "file": "desktop/10-citizen-accepted.png"
+    },
+    {
+      "name": "injunction",
+      "caption": "The environmental injunction: the corrective orders for the accepted verdict.",
+      "viewport": "desktop",
+      "route": "/injunction",
+      "routePattern": "/injunction",
+      "file": "desktop/11-injunction.png"
+    },
+    {
+      "name": "informant",
+      "caption": "Submitting a verdict as evidence against another household.",
+      "viewport": "desktop",
+      "route": "/inform/R6nusyh2bI",
+      "routePattern": "/inform/:id",
+      "file": "desktop/12-informant.png"
+    },
+    {
+      "name": "adjudicators",
+      "caption": "The Adjudicators: who runs the Bureau.",
+      "viewport": "desktop",
+      "route": "/adjudicators",
+      "routePattern": "/adjudicators",
+      "file": "desktop/13-adjudicators.png"
+    },
+    {
+      "name": "grid",
+      "caption": "The Planetary Grid: live system status and activity log.",
+      "viewport": "desktop",
+      "route": "/grid",
+      "routePattern": "/grid",
+      "file": "desktop/14-grid.png"
+    }
+  ]
+}

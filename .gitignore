@@ -14,10 +14,6 @@ apps/server/data/pgdata*
 # Local Playwright MCP snapshots/console dumps
 .playwright-mcp/
 
-# Generated screenshot runs (`pnpm screenshots`) — the committed evidence photo
-# lives in scripts/fixtures/, the output never belongs in git
-/screenshots/
-
 # Source 3D models for the scanner wireframe animation (only the converted
 # data in apps/web/src/lib/asset-wireframes.ts is committed)
 /models-src/

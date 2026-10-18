@@ -101,13 +101,14 @@ pnpm bench:report   # regenerates the report + charts from docs/performance/data
 
 ## Screenshots
 
-`pnpm screenshots` drives the built app and captures every screen a production
-visitor can reach — landing, scanner, verdict, claim, appeal, registry,
-injunction, informant, credits and the grid — at phone and desktop sizes:
+[`screenshots/`](screenshots/README.md) is a browsable gallery of every screen a
+production visitor can reach — landing, scanner, verdict, claim, appeal,
+registry, injunction, informant, credits and the grid — at phone and desktop
+sizes. It is generated, not hand-captured:
 
 ```bash
 pnpm build                  # the script spawns apps/server/dist + apps/web/dist
-pnpm screenshots            # both viewports → screenshots/{mobile,desktop}/
+pnpm screenshots            # both viewports → screenshots/{mobile,desktop}/ + README
 pnpm screenshots --viewport mobile
 pnpm screenshots --only verdict,grid   # write only these frames
 ```

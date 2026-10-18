@@ -154,6 +154,17 @@ function parseArgs(argv) {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/** Routes whose last segment is a dossier id — the same set the web app knows. */
+const ID_ROUTES = new Set(['citizen', 'arbitration', 'claim', 'appeal', 'appeals', 'inform']);
+
+/** `/citizen/abc123` → `/citizen/:id`: the gallery should not read like a log. */
+function routePattern(pathname) {
+  const segments = pathname.split('/').filter(Boolean);
+  if (segments.length === 0) return '/';
+  if (segments.length > 1 && ID_ROUTES.has(segments[0])) return `/${segments[0]}/:id`;
+  return `/${segments.join('/')}`;
+}
+
 /** Poll `check` until it returns something truthy, or throw after `timeoutMs`. */
 async function waitFor(check, { timeoutMs = 30_000, intervalMs = 150, what = 'condition' } = {}) {
   const deadline = Date.now() + timeoutMs;
@@ -275,11 +286,13 @@ function makeShots(page, options, viewportName, manifest) {
     await page.waitForTimeout(settleMs);
     const file = path.join(options.out, viewportName, `${String(counter).padStart(2, '0')}-${name}.png`);
     await page.screenshot({ path: file, fullPage });
+    const route = new URL(page.url()).pathname;
     manifest.push({
       name,
       caption,
       viewport: viewportName,
-      route: new URL(page.url()).pathname,
+      route,
+      routePattern: routePattern(route),
       file: path.relative(options.out, file),
     });
     console.log(`[screenshots] ${path.relative(ROOT, file)}`);
@@ -440,6 +453,62 @@ async function captureViewport(browser, options, viewport, baseUrl, waitForOtp, 
   }
 }
 
+/**
+ * The gallery page written next to the images, so a `screenshots/` directory is
+ * browsable on GitHub without opening files one at a time. Built from the
+ * manifest, so it always matches whatever the run just produced.
+ */
+function renderReadme({ shots, viewports, capturedAt, appVersion }) {
+  const width = { mobile: 320, desktop: 760 };
+  const sizes = { mobile: '1080×1920', desktop: '1920×1080' };
+  const sources = { mobile: '540×960 @2×, touch', desktop: '1920×1080 @1×' };
+  const lines = [
+    '# Screenshots',
+    '',
+    'Every screen a production visitor can reach, captured from the built app by',
+    '`pnpm screenshots`. The audits run on the deterministic offline simulation',
+    '(no model calls, throwaway database), so the set is reproducible and free.',
+    '',
+    `- **Captured** ${capturedAt.slice(0, 10)} · ECOCIDE v${appVersion}`,
+    `- **Viewports** ${viewports.map((name) => `${name} ${sizes[name]} (${sources[name]})`).join(' · ')}`,
+    `- **Screens** ${viewports.map((name) => `${shots.filter((shot) => shot.viewport === name).length} ${name}`).join(' · ')}`,
+    '',
+  ];
+
+  for (const viewport of viewports) {
+    const group = shots.filter((shot) => shot.viewport === viewport);
+    if (group.length === 0) continue;
+    lines.push(
+      `## ${viewport[0].toUpperCase()}${viewport.slice(1)} — ${sizes[viewport]}`,
+      '',
+      `<sub>Captured from a ${sources[viewport]} viewport.</sub>`,
+      ''
+    );
+    lines.push('| # | Screen | Shot |', '|:--|:--|:--|');
+    for (const [index, shot] of group.entries()) {
+      const cap = shot.caption.replace(/\|/g, '\\|');
+      const title = shot.name.replace(/-/g, ' ');
+      const heading = `${title[0].toUpperCase()}${title.slice(1)}`;
+      lines.push(
+        `| ${String(index + 1).padStart(2, '0')} | **${heading}**<br>` +
+          `${cap}<br><sub>\`${shot.routePattern}\`</sub> | ` +
+          `<img src="${shot.file}" width="${width[viewport] ?? 480}" alt="${cap}"> |`
+      );
+    }
+    lines.push('');
+  }
+
+  lines.push(
+    '---',
+    '',
+    'Regenerate with `pnpm build && pnpm screenshots` (add `--viewport mobile` or',
+    '`--only verdict,grid` for a subset). The evidence photo is',
+    '`scripts/fixtures/demo-scan.jpg`; `--photo <path>` swaps in another.',
+    ''
+  );
+  return lines.join('\n');
+}
+
 async function main() {
   const options = parseArgs(process.argv.slice(2));
 
@@ -479,9 +548,17 @@ async function main() {
     else if (server) console.log(`[screenshots] server left running at ${baseUrl} (--keep)`);
   }
 
+  const capturedAt = new Date().toISOString();
+  const appVersion = JSON.parse(await readFile(path.join(ROOT, 'package.json'), 'utf8')).version;
+  const viewportNames = viewports.map((viewport) => viewport.name);
+
   await writeFile(
     path.join(options.out, 'manifest.json'),
-    `${JSON.stringify({ capturedAt: new Date().toISOString(), viewports: viewports.map((v) => v.name), shots: manifest }, null, 2)}\n`
+    `${JSON.stringify({ capturedAt, viewports: viewportNames, shots: manifest }, null, 2)}\n`
+  );
+  await writeFile(
+    path.join(options.out, 'README.md'),
+    renderReadme({ shots: manifest, viewports: viewportNames, capturedAt, appVersion })
   );
 
   console.log(`\n[screenshots] ${manifest.length} shot(s) → ${path.relative(ROOT, options.out)}/`);
