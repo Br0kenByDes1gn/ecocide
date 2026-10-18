@@ -176,6 +176,7 @@ re-derives them. World copy lives in `surfaces.ts` (`REGISTRY_COPY`).
 | --- | --- | --- |
 | Shared palette | `packages/lore/src/art.ts` (`PALETTE`) + `apps/web/src/index.css` `:root` | art §3 hexes; keep the two in sync |
 | Carbon Registry copy | `packages/lore/src/surfaces.ts` (`REGISTRY_COPY`) | world strings for the registry page, its standing hero and the payment terminal |
+| Injunction mark | `packages/lore/src/surfaces.ts` (`INJUNCTION_STAMP`) | the dossier's orders stamp and every state of the same spot: `label` + `dated` (filed with actions, archive ink), `none` + `noneInk` (filed with **no corrective orders** — success green, a clean bill of health is a finding), `pending` (the Arbiter is drafting), `unavailable` + `retry` (the wait ended and nothing is on file). Never render the space empty: absence is indistinguishable from a broken page |
 | Per-tier colors | `factions.ts[].colors` | Tailwind literals + hex |
 | Audit lenses (4 canvas styles) | `apps/web/src/lib/audit-lenses.ts` | art §9: neon-outline (default), evidence-photo, inspection-hud, carbon-heat |
 | Tier stamp (SVG) | `apps/web/src/components/TierStamp.tsx` | art §10 flat-vector style; per-tier prompt in `stylePrompt` |

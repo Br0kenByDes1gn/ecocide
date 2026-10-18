@@ -157,8 +157,23 @@ apps/server/scripts/  # scan-cost audit
   accepted verdict: the dossier's items are hashed, a cached checklist is reused
   when unchanged, otherwise a text-only Gemini checklist is generated (or the
   deterministic simulation offline) and one `injunction_tasks` row per action is
-  inserted, unique on (user, dossier, action). Completed rows are the citizen's
-  banked points; they are never re-issued.
+  inserted — **in one transaction**, so a checklist lands whole or not at all —
+  unique on (user, dossier, action). Completed rows are the citizen's banked
+  points; they are never re-issued.
+- **Filing is a durable bit, and issuance is retried.** `issueInjunction` runs as
+  the `injunction:issue` queue job (enqueued by `/link`, `jobs/enqueue.ts`; inline
+  in dev/tests), and again from the dossier page's **first read**
+  (`GET /api/vault/injunction-tasks?dossierId=…&ensure=1`) whenever an accepted
+  verdict has no `dossiers.injunction_issued_at`. That flag is written **last** —
+  the single "filed" bit, and the date the stamp prints. Three outcomes:
+  `filed` (rows committed), `empty` (the model parsed a checklist with no actions:
+  a real filing — "no corrective orders" — flagged and never retried) and
+  **thrown** (model error, unparseable JSON, or items that all failed sanitizing:
+  nothing cached or flagged, so the queue's 5 attempts and the next page load both
+  retry). The job's `jobId` is removed on completion *and* on final failure, or a
+  retained failed job would swallow every later enqueue. Model calls are logged to
+  `scan_api_logs` as `oracle_injunction`. The public record exposes only
+  `injunctionFiledAt` + `injunctionOrders` (a count) — never the actions.
 - `GET /api/census` — live audited-household counts per tier (display gate:
   only once ≥50 audits exist, art §7). `GET /api/evidence/:name`.
 - **Money is carbon credits.** One credit is one tonne of CO₂e; the ledger counts
@@ -285,11 +300,20 @@ apps/server/scripts/  # scan-cost audit
   *after* the acceptance response, so the space shows a pulsing line
   (`INJUNCTION_STAMP.pending`, from the pack) while `useInjunction` waits: it
   reads once, then polls on a bounded schedule (≤6 requests, 30s deadline),
-  makes no requests while the tab is hidden, and reads once on return. The poll
-  asks for one verdict (`?dossierId=`, served by `getInjunctionTasksByDossier`),
-  so its cost is the matching rows rather than the whole worksheet. Clicking the
-  mark opens `/injunction?dossier=<id>`; the worksheet splits the visible list
-  from the pooled bonus so filtering never moves the standing.
+  makes no requests while the tab is hidden, and reads once on return. The first
+  read carries `ensure=1` (the page-load retry, see the server bullet above); the
+  polls do not. The poll asks for one verdict (`?dossierId=`, served by
+  `getInjunctionTasksByDossier`), so its cost is the matching rows rather than the
+  whole worksheet. `resolveInjunctionState` is the pure mapping from an answer to
+  what renders: `issued` (the actions), `empty` (filed with **no corrective
+  orders** — the green stamp), `waiting` (the pulsing line), `unavailable` (the
+  deadline passed with nothing on file: the lore's "orders not on file" line plus
+  a retry that restarts the wait) and, when the endpoint answers 401/403 (a locked
+  registry, or someone else's verdict), the public `injunctionFiledAt` /
+  `injunctionOrders` decide between an **inert** stamp and the green one — never
+  blank paper. Clicking the orders mark opens `/injunction?dossier=<id>`; the
+  worksheet splits the visible list from the pooled bonus so filtering never moves
+  the standing.
 - `src/components/DossierStamp.tsx` — the shared stamp idiom (hard border, tilt,
   inset shadow, mono caps) used by **both** marks on the dossier, so they cannot
   drift. `src/components/DispositionStamp.tsx` (+ `DispositionModal.tsx`) is the

@@ -133,6 +133,7 @@ function mapRowToRecord(row: DossierRow): CitizenRecord {
     ownerId: row.user_id || undefined,
     acceptedAt: row.accepted_at || undefined,
     attributed: Boolean(row.subject_email),
+    injunctionFiledAt: row.injunction_issued_at || undefined,
   };
 }
 
@@ -264,32 +265,96 @@ export function createRepositories(db: DbConnection['db']) {
         .where(eq(dossiers.id, dossierId));
     },
 
-    /** Appends freshly generated injunction tasks to a citizen's accumulated list. */
+    /**
+     * Appends freshly generated injunction tasks to a citizen's accumulated list.
+     *
+     * One statement per action inside a transaction: a checklist lands whole or
+     * not at all. That is what lets "rows exist" be read as "the checklist is
+     * complete" — the retry path repairs the filed flag from it, and a half-
+     * written list can never masquerade as a finished filing.
+     */
     async addInjunctionTasks(
       userId: string,
       dossierId: string,
       items: InjunctionItem[]
     ): Promise<void> {
       const createdAt = new Date().toISOString();
-      for (const item of items) {
-        // `onConflictDoNothing` covers both a model that emits the same action
-        // twice in one checklist and a retried issuance for the same verdict.
-        await db
-          .insert(injunctionTasks)
-          .values({
-            id: nanoid(12),
-            user_id: userId,
-            dossier_id: dossierId,
-            action: item.action,
-            replaces: item.replaces,
-            why: item.why,
-            category: item.category,
-            impact: item.impact,
-            effort: item.effort,
-            created_at: createdAt,
-          })
-          .onConflictDoNothing();
-      }
+      await db.transaction(async (tx) => {
+        for (const item of items) {
+          // `onConflictDoNothing` covers both a model that emits the same action
+          // twice in one checklist and a retried issuance for the same verdict.
+          await tx
+            .insert(injunctionTasks)
+            .values({
+              id: nanoid(12),
+              user_id: userId,
+              dossier_id: dossierId,
+              action: item.action,
+              replaces: item.replaces,
+              why: item.why,
+              category: item.category,
+              impact: item.impact,
+              effort: item.effort,
+              created_at: createdAt,
+            })
+            .onConflictDoNothing();
+        }
+      });
+    },
+
+    /**
+     * How many actions were filed for one verdict, across the whole registry
+     * (not just the caller's). The public dossier only reports the count, never
+     * the actions: it is what tells a reader of the paper whether "filed" means
+     * "orders exist" or "the Arbiter required no corrective action".
+     */
+    async countInjunctionTasksForDossier(dossierId: string): Promise<number> {
+      const [row] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(injunctionTasks)
+        .where(eq(injunctionTasks.dossier_id, dossierId));
+      return Number(row?.count ?? 0);
+    },
+
+    /**
+     * Records that this verdict's injunction was filed. Conditional, so the
+     * first filing wins and a retry cannot rewrite the date the stamp prints.
+     * Returns the date it was (or already had been) filed.
+     */
+    async markInjunctionFiled(dossierId: string): Promise<string | null> {
+      const [existing] = await db
+        .select({ injunction_issued_at: dossiers.injunction_issued_at })
+        .from(dossiers)
+        .where(eq(dossiers.id, dossierId))
+        .limit(1);
+      if (!existing) return null;
+      if (existing.injunction_issued_at) return existing.injunction_issued_at;
+
+      const filedAt = new Date().toISOString();
+      const rows = await db
+        .update(dossiers)
+        .set({ injunction_issued_at: filedAt })
+        .where(and(eq(dossiers.id, dossierId), isNull(dossiers.injunction_issued_at)))
+        .returning({ injunction_issued_at: dossiers.injunction_issued_at });
+      if (rows[0]?.injunction_issued_at) return rows[0].injunction_issued_at;
+
+      // Lost the race: the other writer's date is the one on the file.
+      const [reread] = await db
+        .select({ injunction_issued_at: dossiers.injunction_issued_at })
+        .from(dossiers)
+        .where(eq(dossiers.id, dossierId))
+        .limit(1);
+      return reread?.injunction_issued_at ?? null;
+    },
+
+    /** When this verdict's orders were filed, or null while they are unfiled. */
+    async getInjunctionFiledAt(dossierId: string): Promise<string | null> {
+      const [row] = await db
+        .select({ injunction_issued_at: dossiers.injunction_issued_at })
+        .from(dossiers)
+        .where(eq(dossiers.id, dossierId))
+        .limit(1);
+      return row?.injunction_issued_at ?? null;
     },
 
     /** Lists a citizen's accumulated injunction tasks, newest first. */

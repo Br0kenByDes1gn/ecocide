@@ -22,6 +22,10 @@ export function createBullmqDispatcher(queue: Queue): JobDispatcher {
       await queue.add(name, data as never, {
         ...(options?.jobId ? { jobId: options.jobId } : {}),
         ...(options?.delay ? { delay: options.delay } : {}),
+        ...(options?.removeOnComplete !== undefined
+          ? { removeOnComplete: options.removeOnComplete }
+          : {}),
+        ...(options?.removeOnFail !== undefined ? { removeOnFail: options.removeOnFail } : {}),
       });
     },
     async schedule(id: string, pattern: string, name: JobName, data: JobPayloads[JobName]) {

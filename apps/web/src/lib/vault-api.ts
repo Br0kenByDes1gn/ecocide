@@ -41,28 +41,49 @@ export async function fetchInjunctionTasks(): Promise<InjunctionTask[]> {
   return body.tasks ?? [];
 }
 
+/** What the dossier page needs to know about one verdict's injunction. */
+export interface DossierInjunctionState {
+  /** This session's copy of the orders (empty when it may not read them). */
+  tasks: InjunctionTask[];
+  /**
+   * The verdict's checklist is on file — possibly with zero actions, which is a
+   * real filing ("the Arbiter required no corrective action"), not an error.
+   */
+  filed: boolean;
+  /** How many actions it holds, counted across the registry (never their text). */
+  orders: number;
+}
+
 /**
  * The orders issued for one accepted verdict.
  *
  * `null` means "definitively not available to this caller" — the registry is
  * locked, or the verdict belongs to another citizen — and the caller should stop
- * asking. Anything else (a 5xx, a dropped connection) throws, so the caller can
- * tell a definitive answer from a transient blip worth retrying.
+ * asking, falling back to the public record (`injunctionFiledAt` /
+ * `injunctionOrders`). Anything else (a 5xx, a dropped connection) throws, so the
+ * caller can tell a definitive answer from a transient blip worth retrying.
+ *
+ * `ensure` asks the Bureau to issue the orders if they are missing. It is the
+ * page-load retry: issuance is a queue job, so the answer is still immediate and
+ * the polls pick the rows up when the job lands.
  */
 export async function fetchInjunctionTasksForDossier(
   dossierId: string,
-  signal?: AbortSignal
-): Promise<InjunctionTask[] | null> {
+  options: { signal?: AbortSignal; ensure?: boolean } = {}
+): Promise<DossierInjunctionState | null> {
   // The server narrows to this verdict, so the poll's cost is the matching rows
   // (usually none) rather than the citizen's whole worksheet.
-  const res = await authFetch(
-    `/api/vault/injunction-tasks?dossierId=${encodeURIComponent(dossierId)}`,
-    { signal }
-  );
+  const query = `dossierId=${encodeURIComponent(dossierId)}${options.ensure ? '&ensure=1' : ''}`;
+  const res = await authFetch(`/api/vault/injunction-tasks?${query}`, { signal: options.signal });
   if (res.status === 401 || res.status === 403) return null;
   if (!res.ok) throw new Error(`INJUNCTION QUERY FAILED (${res.status})`);
-  const body = (await res.json()) as { tasks: InjunctionTask[] };
-  return body.tasks ?? [];
+  const body = (await res.json()) as Partial<DossierInjunctionState>;
+  const tasks = body.tasks ?? [];
+  return {
+    tasks,
+    filed: Boolean(body.filed),
+    orders: typeof body.orders === 'number' ? body.orders : tasks.length,
+  };
 }
 
 export interface InjunctionConfirmResult {

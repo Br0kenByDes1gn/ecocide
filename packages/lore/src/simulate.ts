@@ -487,6 +487,16 @@ export function generateSimulatedInjunction(
   const uses = new Map<string, number>();
   let ci = fnv1a(`injunction::${seedKey}`) % cycle.length;
 
+  // Nothing audited, nothing to order: a household with no detected items gets an
+  // (honest) empty checklist rather than the padding loop below indexing nothing.
+  if (ranked.length === 0) {
+    return {
+      headline: 'No corrective actions required.',
+      items: [],
+      closing_line: 'Keep your consumption as it is.',
+    };
+  }
+
   const pushFor = (item: SimScoredItem): void => {
     if ((uses.get(item.label) ?? 0) >= 2) return;
     uses.set(item.label, (uses.get(item.label) ?? 0) + 1);

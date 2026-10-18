@@ -84,11 +84,13 @@ beforeEach(async () => {
 });
 
 describe('injunction issuance', () => {
-  it('issues the checklist against the accepted verdict', async () => {
+  it('files the checklist against the accepted verdict', async () => {
     const dossierId = await repositories.saveDossier(payload());
+    await repositories.acceptDossier(dossierId);
 
     const result = await issueInjunction({ repositories, userId: USER, dossierId });
 
+    expect(result.status).toBe('filed');
     expect(result.source).toBe('simulated');
     expect(result.issued).toBeGreaterThan(0);
 
@@ -98,36 +100,105 @@ describe('injunction issuance', () => {
     expect(tasks.every((task) => task.dossierId === dossierId)).toBe(true);
     expect(tasks.every((task) => task.action.length > 0 && task.replaces.length > 0)).toBe(true);
     expect(tasks.every((task) => task.completed === false && task.points === 0)).toBe(true);
+    // Filing is recorded once, on the verdict — that bit is what stops retries.
+    const filedAt = await repositories.getInjunctionFiledAt(dossierId);
+    expect(filedAt).toBeTruthy();
   });
 
   it('is idempotent: re-issuing does not duplicate the actions', async () => {
     const dossierId = await repositories.saveDossier(payload());
+    await repositories.acceptDossier(dossierId);
     const first = await issueInjunction({ repositories, userId: USER, dossierId });
     const before = await repositories.getInjunctionTasksByUser(USER);
 
-    // A retried acceptance (double-click, replayed request) reuses the cached
-    // checklist and the unique (user, dossier, action) key, so nothing doubles.
+    // A retried acceptance (double-click, replayed request, a stale queued job)
+    // is a no-op once the verdict is filed, so nothing doubles and the filing
+    // date the stamp prints cannot be rewritten.
+    const filedAt = await repositories.getInjunctionFiledAt(dossierId);
     const second = await issueInjunction({ repositories, userId: USER, dossierId });
 
-    expect(second.source).toBe('cache');
+    expect(second.status).toBe('skipped');
     const after = await repositories.getInjunctionTasksByUser(USER);
     expect(after).toHaveLength(before.length);
     expect(after.map((task) => task.id).sort()).toEqual(before.map((task) => task.id).sort());
-    expect(first.issued).toBe(second.issued);
+    expect(first.issued).toBe(before.length);
+    expect(await repositories.getInjunctionFiledAt(dossierId)).toBe(filedAt);
+  });
+
+  it('is a no-op for a verdict that has not been accepted', async () => {
+    const dossierId = await repositories.saveDossier(payload());
+
+    const result = await issueInjunction({ repositories, userId: USER, dossierId });
+
+    expect(result).toEqual({ status: 'skipped', issued: 0, source: 'none' });
+    expect(await repositories.getInjunctionTasksByUser(USER)).toEqual([]);
+    expect(await repositories.getInjunctionFiledAt(dossierId)).toBeNull();
   });
 
   it('keeps each citizen separate', async () => {
     const dossierId = await repositories.saveDossier(payload());
+    await repositories.acceptDossier(dossierId);
     await issueInjunction({ repositories, userId: USER, dossierId });
 
     expect(await repositories.getInjunctionTasksByUser(OTHER)).toEqual([]);
+    // ...but the public count still reports the filing to any reader.
+    expect(await repositories.countInjunctionTasksForDossier(dossierId)).toBe(
+      (await repositories.getInjunctionTasksByUser(USER)).length
+    );
   });
 
   it('is a no-op for an unknown verdict', async () => {
     const result = await issueInjunction({ repositories, userId: USER, dossierId: 'does-not-exist' });
 
-    expect(result).toEqual({ issued: 0, source: 'skipped' });
+    expect(result).toEqual({ status: 'skipped', issued: 0, source: 'none' });
     expect(await repositories.getInjunctionTasksByUser(USER)).toEqual([]);
+  });
+
+  it('files an empty checklist as a filing, and never retries it', async () => {
+    // The Arbiter can find nothing to correct. That is a *filing* — the dossier
+    // says "no corrective orders" — not a failed issuance, so it is flagged and a
+    // later read must not spend a model call on it again.
+    const empty = payload();
+    empty.audit.items = [];
+    const dossierId = await repositories.saveDossier(empty);
+    await repositories.acceptDossier(dossierId);
+
+    const result = await issueInjunction({ repositories, userId: USER, dossierId });
+
+    expect(result).toEqual({ status: 'empty', issued: 0, source: 'simulated' });
+    expect(await repositories.getInjunctionFiledAt(dossierId)).toBeTruthy();
+    expect(await repositories.getInjunctionTasksByUser(USER)).toEqual([]);
+    expect(await repositories.countInjunctionTasksForDossier(dossierId)).toBe(0);
+
+    expect((await issueInjunction({ repositories, userId: USER, dossierId })).status).toBe(
+      'skipped'
+    );
+  });
+
+  it('leaves a failed filing unfiled, so the next attempt retries it', async () => {
+    const dossierId = await repositories.saveDossier(payload());
+    await repositories.acceptDossier(dossierId);
+
+    // The checklist generated, but the rows never committed.
+    const failing = {
+      ...repositories,
+      addInjunctionTasks: async () => {
+        throw new Error('insert exploded');
+      },
+    };
+    await expect(
+      issueInjunction({ repositories: failing, userId: USER, dossierId })
+    ).rejects.toThrow('insert exploded');
+
+    expect(await repositories.getInjunctionFiledAt(dossierId)).toBeNull();
+    expect(await repositories.getInjunctionTasksByUser(USER)).toEqual([]);
+
+    // ...and the retry (a queued job, or the next page load) files it, reusing the
+    // cached checklist instead of paying for a second model call.
+    const retried = await issueInjunction({ repositories, userId: USER, dossierId });
+    expect(retried.status).toBe('filed');
+    expect(retried.source).toBe('cache');
+    expect(await repositories.getInjunctionFiledAt(dossierId)).toBeTruthy();
   });
 });
 

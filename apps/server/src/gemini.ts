@@ -526,10 +526,19 @@ function sanitizeInjunctionItem(raw: any): InjunctionItem | null {
   };
 }
 
-/** Runs the injunction checklist through Gemini (text-only, small). */
-export async function generateInjunctionChecklist(
-  dossier: CitizenRecord
-): Promise<{ checklist: InjunctionChecklist; usage: ApiCallUsage }> {
+/**
+ * Runs the injunction checklist through Gemini (text-only, small).
+ *
+ * `rawItemCount` is how many entries the model returned, before sanitizing:
+ * `0` means the Arbiter genuinely filed no actions (a valid, empty
+ * injunction), while a non-zero count with no surviving items is a model
+ * failure the caller must retry rather than record as "nothing to do".
+ */
+export async function generateInjunctionChecklist(dossier: CitizenRecord): Promise<{
+  checklist: InjunctionChecklist;
+  usage: ApiCallUsage;
+  rawItemCount: number;
+}> {
   const startTime = performance.now();
   const ai = createGeminiClient();
   const model = getGeminiModel();
@@ -566,6 +575,7 @@ export async function generateInjunctionChecklist(
           : 'Pledge these actions to lift your score, one habit at a time.',
     },
     usage,
+    rawItemCount: rawItems.length,
   };
 }
 

@@ -3,16 +3,17 @@ import type { InjunctionTask } from '@ecocide/types';
 import {
   INJUNCTION_POLL_DELAYS_MS,
   INJUNCTION_POLL_DEADLINE_MS,
-  hasInjunctionFor,
   injunctionPollDelay,
+  resolveInjunctionState,
 } from './useInjunction';
 
 /**
  * The dossier page's stamp waits for orders that are issued after the acceptance
- * response, so the interesting parts are the decisions around that wait: whether
- * this verdict's orders are on file, and how long to keep asking. (The polling
- * *window* can't be reproduced offline — with no AI credentials issuance is
- * awaited — so the schedule is asserted rather than slept through.)
+ * response, so the interesting parts are the decisions around that wait: what one
+ * answer from the orders endpoint means for the paper, and how long to keep
+ * asking. (The polling *window* can't be reproduced offline — with no AI
+ * credentials issuance runs inline — so the schedule is asserted rather than
+ * slept through.)
  */
 
 const BASE_TASK: InjunctionTask = {
@@ -35,26 +36,68 @@ function task(overrides: Partial<InjunctionTask> = {}): InjunctionTask {
   return { ...BASE_TASK, ...overrides };
 }
 
-describe('hasInjunctionFor', () => {
-  it('is false while there is nothing to show', () => {
-    expect(hasInjunctionFor(null, 'dossier-a')).toBe(false);
-    expect(hasInjunctionFor([], 'dossier-a')).toBe(false);
-  });
+describe('resolveInjunctionState', () => {
+  const unfiled = { filed: false, orders: 0 };
 
-  it('matches only the verdict asked about', () => {
-    const tasks = [task({ id: 'a', dossierId: 'dossier-a' }), task({ id: 'b', dossierId: 'dossier-b' })];
+  it('renders the orders once this session may read them', () => {
+    const state = resolveInjunctionState(
+      { tasks: [task({ dossierId: 'dossier-a' })], filed: true, orders: 1 },
+      unfiled
+    );
 
-    expect(hasInjunctionFor(tasks, 'dossier-a')).toBe(true);
-    expect(hasInjunctionFor(tasks, 'dossier-c')).toBe(false);
+    expect(state.status).toBe('issued');
+    expect(state.tasks).toHaveLength(1);
+    expect(state.readable).toBe(true);
+    expect(state.canRetry).toBe(false);
   });
 
   it('still counts completed orders — they exist and are worth showing', () => {
-    expect(hasInjunctionFor([task({ completed: true, points: 64 })], 'dossier-a')).toBe(true);
+    const state = resolveInjunctionState(
+      { tasks: [task({ completed: true, points: 64 })], filed: true, orders: 1 },
+      unfiled
+    );
+
+    expect(state.status).toBe('issued');
+    expect(state.tasks).toHaveLength(1);
+  });
+
+  it('calls a filing with no actions a filing, not a wait', () => {
+    const state = resolveInjunctionState({ tasks: [], filed: true, orders: 0 }, unfiled);
+
+    expect(state.status).toBe('empty');
+    expect(state.canRetry).toBe(false);
+  });
+
+  it('keeps waiting while an accepted verdict has nothing on file', () => {
+    const state = resolveInjunctionState({ tasks: [], filed: false, orders: 0 }, unfiled);
+
+    expect(state.status).toBe('waiting');
+    expect(state.canRetry).toBe(true);
+  });
+
+  it('falls back to the public record when the orders are not ours', () => {
+    // A locked registry, or a shared permalink read by another session: 401/403
+    // must not read as "no orders". The filing is public, the actions are not.
+    const withActions = resolveInjunctionState(null, { filed: true, orders: 4 });
+    expect(withActions.status).toBe('issued');
+    expect(withActions.readable).toBe(false);
+    expect(withActions.tasks).toEqual([]);
+    // Nothing to retry: this session cannot issue somebody else's injunction.
+    expect(withActions.canRetry).toBe(false);
+
+    expect(resolveInjunctionState(null, { filed: true, orders: 0 }).status).toBe('empty');
+  });
+
+  it('says so when nothing is on file and it cannot be read', () => {
+    const state = resolveInjunctionState(null, { filed: false, orders: 0 });
+
+    expect(state.status).toBe('unavailable');
+    expect(state.readable).toBe(false);
+    expect(state.canRetry).toBe(false);
   });
 });
 
-describe('injunctionPollDelay', () => {
-  it('starts immediately, then backs off', () => {
+describe('injunctionPollDelay', () => {  it('starts immediately, then backs off', () => {
     expect(injunctionPollDelay(0)).toBe(0);
     expect(injunctionPollDelay(1)).toBe(INJUNCTION_POLL_DELAYS_MS[1]);
     expect(injunctionPollDelay(2)).toBeGreaterThan(injunctionPollDelay(1));

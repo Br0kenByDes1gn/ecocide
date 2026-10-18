@@ -160,7 +160,7 @@ app.use(
 
 // Carbon Registry identity (Better Auth).
 app.all('/api/auth/*', (c) => auth.handler(c.req.raw));
-app.route('/api/vault', createVaultRoutes({ repositories, auth }));
+app.route('/api/vault', createVaultRoutes({ repositories, auth, dispatcher: jobs }));
 
 // Health Check
 app.get('/api/health', (c) => {
@@ -335,8 +335,13 @@ app.get('/api/citizen/:id', async (c) => {
   }
   // What the file holds, derived from granted appeals: the verdict page needs it
   // to show which pledges were actually accepted, and nothing else does.
-  const acceptedPledges = await repositories.getAcceptedPledges(id);
-  return c.json({ ...record, acceptedPledges });
+  // `injunctionOrders` is the filed checklist's length — a count, never the
+  // actions (those belong to the registry account that accepted the verdict).
+  const [acceptedPledges, injunctionOrders] = await Promise.all([
+    repositories.getAcceptedPledges(id),
+    repositories.countInjunctionTasksForDossier(id),
+  ]);
+  return c.json({ ...record, acceptedPledges, injunctionOrders });
 });
 
 /**

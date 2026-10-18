@@ -11,6 +11,8 @@
 // storage names — see AGENTS.md §2. Only what the citizen READS lives here.
 // ---------------------------------------------------------------------------
 
+import { PALETTE } from './art.js';
+
 export const REGISTRY_COPY = {
   /** Page name + header/nav label (the route is `/registry`). */
   name: 'Carbon Registry',
@@ -195,6 +197,15 @@ export const DISPOSITION_COPY = {
  * stamp is never wrong: the ink is the art bible's *archive* ink
  * (art_directions.md §3.2, "folder tabs, ledger binding, case-file accents"),
  * which no tier uses, so this mark never reads as a verdict.
+ *
+ * Three states share the space beside the disposition mark, because "no mark at
+ * all" is indistinguishable from a broken page:
+ *
+ *   • issued          → `label`, in archive ink, opening the worksheet
+ *   • filed with none → `none`, in the success green: the Arbiter required no
+ *                       corrective action, which is a finding, not an absence
+ *   • not on file yet → `unavailable` (the wait ended without orders) with the
+ *                       `retry` control, or `pending` while the wait is live
  */
 export const INJUNCTION_STAMP = {
   /** Headline of the stamp (the component uppercases it). */
@@ -208,8 +219,25 @@ export const INJUNCTION_STAMP = {
    * ledger...").
    */
   pending: 'The Arbiter is drafting your orders...',
+  /**
+   * The checklist came back with no actions: the household was found to need no
+   * correction. Filed like any other injunction, and stamped like one — in the
+   * success green, so a compliant household reads as cleared rather than
+   * missing.
+   */
+  none: 'No corrective orders',
+  /**
+   * The wait ended and nothing is on file: the issuance failed and the Bureau
+   * has not recovered it yet. Honest about the state instead of blank paper —
+   * the file is open, the paperwork is not in it.
+   */
+  unavailable: 'Orders not on file — the Arbiter remains in session.',
+  /** Control that asks the Bureau to file the orders again. */
+  retry: 'Request the orders again',
   /** Archive ink — art_directions.md §3.2. */
   ink: '#8b5a2b',
+  /** Success green (art_directions.md §3) — a filed clean bill of health. */
+  noneInk: PALETTE.success,
 } as const;
 
 /**

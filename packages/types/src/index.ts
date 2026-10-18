@@ -226,6 +226,16 @@ export interface OraclePayload {
   attributed?: boolean;
   /** Pledges granted on appeal, from `CitizenRecord.acceptedPledges`. */
   acceptedPledges?: AcceptedPledge[];
+  /**
+   * When this verdict's environmental injunction was filed (ISO-8601), from the
+   * public dossier record. The orders themselves are the owner's business, but
+   * *whether* they were filed is on the paper for every reader — the dossier
+   * stamp needs it. Filing with zero actions is a real outcome (the Arbiter
+   * required no corrective action), so this is not a synonym for "has orders".
+   */
+  injunctionFiledAt?: string;
+  /** How many corrective actions were filed for this verdict (0 is valid). */
+  injunctionOrders?: number;
 }
 
 export interface CitizenRecord {
@@ -257,6 +267,19 @@ export interface CitizenRecord {
    * only the matching session may claim or appeal it.
    */
   attributed?: boolean;
+  /**
+   * When this verdict's injunction was filed. Issuance is a job that runs after
+   * acceptance, so a page opened in between sees it unset; a verdict accepted
+   * before orders were ever issued (a failed run) also reads unset until the next
+   * page load retries it. Null/undefined only means "not on file yet".
+   */
+  injunctionFiledAt?: string;
+  /**
+   * How many corrective actions the filed injunction holds (0 is a valid filing:
+   * the Arbiter required no correction). A count, never the actions themselves —
+   * those belong to the registry account that accepted the verdict.
+   */
+  injunctionOrders?: number;
 }
 
 export interface ScanRequest {
@@ -273,7 +296,7 @@ export interface ScanRequest {
  * cost, so per-scan latency is measured server-side rather than inferred by
  * summing the two model calls. Aggregates keep it out of the call list.
  */
-export type ApiCallType = 'oracle_inventory' | 'oracle_classify' | 'scan_total';
+export type ApiCallType = 'oracle_inventory' | 'oracle_classify' | 'oracle_injunction' | 'scan_total';
 
 export interface AppealRequest {
   appeal: string;

@@ -275,5 +275,7 @@ function toOraclePayload(record: CitizenRecord): OraclePayload {
     id: record.id,
     evidenceUrl: record.evidenceUrl,
     acceptedAt: record.acceptedAt,
+    injunctionFiledAt: record.injunctionFiledAt,
+    injunctionOrders: record.injunctionOrders ?? 0,
   };
 }

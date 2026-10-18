@@ -14,6 +14,8 @@ import { createRepositories, initDb, runMigrations, type DbConnection, type Repo
 import { user } from '../db/schema.js';
 import type { Auth } from '../auth/index.js';
 import type { AuthVariables } from '../auth/middleware.js';
+import { issueInjunction } from '../injunction.js';
+import type { JobDispatcher, JobPayloads } from '../jobs/index.js';
 import { createVaultRoutes } from './routes.js';
 
 /**
@@ -88,9 +90,31 @@ function stubAuth(userId: string | null): Auth {
   } as unknown as Auth;
 }
 
+/**
+ * Stub dispatcher: runs the injunction job inline, exactly as the real inline
+ * dispatcher does (dev/tests without Redis) — awaited by the caller, failures
+ * logged rather than thrown, so `/link` cannot break on a model error.
+ */
+const jobs: JobDispatcher = {
+  mode: 'inline',
+  async enqueue(name, data) {
+    if (name !== 'injunction:issue') return;
+    const { dossierId, userId } = data as JobPayloads['injunction:issue'];
+    try {
+      await issueInjunction({ repositories, userId, dossierId });
+    } catch (err: any) {
+      console.error('[Jobs] inline injunction:issue failed:', err?.message || err);
+    }
+  },
+  async schedule() {},
+};
+
 function makeApp(userId: string | null) {
   const app = new Hono<{ Variables: AuthVariables }>();
-  app.route('/api/vault', createVaultRoutes({ repositories, auth: stubAuth(userId) }));
+  app.route(
+    '/api/vault',
+    createVaultRoutes({ repositories, auth: stubAuth(userId), dispatcher: jobs })
+  );
   return app;
 }
 
@@ -476,6 +500,9 @@ describe('vault routes', () => {
     ).json();
     expect(scoped.tasks).toHaveLength(2);
     expect(scoped.tasks.every((task) => task.dossierId === first)).toBe(true);
+    // The count is the public half of the answer: what a reader who may not open
+    // the actions sees ("filed with orders" vs "filed with none").
+    expect(scoped.orders).toBe(2);
 
     // A verdict with no orders of its own answers with nothing, not the rest.
     const empty = await (
@@ -488,6 +515,37 @@ describe('vault routes', () => {
       await makeApp(USER_B).request(`/api/vault/injunction-tasks?dossierId=${first}`)
     ).json();
     expect(foreign.tasks).toEqual([]);
+  });
+
+  it('retries a missing injunction only for the verdict owner', async () => {
+    // An accepted verdict with no orders: exactly the state a failed issuance
+    // leaves behind. The dossier page's first read asks for them again.
+    const accepted = await repositories.saveDossier(makePayload());
+    await repositories.linkDossierToUser(accepted, USER_A);
+    await repositories.acceptDossier(accepted);
+    expect(await repositories.getInjunctionFiledAt(accepted)).toBeNull();
+
+    const ownerRead = await (
+      await makeApp(USER_A).request(`/api/vault/injunction-tasks?dossierId=${accepted}&ensure=1`)
+    ).json();
+    // The dispatcher runs inline in tests, so the retry has already landed.
+    expect(ownerRead.filed).toBe(true);
+    expect(ownerRead.tasks.length).toBeGreaterThan(0);
+    expect(ownerRead.orders).toBe(ownerRead.tasks.length);
+    expect(await repositories.getInjunctionFiledAt(accepted)).toBeTruthy();
+
+    // Someone else's verdict is never issued on their behalf — and the answer
+    // still reports the filing (the public record), with no rows of their own.
+    const other = await repositories.saveDossier(makePayload());
+    await repositories.linkDossierToUser(other, USER_A);
+    await repositories.acceptDossier(other);
+    const strangerRead = await (
+      await makeApp(USER_B).request(`/api/vault/injunction-tasks?dossierId=${other}&ensure=1`)
+    ).json();
+    expect(strangerRead.tasks).toEqual([]);
+    expect(strangerRead.filed).toBe(false);
+    expect(await repositories.getInjunctionFiledAt(other)).toBeNull();
+    expect(await repositories.countInjunctionTasksForDossier(other)).toBe(0);
   });
 
   it('rejects unauthenticated ledger access', async () => {

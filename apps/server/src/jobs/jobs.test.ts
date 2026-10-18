@@ -3,6 +3,7 @@ import { sql } from 'drizzle-orm';
 import type { OraclePayload } from '@ecocide/types';
 import { createRepositories, initDb, runMigrations } from '../db/index.js';
 import type { DbConnection, Repositories } from '../db/index.js';
+import { user as userTable } from '../db/schema.js';
 import type { EmailMessage, Mailer } from '../email/index.js';
 import { createInlineDispatcher } from './dispatcher.js';
 import { createHandlers } from './handlers/index.js';
@@ -143,5 +144,30 @@ describe('job dispatch (inline mode)', () => {
     ).resolves.toBeUndefined();
 
     errorSpy.mockRestore();
+  });
+
+  it('issues an accepted verdict’s injunction', async () => {
+    const userId = 'user-jobs';
+    await conn.db.insert(userTable).values({ id: userId, name: '', email: 'jobs@arbiter.test', emailVerified: true });
+    const dossierId = await repositories.saveDossier(payload);
+    await repositories.acceptDossier(dossierId);
+
+    await makeDispatcher(fakeMailer()).enqueue('injunction:issue', { dossierId, userId });
+
+    const tasks = await repositories.getInjunctionTasksByUser(userId);
+    expect(tasks.length).toBeGreaterThan(0);
+    expect(tasks.every((task) => task.dossierId === dossierId)).toBe(true);
+    expect(await repositories.getInjunctionFiledAt(dossierId)).toBeTruthy();
+  });
+
+  it('issues nothing for a verdict that was never accepted', async () => {
+    const userId = 'user-jobs';
+    await conn.db.insert(userTable).values({ id: userId, name: '', email: 'jobs@arbiter.test', emailVerified: true });
+    const dossierId = await repositories.saveDossier(payload);
+
+    await makeDispatcher(fakeMailer()).enqueue('injunction:issue', { dossierId, userId });
+
+    expect(await repositories.getInjunctionTasksByUser(userId)).toEqual([]);
+    expect(await repositories.getInjunctionFiledAt(dossierId)).toBeNull();
   });
 });

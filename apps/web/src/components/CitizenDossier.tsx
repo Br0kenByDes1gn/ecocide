@@ -49,8 +49,12 @@ export const CitizenDossier: React.FC<CitizenDossierProps> = ({
 
   // Once the verdict is accepted the orders are issued in the background, so the
   // stamp waits for them: immediate on a later visit, a short poll on the visit
-  // right after accepting.
-  const injunction = useInjunctionStamp(permalinkId, Boolean(payload.acceptedAt));
+  // right after accepting. The public record's filing state is what a reader who
+  // may not open the orders (a shared permalink, a locked registry) sees instead.
+  const injunction = useInjunctionStamp(permalinkId, Boolean(payload.acceptedAt), {
+    filed: Boolean(payload.injunctionFiledAt),
+    orders: payload.injunctionOrders ?? 0,
+  });
 
   const handleDownloadCard = async () => {
     if (preparingPng) return;
@@ -63,7 +67,14 @@ export const CitizenDossier: React.FC<CitizenDossierProps> = ({
         sessionDate,
         citizenId,
         lens,
-        injunctionStatus: injunction.status,
+        // The export carries the same mark it always did; the newest states are
+        // the page's own copy and are not painted into the downloaded card.
+        injunctionStatus:
+          injunction.status === 'issued'
+            ? 'issued'
+            : injunction.status === 'waiting'
+            ? 'waiting'
+            : 'idle',
       });
     } catch (e) {
       console.error('[Dossier] PNG export failed:', e);
@@ -95,6 +106,7 @@ export const CitizenDossier: React.FC<CitizenDossierProps> = ({
               citizenId={citizenId}
               injunction={injunction}
               onOpenInjunction={onOpenInjunction}
+              onRetryInjunction={injunction.canRetry ? injunction.retry : undefined}
               onOpenDisposition={() => setDispositionOpen(true)}
               inventoryOpen={inventoryOpen}
               onToggleInventory={() => setInventoryOpen((o) => !o)}

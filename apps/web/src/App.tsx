@@ -232,6 +232,8 @@ export function App() {
           acceptedAt: record.acceptedAt,
           attributed: record.attributed ?? false,
           acceptedPledges: record.acceptedPledges ?? [],
+          injunctionFiledAt: record.injunctionFiledAt,
+          injunctionOrders: record.injunctionOrders ?? 0,
         };
         setOracleData(payload);
         setEvidenceUrl(record.evidenceUrl);
@@ -395,6 +397,8 @@ export function App() {
         acceptedAt: record.acceptedAt,
         attributed: record.attributed ?? false,
         acceptedPledges: record.acceptedPledges ?? [],
+        injunctionFiledAt: record.injunctionFiledAt,
+        injunctionOrders: record.injunctionOrders ?? 0,
       };
       setOracleData(payload);
       setEvidenceUrl(record.evidenceUrl);

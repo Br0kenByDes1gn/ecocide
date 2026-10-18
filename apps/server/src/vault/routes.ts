@@ -17,12 +17,15 @@ import {
 import type { Auth } from '../auth/index.js';
 import { requireSession, type AuthVariables } from '../auth/middleware.js';
 import type { Repositories } from '../db/index.js';
-import { issueInjunction, injunctionRunsInBackground } from '../injunction.js';
+import { enqueueInjunction } from '../jobs/enqueue.js';
+import type { JobDispatcher } from '../jobs/index.js';
 import { dossierAccessError } from '../access.js';
 
 export interface VaultRouteDeps {
   repositories: Repositories;
   auth: Auth;
+  /** Queue used to issue an accepted verdict's injunction (inline in dev/tests). */
+  dispatcher: JobDispatcher;
 }
 
 /** Default page size for the vault's recent-ledger slice. */
@@ -122,10 +125,44 @@ export function createVaultRoutes(deps: VaultRouteDeps) {
     // waits for issuance, and the whole worksheet would be a wasteful answer to a
     // yes/no question (it also grows with every verdict the citizen ever collects).
     const dossierId = c.req.query('dossierId')?.trim();
-    const tasks = dossierId
-      ? await deps.repositories.getInjunctionTasksByDossier(user.id, dossierId)
-      : await deps.repositories.getInjunctionTasksByUser(user.id);
-    return c.json({ tasks });
+    if (!dossierId) {
+      const tasks = await deps.repositories.getInjunctionTasksByUser(user.id);
+      return c.json({ tasks, filed: true, orders: tasks.length });
+    }
+
+    const record = await deps.repositories.getDossier(dossierId);
+    // An unknown verdict answers like an unfiled one: the dossier page asks for a
+    // verdict it is showing, so a typo/404 is not a state it can render.
+    if (!record) return c.json({ tasks: [], filed: false, orders: 0 });
+
+    // Repair: a filing whose flag was never written (an earlier run crashed
+    // between the rows and the flag) is filed — the rows are the evidence.
+    if (!record.injunctionFiledAt && record.acceptedAt) {
+      const owned = await deps.repositories.getInjunctionTasksByDossier(user.id, dossierId);
+      if (owned.length > 0) await deps.repositories.markInjunctionFiled(dossierId);
+    }
+
+    // `?ensure=1` is the page-load retry: the dossier asks once, on mount, for the
+    // orders of an accepted verdict that has none on file. Issuance is a queue job,
+    // so this answers immediately; the page's polls read the result. In inline
+    // mode (dev/tests) the job runs before the response, so the answer is final.
+    const ensure = c.req.query('ensure') === '1';
+    if (ensure && record.acceptedAt && record.ownerId === user.id) {
+      const filedAt = await deps.repositories.getInjunctionFiledAt(dossierId);
+      if (!filedAt) await enqueueInjunction(deps.dispatcher, dossierId, user.id);
+    }
+
+    const [tasks, filedAt] = await Promise.all([
+      deps.repositories.getInjunctionTasksByDossier(user.id, dossierId),
+      deps.repositories.getInjunctionFiledAt(dossierId),
+    ]);
+    // The count is what tells "filed with no corrective orders" from "filed, and
+    // the actions are somebody else's business" when `tasks` is empty.
+    const orders = tasks.length > 0
+      ? tasks.length
+      : await deps.repositories.countInjunctionTasksForDossier(dossierId);
+
+    return c.json({ tasks, filed: Boolean(filedAt), orders });
   });
 
   app.post('/injunction-confirm', async (c) => {
@@ -257,18 +294,11 @@ export function createVaultRoutes(deps: VaultRouteDeps) {
       // acceptance, so a repeated claim neither re-accepts nor re-issues.
       const acceptedAt = await deps.repositories.acceptDossier(dossierId);
       if (acceptedAt) {
-        const issuance = issueInjunction({
-          repositories: deps.repositories,
-          userId: user.id,
-          dossierId,
-        }).catch((err) => console.warn('[Injunction] issuance failed:', err?.message || err));
-
-        // A model call must not hold up the certification screen, so it runs
-        // after the response (Cloud Run has CPU always allocated). Offline the
-        // checklist is local arithmetic, so it is awaited and the actions are
-        // already there when the citizen opens the worksheet.
-        if (injunctionRunsInBackground()) void issuance;
-        else await issuance;
+        // A model call must not hold up the certification screen. In production
+        // this is a durable queue job (retried with backoff); in dev/tests the
+        // dispatcher runs it inline, so the actions are already there when the
+        // citizen opens the worksheet.
+        await enqueueInjunction(deps.dispatcher, dossierId, user.id);
       }
     }
 

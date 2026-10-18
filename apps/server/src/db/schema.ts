@@ -176,6 +176,16 @@ export const dossiers = pgTable(
      * has been (or is being) issued.
      */
     accepted_at: text('accepted_at'),
+    /**
+     * When this verdict's injunction was filed (ISO-8601), or null while it is
+     * unfiled. Written last, once the checklist's actions are committed — or
+     * immediately when the Arbiter filed a checklist with no actions at all.
+     *
+     * It is the single "filed" bit: it is what stops issuance from re-running,
+     * what distinguishes a filed-with-zero-orders verdict from one that was
+     * never issued, and the date the dossier stamp prints.
+     */
+    injunction_issued_at: text('injunction_issued_at'),
   },
   (t) => [
     index('idx_dossiers_created_at').on(t.created_at),
@@ -240,6 +250,10 @@ export const injunctionTasks = pgTable(
   },
   (t) => [
     index('idx_injunction_tasks_user_created').on(t.user_id, t.created_at),
+    // Counting one verdict's orders for the public dossier record (the stamp
+    // needs "filed with orders" vs "filed with none", for readers who may not
+    // read the actions themselves).
+    index('idx_injunction_tasks_dossier').on(t.dossier_id),
     // Identity: one row per action per accepted verdict. Also a double-click
     // guard, since issuance hangs off the (idempotent) claim endpoint.
     uniqueIndex('uniq_injunction_tasks_user_dossier_action').on(t.user_id, t.dossier_id, t.action),

@@ -20,9 +20,15 @@ export interface PaperDossierPanelProps {
   /** Registry email shown as the citizen id (falls back to the permalink). */
   citizenId?: string | null;
   /** Issuance state for this verdict, from `useInjunctionStamp`. */
-  injunction: { status: 'idle' | 'waiting' | 'issued' };
+  injunction: {
+    status: 'idle' | 'waiting' | 'issued' | 'empty' | 'unavailable';
+    /** False when the orders exist but belong to another registry session. */
+    readable?: boolean;
+  };
   /** Open the orders worksheet filtered to this verdict. */
   onOpenInjunction?: (dossierId: string) => void;
+  /** Ask the Bureau to file the missing orders again (owner only). */
+  onRetryInjunction?: () => void;
   /** Open the disposition file. */
   onOpenDisposition: () => void;
   /**
@@ -50,6 +56,7 @@ export const PaperDossierPanel: React.FC<PaperDossierPanelProps> = ({
   citizenId = null,
   injunction,
   onOpenInjunction,
+  onRetryInjunction,
   onOpenDisposition,
   inventoryOpen,
   onToggleInventory,
@@ -81,17 +88,28 @@ export const PaperDossierPanel: React.FC<PaperDossierPanelProps> = ({
         Reserved space under IMPACT FINDINGS — always present, so the paper
         never reflows when the mark arrives. The Bureau's disposition mark
         for this household sits on the left from the moment the verdict
-        exists; the right side holds the pending line while the Arbiter
-        drafts the orders, then the injunction stamp itself. Wraps rather
-        than collides on a narrow screen.
+        exists; the right side holds the state of its corrective orders: the
+        pending line while they are drafted, the stamp once they are filed
+        (archive ink for actions, success green for none), and an honest
+        "not on file" notice with a retry when the wait ended empty-handed.
+        Wraps rather than collides on a narrow screen.
       */}
       <div className="relative mt-3 flex min-h-[3.5rem] flex-wrap items-center justify-between gap-2">
         <DispositionStamp caste={user_profile.caste} onClick={onOpenDisposition} />
         {injunction.status === 'issued' && permalinkId && onOpenInjunction ? (
           <InjunctionStamp
-            acceptedAt={payload.acceptedAt}
-            onOpen={() => onOpenInjunction(permalinkId)}
+            filedAt={payload.injunctionFiledAt ?? payload.acceptedAt}
+            onOpen={
+              injunction.readable === false ? undefined : () => onOpenInjunction(permalinkId)
+            }
           />
+        ) : injunction.status === 'empty' && permalinkId && onOpenInjunction ? (
+          /*
+            Filed with no actions. Gated on the same handler as the orders mark
+            so the two can never disagree about which surfaces carry the mark
+            (the PNG export mounts this panel without one).
+          */
+          <InjunctionStamp variant="none" filedAt={payload.injunctionFiledAt} />
         ) : injunction.status === 'waiting' ? (
           <p
             className="animate-pulse text-right font-mono text-[10px] font-bold uppercase tracking-widest"
@@ -99,6 +117,28 @@ export const PaperDossierPanel: React.FC<PaperDossierPanelProps> = ({
           >
             {INJUNCTION_STAMP.pending}
           </p>
+        ) : injunction.status === 'unavailable' ? (
+          <div className="flex flex-col items-end gap-1 text-right">
+            <p
+              className="font-mono text-[10px] font-bold uppercase tracking-widest"
+              style={{ color: INJUNCTION_STAMP.ink, letterSpacing: '2px' }}
+            >
+              {INJUNCTION_STAMP.unavailable}
+            </p>
+            {onRetryInjunction && (
+              <button
+                type="button"
+                onClick={() => {
+                  soundFx.playClick();
+                  onRetryInjunction();
+                }}
+                className="font-mono text-[10px] font-bold uppercase tracking-widest underline decoration-dotted underline-offset-2 transition-colors hover:text-[#1f2a1f] cursor-pointer"
+                style={{ color: INJUNCTION_STAMP.ink }}
+              >
+                {INJUNCTION_STAMP.retry}
+              </button>
+            )}
+          </div>
         ) : null}
       </div>
 
