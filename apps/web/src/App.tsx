@@ -17,6 +17,7 @@ import { InformantScreen } from './components/InformantScreen';
 import { AboutScreen } from './components/AboutScreen';
 import { GridScreen } from './components/GridScreen';
 import { IDENTITY, REGISTRY_COPY, CONFETTI_COLORS, ADJUDICATORS_ON_DUTY } from '@ecocide/lore';
+import { analyticsPath, trackPageView } from './lib/analytics';
 import { soundFx } from './lib/audio';
 
 const IS_DEV = import.meta.env.DEV;
@@ -276,6 +277,22 @@ export function App() {
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
+
+  /**
+   * One GA4 pageview per screen.
+   *
+   * Every navigation below sets `viewState` and calls `history.pushState` in the
+   * same synchronous handler, and back/forward re-runs `loadFromUrl` — so by the
+   * time this effect runs the URL *is* the screen. `permalinkId` and
+   * `dossierFilter` are in the deps because two screens of the same name can be
+   * different cases (`/citizen/a` → `/citizen/b`, `/injunction?dossier=`).
+   *
+   * GA ignores this outside a production build: `trackPageView` no-ops when the
+   * tag was never injected (see `lib/analytics.ts`).
+   */
+  useEffect(() => {
+    trackPageView(analyticsPath(window.location.pathname));
+  }, [viewState, permalinkId, dossierFilter]);
 
   const handleLockIn = async (data: { rawImage: string; category: ItemCategory | null }) => {
     setIsLoading(true);

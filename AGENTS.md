@@ -248,6 +248,17 @@ apps/server/scripts/  # scan-cost audit
   `/claim/:id`, `/appeal/:id`, `/inform/:id`, `/appeals/:id`,
   `/adjudicators` with `/about` redirecting, `/grid`, `/injunction` (optionally
   `?dossier=<id>`), `/registry` with `/vault` redirecting, dev-only `/debug`).
+- `src/lib/analytics.ts` — GA4 (`G-CES4JGST5C`), injected by `main.tsx` from the
+  same two tags as the standard gtag snippet. Three deliberate choices: it is a
+  **no-op outside a production build** (local clicking never reaches the
+  property); `config` runs with `send_page_view: false` and `App.tsx` sends one
+  `page_view` per screen from an effect keyed on
+  `viewState`/`permalinkId`/`dossierFilter` (a router-less SPA would otherwise
+  report one view per document load, i.e. the whole journey as one hit); and
+  `analyticsPath` collapses permalink ids to `/citizen/:id` before anything is
+  sent, so household ids never leave the app and reports group by route. No
+  consent banner — GA4 anonymises IPs by default; add consent mode if that
+  changes.
 - `src/components/ArbitrationDossier.tsx` — the verdict page. Beside
   `ACCEPT VERDICT` and `APPEAL`, when a permalink exists, it offers
   `SUBMIT AS EVIDENCE FOR SOMEONE ELSE` (`/inform/:id`), hidden once the verdict
