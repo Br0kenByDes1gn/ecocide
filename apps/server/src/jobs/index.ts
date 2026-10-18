@@ -7,10 +7,22 @@ import type { JobContext } from './types.js';
 
 export const QUEUE_NAME = 'ecocide';
 
+/**
+ * Whether the queue can actually reach Redis.
+ *
+ * `jobs: 'bullmq'` only says `REDIS_URL` is set — the mode is decided by the
+ * environment, never by connecting. A wrong host, port or AUTH string, or a
+ * missing VPC route, still reports `bullmq` while every job silently waits, so
+ * health reports the *connection* too. `inline` means there is no queue at all.
+ */
+export type QueueState = 'connected' | 'disconnected' | 'inline';
+
 export interface JobSystem {
   dispatcher: JobDispatcher;
   /** BullMQ queue — present only in `bullmq` mode (used by the Bull Board UI). */
   queue: Queue | null;
+  /** Live connection state, updated from the Redis client's own events. */
+  queueState(): QueueState;
   close(): Promise<void>;
 }
 
@@ -28,7 +40,12 @@ export async function createJobSystem(options: {
 
   if (!redisUrl) {
     console.log('[Jobs] REDIS_URL not set — running jobs inline (BullMQ disabled).');
-    return { dispatcher: createInlineDispatcher(handlers), queue: null, close: async () => {} };
+    return {
+      dispatcher: createInlineDispatcher(handlers),
+      queue: null,
+      queueState: () => 'inline',
+      close: async () => {},
+    };
   }
 
   const connection = createRedis(redisUrl);
@@ -42,11 +59,26 @@ export async function createJobSystem(options: {
     },
   });
   const worker = createJobWorker(connection, handlers, QUEUE_NAME);
-  console.log(`[Jobs] BullMQ worker online (queue="${QUEUE_NAME}").`);
+
+  // The mode is an environment fact; this is the connection fact beside it.
+  // ioredis retries forever with `maxRetriesPerRequest: null`, so a bad URL or a
+  // blocked port shows up here as a stream of errors while the process stays up.
+  let connected = false;
+  connection.on('ready', () => {
+    if (!connected) console.log(`[Jobs] Redis connected (queue="${QUEUE_NAME}").`);
+    connected = true;
+  });
+  for (const event of ['error', 'close', 'end'] as const) {
+    connection.on(event, () => {
+      connected = false;
+    });
+  }
+  console.log(`[Jobs] BullMQ worker listening (queue="${QUEUE_NAME}").`);
 
   return {
     dispatcher: createBullmqDispatcher(queue),
     queue,
+    queueState: () => (connected ? 'connected' : 'disconnected'),
     async close() {
       await worker.close();
       await queue.close();

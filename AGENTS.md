@@ -182,7 +182,10 @@ apps/server/scripts/  # scan-cost audit
   wait: awaiting would put a model call inside `/link` and inside the dossier read.
   `issueInjunction` is single-flight per verdict, so the acceptance job and the
   page's retry share one execution in either mode. `/api/health` reports
-  `jobs: 'bullmq' | 'inline'` and the release workflow fails on `inline`.
+  `jobs: 'bullmq' | 'inline'` (from the environment) **and** `queue:
+  'connected' | 'disconnected' | 'inline'` (from the Redis client's events), and
+  the release workflow fails on either an inline dispatcher or a disconnected
+  queue — the pair exists because `jobs` alone would call a wrong port healthy.
 - `GET /api/census` — live audited-household counts per tier (display gate:
   only once ≥50 audits exist, art §7). `GET /api/evidence/:name`.
 - **Money is carbon credits.** One credit is one tonne of CO₂e; the ledger counts

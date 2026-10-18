@@ -190,7 +190,7 @@ Flags that are not cosmetic:
 ### Job queue (Memorystore Redis)
 
 `setup.sh` provisions one Basic 1 GiB Redis 7 instance (`ecocide-queue`) with AUTH
-and server-side TLS, and stores the resulting `rediss://:AUTH@IP:6379` URL as the
+and server-side TLS, and stores the resulting `rediss://:AUTH@IP:PORT` URL as the
 `ecocide-redis-url` secret. The app connects with `ioredis` and runs the BullMQ
 **worker in the same container** — there is no second service to deploy.
 
@@ -214,10 +214,14 @@ Operational notes:
 - **`--max-instances=3` means up to three workers** on one queue; BullMQ hands each
   job to exactly one of them.
 - **`--no-cpu-throttling` matters more now**: the worker polls between requests.
-- **`/api/health` reports the mode**, and the release workflow **fails the deploy**
-  when it is `inline`. If you ever see that, the causes are, in order: no
-  `REDIS_URL` in `--set-secrets`, a missing `--vpc-*` egress flag, or Memorystore
-  not yet created.
+- **`/api/health` reports the mode and the connection**: `jobs` (`bullmq` /
+  `inline`) comes from the environment, `queue` (`connected` / `disconnected` /
+  `inline`) from the Redis client's own events. The release workflow fails the
+  deploy on either a mismatched mode or a disconnected queue. Read them together:
+  `jobs: "bullmq"` with `queue: "disconnected"` means the URL or the network is
+  wrong — most often the **port** (Memorystore does not always listen on 6379; the
+  URL must use the instance's own) or a missing `--vpc-*` egress flag. `inline`
+  means `REDIS_URL` was never injected, or Memorystore does not exist yet.
 - **Cost**: Memorystore Basic 1 GiB has no free tier (low tens of dollars a month);
   Cloud SQL remains the other always-on line item.
 

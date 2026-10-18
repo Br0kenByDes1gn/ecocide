@@ -7,6 +7,7 @@ import { user as userTable } from '../db/schema.js';
 import type { EmailMessage, Mailer } from '../email/index.js';
 import { createInlineDispatcher } from './dispatcher.js';
 import { createHandlers } from './handlers/index.js';
+import { createJobSystem } from './index.js';
 import type { JobContext } from './types.js';
 
 interface FakeMailer extends Mailer {
@@ -81,6 +82,20 @@ function makeDispatcher(mailer: FakeMailer) {
 }
 
 describe('job dispatch (inline mode)', () => {
+  it('reports no queue at all when there is no REDIS_URL', async () => {
+    // `inline` is the dev posture, and health must say so rather than implying a
+    // queue exists. (The connected/disconnected pair needs a live Redis; the
+    // release smoke test asserts it against the real deployment.)
+    const system = await createJobSystem({
+      context: { repositories, mailer: fakeMailer(), appBaseUrl: 'https://registry.test' },
+    });
+
+    expect(system.queue).toBeNull();
+    expect(system.dispatcher.mode).toBe('inline');
+    expect(system.queueState()).toBe('inline');
+    await system.close();
+  });
+
   it('sends a verdict email for a stored dossier', async () => {
     const dossierId = await repositories.saveDossier(payload);
     const mailer = fakeMailer();

@@ -178,6 +178,10 @@ app.get('/api/health', (c) => {
     // smoke test fails on `inline`, so a queue-less production deploy cannot ship
     // quietly.
     jobs: jobSystem.dispatcher.mode,
+    // ...and whether that queue can actually reach Redis. `bullmq` + `disconnected`
+    // is the failure this field exists for: the mode comes from the environment, so
+    // a wrong port or a blocked VPC path would otherwise look healthy forever.
+    queue: jobSystem.queueState(),
     timestamp: new Date().toISOString(),
   });
 });

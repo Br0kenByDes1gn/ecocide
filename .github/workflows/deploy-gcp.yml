@@ -114,14 +114,22 @@ jobs:
                 | jq -r '.status.traffic[] | select(.tag == "candidate") | .url')
           echo "candidate: $URL"
 
-          # Poll until the app is up AND its background SMTP verification has
-          # settled (health reports "checking" until then).
+          # Poll until the app is up, its background SMTP verification has settled
+          # (health reports "checking" until then) and the queue has connected. The
+          # last one matters: `jobs: "bullmq"` is an environment fact, so a wrong
+          # REDIS_URL port or a blocked VPC path would otherwise pass this check
+          # while every job waited forever.
           CODE=000
           MAIL=missing
+          QUEUE=missing
           for _ in $(seq 1 20); do
             CODE=$(curl -s -o /tmp/health.json -w '%{http_code}' "$URL/api/health" || true)
             MAIL=$(jq -r '.mail // "missing"' /tmp/health.json 2>/dev/null || echo missing)
-            if [ "$CODE" = "200" ] && [ "$MAIL" != "checking" ]; then break; fi
+            QUEUE=$(jq -r '.queue // "missing"' /tmp/health.json 2>/dev/null || echo missing)
+            # A deliberate inline deployment fails fast below instead of waiting
+            # the whole budget for a queue that does not exist.
+            if [ "$CODE" = "200" ] && [ "$MAIL" != "checking" ] \
+               && { [ "$QUEUE" = "connected" ] || [ "$QUEUE" = "inline" ]; }; then break; fi
             sleep 6
           done
           cat /tmp/health.json 2>/dev/null || true
@@ -141,6 +149,11 @@ jobs:
           # production posture, so refuse the release.
           jq -e '.jobs == "bullmq"' /tmp/health.json >/dev/null \
             || fail "job queue is inline — set REDIS_URL (ecocide-redis-url) and allow Direct VPC egress to Memorystore"
+
+          # ...and the queue must reach Redis. Check the URL's port against the
+          # instance (Memorystore does not always use 6379) and the VPC path.
+          jq -e '.queue == "connected"' /tmp/health.json >/dev/null \
+            || fail "BullMQ cannot reach Redis (queue: $QUEUE) — check the REDIS_URL host/port and the Direct VPC egress route"
 
           # A wrong Brevo key must fail the deploy, not a citizen's login.
           # "disabled" is a deliberate choice (no SMTP configured), so it only warns.

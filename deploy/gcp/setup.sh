@@ -222,38 +222,56 @@ else
   echo "!! ecocide-smtp-pass created with a placeholder — add the real Brevo SMTP key."
 fi
 
-# BullMQ needs the instance's private IP + AUTH string. The URL lives in Secret
-# Manager because it carries the credential; copy it into .env.production only if
-# you want sync-env.sh to own it (it is idempotent if the value is unchanged).
+# BullMQ needs the instance's private IP, PORT and AUTH string. The URL lives in
+# Secret Manager because it carries the credential; copy it into .env.production
+# only if you want sync-env.sh to own it (it is idempotent if the value is
+# unchanged).
+#
+# The port is read from the instance, never assumed: Memorystore does not always
+# use 6379 (this project's instance listens on 6378), and a URL that disagrees
+# with it connects forever — ioredis retries in the background while health
+# reports `queue: "disconnected"`.
+#
+# The secret is derived on every run and compared to the stored version, so a
+# re-run repairs a wrong URL instead of skipping it because the secret exists.
+read -r REDIS_HOST REDIS_PORT REDIS_ENCRYPTION < <(
+  gcloud redis instances describe "$REDIS_INSTANCE" --region "$REGION" \
+    --project "$PROJECT" --format='value(host,port,transitEncryptionMode)'
+)
+REDIS_AUTH="$(gcloud redis instances get-auth-string "$REDIS_INSTANCE" --region "$REGION" \
+  --project "$PROJECT" --format='value(authString)')"
+
+# Take the scheme from the instance rather than assuming: AUTH + TLS is what the
+# create above asks for, but an instance created by hand may differ.
+REDIS_SCHEME=redis
+[ "$REDIS_ENCRYPTION" = "SERVER_AUTHENTICATION" ] && REDIS_SCHEME=rediss
+
+# A silent empty value would build `redis://:@IP:PORT` and only fail when the app
+# tries to connect, so refuse here with something actionable.
+if [ -z "$REDIS_HOST" ] || [ -z "$REDIS_PORT" ] || [ -z "$REDIS_AUTH" ]; then
+  echo "Could not read the Memorystore host / port / AUTH string for ${REDIS_INSTANCE}." >&2
+  echo "  host='${REDIS_HOST}' port='${REDIS_PORT}' auth=${REDIS_AUTH:+set}" >&2
+  echo "  AUTH must be enabled:  gcloud redis instances update ${REDIS_INSTANCE} \\" >&2
+  echo "    --region=${REGION} --project=${PROJECT} --enable-auth" >&2
+  exit 1
+fi
+
+REDIS_URL="${REDIS_SCHEME}://:${REDIS_AUTH}@${REDIS_HOST}:${REDIS_PORT}"
+
 if exists gcloud secrets describe ecocide-redis-url --project "$PROJECT"; then
-  echo "ecocide-redis-url already exists"
-else
-  REDIS_HOST="$(gcloud redis instances describe "$REDIS_INSTANCE" --region "$REGION" \
-    --project "$PROJECT" --format='value(host)')"
-  REDIS_AUTH="$(gcloud redis instances get-auth-string "$REDIS_INSTANCE" --region "$REGION" \
-    --project "$PROJECT" --format='value(authString)')"
-  # Take the scheme from the instance rather than assuming: AUTH + TLS is what the
-  # create above asks for, but an instance created by hand may differ, and a URL
-  # that disagrees with it fails at connect time instead of here.
-  REDIS_ENCRYPTION="$(gcloud redis instances describe "$REDIS_INSTANCE" --region "$REGION" \
-    --project "$PROJECT" --format='value(transitEncryptionMode)')"
-  REDIS_SCHEME=redis
-  [ "$REDIS_ENCRYPTION" = "SERVER_AUTHENTICATION" ] && REDIS_SCHEME=rediss
-
-  # A silent empty value would build `redis://:@IP:6379` and only fail when the
-  # app tries to connect, so refuse here with something actionable.
-  if [ -z "$REDIS_HOST" ] || [ -z "$REDIS_AUTH" ]; then
-    echo "Could not read the Memorystore host / AUTH string for ${REDIS_INSTANCE}." >&2
-    echo "  host='${REDIS_HOST}' auth=${REDIS_AUTH:+set}" >&2
-    echo "  AUTH must be enabled:  gcloud redis instances update ${REDIS_INSTANCE} \\" >&2
-    echo "    --region=${REGION} --project=${PROJECT} --enable-auth" >&2
-    exit 1
+  REDIS_URL_CURRENT="$(gcloud secrets versions access latest --secret=ecocide-redis-url \
+    --project "$PROJECT" 2>/dev/null || true)"
+  if [ "$REDIS_URL_CURRENT" = "$REDIS_URL" ]; then
+    echo "ecocide-redis-url is current (${REDIS_SCHEME}://…@${REDIS_HOST}:${REDIS_PORT})"
+  else
+    printf '%s' "$REDIS_URL" | gcloud secrets versions add ecocide-redis-url \
+      --project "$PROJECT" --data-file=- >/dev/null
+    echo "ecocide-redis-url updated (${REDIS_SCHEME}://…@${REDIS_HOST}:${REDIS_PORT})"
   fi
-
-  printf '%s' "${REDIS_SCHEME}://:${REDIS_AUTH}@${REDIS_HOST}:6379" |
-    gcloud secrets create ecocide-redis-url \
-      --project "$PROJECT" --replication-policy=automatic --data-file=-
-  echo "ecocide-redis-url created (${REDIS_SCHEME}://…@${REDIS_HOST}:6379)"
+else
+  printf '%s' "$REDIS_URL" | gcloud secrets create ecocide-redis-url \
+    --project "$PROJECT" --replication-policy=automatic --data-file=-
+  echo "ecocide-redis-url created (${REDIS_SCHEME}://…@${REDIS_HOST}:${REDIS_PORT})"
 fi
 
 # Password for the Bull Board dashboard (/admin/queues). Generated once and
