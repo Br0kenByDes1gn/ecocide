@@ -43,8 +43,11 @@ declare -A SECRET_MAP=(
   [BETTER_AUTH_SECRET]=ecocide-auth-secret
   [SMTP_PASS]=ecocide-smtp-pass
   [DATABASE_URL]=ecocide-db-url
-  # The queue URL carries the Memorystore AUTH string, so it is a secret.
+  # The queue URL carries the Memorystore AUTH string, so it is a secret. The CA
+  # is the instance's own certificate authority (see setup.sh) — without it a
+  # `rediss://` connection fails the chain check.
   [REDIS_URL]=ecocide-redis-url
+  [REDIS_CA_CERT]=ecocide-redis-ca
   [BULL_BOARD_PASS]=ecocide-bull-pass
 )
 

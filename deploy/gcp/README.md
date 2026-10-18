@@ -154,7 +154,7 @@ gcloud run deploy ecocide \
   --add-cloudsql-instances=ecocide-511407:asia-southeast1:ecocide-pg \
   --add-volume=name=evidence,type=cloud-storage,bucket=ecocide-511407-evidence \
   --add-volume-mount=volume=evidence,mount-path=/app/evidence \
-  --set-secrets=BETTER_AUTH_SECRET=ecocide-auth-secret:latest,DATABASE_URL=ecocide-db-url:latest,SMTP_PASS=ecocide-smtp-pass:latest,REDIS_URL=ecocide-redis-url:latest \
+  --set-secrets=BETTER_AUTH_SECRET=ecocide-auth-secret:latest,DATABASE_URL=ecocide-db-url:latest,SMTP_PASS=ecocide-smtp-pass:latest,REDIS_URL=ecocide-redis-url:latest,REDIS_CA_CERT=ecocide-redis-ca:latest \
   --set-env-vars='^|^NODE_ENV=production|AUTO_MIGRATE=false|EVIDENCE_DIR=/app/evidence|BETTER_AUTH_URL=https://ecocide.quest|APP_BASE_URL=https://ecocide.quest|GEMINI_MODE=vertex|GEMINI_PROJECT=ecocide-511407|GEMINI_LOCATION=global|GEMINI_MODEL=gemini-3.8-flash|SMTP_HOST=smtp-relay.brevo.com|SMTP_PORT=587|SMTP_SECURE=false|SMTP_USER=your-brevo-login@example.com|MAIL_FROM=ECOCIDE <no-reply@ecocide.quest>'
 ```
 
@@ -191,8 +191,29 @@ Flags that are not cosmetic:
 
 `setup.sh` provisions one Basic 1 GiB Redis 7 instance (`ecocide-queue`) with AUTH
 and server-side TLS, and stores the resulting `rediss://:AUTH@IP:PORT` URL as the
-`ecocide-redis-url` secret. The app connects with `ioredis` and runs the BullMQ
-**worker in the same container** — there is no second service to deploy.
+`ecocide-redis-url` secret — plus the instance's own CA as `ecocide-redis-ca`. The
+app connects with `ioredis` and runs the BullMQ **worker in the same container** —
+there is no second service to deploy.
+
+**The CA is not optional.** With `SERVER_AUTHENTICATION`, Memorystore signs its
+server certificate with a CA created *with the instance*
+(`CN=Google Cloud Memorystore Redis Server CA`, ten-year validity, not in any
+public trust store). `rediss://` gets you TLS and then fails the chain check
+(`unable to verify the first certificate`) while the queue retries forever, so the
+app passes that PEM to ioredis via `REDIS_CA_CERT`. Two consequences:
+
+- the secret and the URL are **both** versioned config: after `setup.sh` changes
+  either, the deployment needs a new revision (Cloud Run resolves `:latest` when
+  it creates one):
+
+  ```bash
+  gcloud run services update ecocide --region=asia-southeast1 \
+    --update-secrets=REDIS_URL=ecocide-redis-url:latest,REDIS_CA_CERT=ecocide-redis-ca:latest
+  ```
+
+- the TLS mode **cannot be changed after instance creation** (`gcloud redis
+  instances update` has no such flag), so do not plan on "just turning it off";
+  trusting the CA is the supported path.
 
 What the queue buys, and what inline mode costs without it:
 
@@ -218,10 +239,12 @@ Operational notes:
   `inline`) comes from the environment, `queue` (`connected` / `disconnected` /
   `inline`) from the Redis client's own events. The release workflow fails the
   deploy on either a mismatched mode or a disconnected queue. Read them together:
-  `jobs: "bullmq"` with `queue: "disconnected"` means the URL or the network is
-  wrong — most often the **port** (Memorystore does not always listen on 6379; the
-  URL must use the instance's own) or a missing `--vpc-*` egress flag. `inline`
-  means `REDIS_URL` was never injected, or Memorystore does not exist yet.
+  `jobs: "bullmq"` with `queue: "disconnected"` means the URL, the CA or the
+  network is wrong — in order of likelihood, the **port** (Memorystore does not
+  always listen on 6379; the URL must use the instance's own), a missing
+  `REDIS_CA_CERT` (`unable to verify the first certificate` in the logs), or a
+  missing `--vpc-*` egress flag. `inline` means `REDIS_URL` was never injected, or
+  Memorystore does not exist yet.
 - **Cost**: Memorystore Basic 1 GiB has no free tier (low tens of dollars a month);
   Cloud SQL remains the other always-on line item.
 

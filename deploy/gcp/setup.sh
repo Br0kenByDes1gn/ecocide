@@ -274,6 +274,38 @@ else
   echo "ecocide-redis-url created (${REDIS_SCHEME}://…@${REDIS_HOST}:${REDIS_PORT})"
 fi
 
+# The instance's own CA. With `SERVER_AUTHENTICATION` Memorystore signs its server
+# certificate with this CA, which no public trust store knows, so `rediss://`
+# alone fails the chain check ("unable to verify the first certificate") while the
+# queue retries forever. The app trusts it via `REDIS_CA_CERT`.
+if [ "$REDIS_ENCRYPTION" = "SERVER_AUTHENTICATION" ]; then
+  REDIS_CA="$(gcloud redis instances describe "$REDIS_INSTANCE" --region "$REGION" \
+    --project "$PROJECT" --format='value(serverCaCerts[0].cert)')"
+  if [ -z "$REDIS_CA" ]; then
+    echo "Could not read the Memorystore server CA for ${REDIS_INSTANCE}." >&2
+    echo "  It exists only while in-transit encryption is enabled." >&2
+    exit 1
+  fi
+
+  if exists gcloud secrets describe ecocide-redis-ca --project "$PROJECT"; then
+    REDIS_CA_CURRENT="$(gcloud secrets versions access latest --secret=ecocide-redis-ca \
+      --project "$PROJECT" 2>/dev/null || true)"
+    if [ "$REDIS_CA_CURRENT" = "$REDIS_CA" ]; then
+      echo "ecocide-redis-ca is current"
+    else
+      printf '%s' "$REDIS_CA" | gcloud secrets versions add ecocide-redis-ca \
+        --project "$PROJECT" --data-file=- >/dev/null
+      echo "ecocide-redis-ca updated (the instance CA changed — a new version)"
+    fi
+  else
+    printf '%s' "$REDIS_CA" | gcloud secrets create ecocide-redis-ca \
+      --project "$PROJECT" --replication-policy=automatic --data-file=-
+    echo "ecocide-redis-ca created"
+  fi
+else
+  echo "In-transit encryption is off — no CA secret needed."
+fi
+
 # Password for the Bull Board dashboard (/admin/queues). Generated once and
 # printed here — put it in .env.production together with BULL_BOARD_USER.
 if exists gcloud secrets describe ecocide-bull-pass --project "$PROJECT"; then

@@ -89,7 +89,7 @@ The production shape is deliberately flat — **no Kubernetes**, one container:
 | Cloud SQL `ecocide-pg` | PostgreSQL over a unix socket; Enterprise edition on `db-f1-micro`, backups + PITR |
 | Memorystore `ecocide-queue` | Redis 7 (Basic 1 GiB, AUTH + TLS) on a private IP via Direct VPC egress; backs the BullMQ job queue |
 | GCS evidence bucket | Volume-mounted at `/app/evidence` via FUSE; write-once audit photos |
-| Secret Manager | `ecocide-db-url`, `ecocide-auth-secret`, `ecocide-smtp-pass`, `ecocide-redis-url`, `ecocide-bull-pass` injected as env |
+| Secret Manager | `ecocide-db-url`, `ecocide-auth-secret`, `ecocide-smtp-pass`, `ecocide-redis-url`, `ecocide-redis-ca`, `ecocide-bull-pass` injected as env |
 | Vertex AI | Gemini via ADC on the runtime service account — no API key in the image |
 | Artifact Registry | Holds the images; the service and the migrate job both pull from it |
 | Cloud Run job `ecocide-migrate` | Runs `dist/migrate-cli.js` once per release, before the traffic shift |

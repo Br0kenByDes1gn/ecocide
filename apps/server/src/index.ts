@@ -116,6 +116,9 @@ if (mailConfig.enabled) {
 
 const jobSystem = await createJobSystem({
   redisUrl: process.env.REDIS_URL,
+  // Memorystore signs with an instance-owned CA; without it a `rediss://` URL
+  // fails the chain check and the queue never connects. See `jobs/connection.ts`.
+  redisCaCert: process.env.REDIS_CA_CERT,
   context: { repositories, mailer, appBaseUrl: mailConfig.appBaseUrl },
 });
 const jobs = jobSystem.dispatcher;

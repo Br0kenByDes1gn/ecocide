@@ -33,6 +33,8 @@ export interface JobSystem {
  */
 export async function createJobSystem(options: {
   redisUrl?: string;
+  /** PEM of the Memorystore instance CA (`serverCaCerts[0].cert`), for `rediss://`. */
+  redisCaCert?: string;
   context: JobContext;
 }): Promise<JobSystem> {
   const handlers = createHandlers(options.context);
@@ -48,7 +50,7 @@ export async function createJobSystem(options: {
     };
   }
 
-  const connection = createRedis(redisUrl);
+  const connection = createRedis(redisUrl, options.redisCaCert);
   const queue = new Queue(QUEUE_NAME, {
     connection,
     defaultJobOptions: {

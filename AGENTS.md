@@ -186,6 +186,10 @@ apps/server/scripts/  # scan-cost audit
   'connected' | 'disconnected' | 'inline'` (from the Redis client's events), and
   the release workflow fails on either an inline dispatcher or a disconnected
   queue — the pair exists because `jobs` alone would call a wrong port healthy.
+  Production Memorystore runs `SERVER_AUTHENTICATION`, so `rediss://` also needs
+  `REDIS_CA_CERT` (`serverCaCerts[0].cert`, the instance's own CA): without it the
+  handshake fails "unable to verify the first certificate" and the queue retries
+  forever. See `jobs/connection.ts`.
 - `GET /api/census` — live audited-household counts per tier (display gate:
   only once ≥50 audits exist, art §7). `GET /api/evidence/:name`.
 - **Money is carbon credits.** One credit is one tonne of CO₂e; the ledger counts
