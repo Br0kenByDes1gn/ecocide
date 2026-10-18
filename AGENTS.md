@@ -395,6 +395,7 @@ apps/server/scripts/  # scan-cost audit
 | `pnpm dev:all` | API (:3001) + web (:5173) concurrently |
 | `pnpm dev:web` / `pnpm dev:server` | Single process |
 | `pnpm test` | Vitest across packages (hermetic) |
+| `pnpm screenshots` | Drive the built app (offline simulation, own server + throwaway PGlite) and capture every production-reachable screen → `screenshots/<mobile|desktop>/` (`--viewport`, `--out`, `--photo`, `--only`, `--full-page`, `--headed`, `--keep`, `--base-url`) |
 | `pnpm scan-costs` | Token/cost audit from the local DB |
 | `pnpm --filter @ecocide/server db:reset-allowance` | One-off repair: re-base every wallet onto the current allowance, writing a reconciling ledger entry |
 | `pnpm wireframes` | Convert `models-src/*.obj` → `apps/web/src/lib/asset-wireframes.ts` (face meshes **and** `l` line elements, e.g. the earth graticule) |

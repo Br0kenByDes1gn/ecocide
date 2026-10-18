@@ -13,7 +13,8 @@
     "scan-costs": "pnpm --filter @ecocide/server scan-costs",
     "bench": "pnpm --filter @ecocide/server bench",
     "bench:matrix": "pnpm bench --db=pglite --mode=offline && pnpm bench --db=postgres --mode=offline",
-    "bench:report": "pnpm --filter @ecocide/server bench:report"
+    "bench:report": "pnpm --filter @ecocide/server bench:report",
+    "screenshots": "node scripts/screenshots.mjs"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
@@ -22,6 +23,7 @@
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
+    "playwright": "^1.64.1",
     "typescript": "^5.7.0",
     "vitest": "^3.0.5"
   },

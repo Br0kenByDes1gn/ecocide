@@ -137,16 +137,16 @@ export const AppealScreen: React.FC<AppealScreenProps> = ({ payload, permalinkId
               STATE YOUR CASE
             </h3>
           </div>
-          <div className="relative mt-1 flex items-center justify-between gap-2">
+          <div className="relative mt-1 flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
             <span
-              className="text-[17px] font-black uppercase tracking-widest text-[#6b7263] whitespace-nowrap"
+              className="min-w-0 break-all text-[17px] font-black uppercase tracking-widest text-[#6b7263]"
               style={{ fontFamily: "'Special Elite', ui-monospace, monospace", letterSpacing: '1px' }}
             >
               Case ID - {caseId ? `#${caseId}` : 'UNAVAILABLE'}
             </span>
             {citizenId && (
               <span
-                className="text-[17px] font-black uppercase tracking-widest text-[#6b7263] whitespace-nowrap"
+                className="min-w-0 break-all text-[17px] font-black uppercase tracking-widest text-[#6b7263] sm:text-right"
                 style={{ fontFamily: "'Special Elite', ui-monospace, monospace", letterSpacing: '1px' }}
               >
                 Citizen ID - {citizenId}

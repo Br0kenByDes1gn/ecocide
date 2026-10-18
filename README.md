@@ -99,6 +99,26 @@ pnpm bench --db=postgres --mode=live --live-n=5 --live-confirm=yes   # real toke
 pnpm bench:report   # regenerates the report + charts from docs/performance/data/
 ```
 
+## Screenshots
+
+`pnpm screenshots` drives the built app and captures every screen a production
+visitor can reach — landing, scanner, verdict, claim, appeal, registry,
+injunction, informant, credits and the grid — at phone and desktop sizes:
+
+```bash
+pnpm build                  # the script spawns apps/server/dist + apps/web/dist
+pnpm screenshots            # both viewports → screenshots/{mobile,desktop}/
+pnpm screenshots --viewport mobile
+pnpm screenshots --only verdict,grid   # write only these frames
+```
+
+It boots its own server against a throwaway PGlite directory and forces the
+offline simulation (`GEMINI_MODE=off`), so a full run costs nothing and never
+touches your dev database. The evidence photo is
+[`scripts/fixtures/demo-scan.jpg`](scripts/fixtures/demo-scan.jpg) (metadata
+stripped; override with `--photo`), and the one-time registry code is read from
+the server's own log. Requires `pnpm exec playwright install chromium` once.
+
 Each run provisions a **throwaway** database (a fresh PGlite directory, or a
 disposable `postgres:17-alpine` container) and a throwaway evidence directory, so
 `apps/server/data` is never touched. Offline runs force `GEMINI_MODE=off` and cost
