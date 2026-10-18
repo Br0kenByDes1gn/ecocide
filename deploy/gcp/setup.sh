@@ -184,11 +184,13 @@ else
 fi
 
 # Basic 1 GiB, Redis 7, AUTH + server-side TLS: the URL becomes `rediss://:AUTH@IP`.
+# Flag names are the Memorystore *instance* API's, not the Redis Cluster one:
+# `--enable-auth` (not `--auth-enabled`) and lowercase `server-authentication`.
 exists gcloud redis instances describe "$REDIS_INSTANCE" --region "$REGION" --project "$PROJECT" ||
   gcloud redis instances create "$REDIS_INSTANCE" \
     --size=1 --tier=basic --redis-version=redis_7_0 \
     --region "$REGION" --network "$VPC_NETWORK" \
-    --auth-enabled --transit-encryption-mode=SERVER_AUTHENTICATION \
+    --enable-auth --transit-encryption-mode=server-authentication \
     --display-name "ECOCIDE job queue (BullMQ)" --project "$PROJECT"
 
 say "Secrets"
@@ -230,10 +232,28 @@ else
     --project "$PROJECT" --format='value(host)')"
   REDIS_AUTH="$(gcloud redis instances get-auth-string "$REDIS_INSTANCE" --region "$REGION" \
     --project "$PROJECT" --format='value(authString)')"
-  printf '%s' "rediss://:${REDIS_AUTH}@${REDIS_HOST}:6379" |
+  # Take the scheme from the instance rather than assuming: AUTH + TLS is what the
+  # create above asks for, but an instance created by hand may differ, and a URL
+  # that disagrees with it fails at connect time instead of here.
+  REDIS_ENCRYPTION="$(gcloud redis instances describe "$REDIS_INSTANCE" --region "$REGION" \
+    --project "$PROJECT" --format='value(transitEncryptionMode)')"
+  REDIS_SCHEME=redis
+  [ "$REDIS_ENCRYPTION" = "SERVER_AUTHENTICATION" ] && REDIS_SCHEME=rediss
+
+  # A silent empty value would build `redis://:@IP:6379` and only fail when the
+  # app tries to connect, so refuse here with something actionable.
+  if [ -z "$REDIS_HOST" ] || [ -z "$REDIS_AUTH" ]; then
+    echo "Could not read the Memorystore host / AUTH string for ${REDIS_INSTANCE}." >&2
+    echo "  host='${REDIS_HOST}' auth=${REDIS_AUTH:+set}" >&2
+    echo "  AUTH must be enabled:  gcloud redis instances update ${REDIS_INSTANCE} \\" >&2
+    echo "    --region=${REGION} --project=${PROJECT} --enable-auth" >&2
+    exit 1
+  fi
+
+  printf '%s' "${REDIS_SCHEME}://:${REDIS_AUTH}@${REDIS_HOST}:6379" |
     gcloud secrets create ecocide-redis-url \
       --project "$PROJECT" --replication-policy=automatic --data-file=-
-  echo "ecocide-redis-url created (rediss://…@${REDIS_HOST}:6379)"
+  echo "ecocide-redis-url created (${REDIS_SCHEME}://…@${REDIS_HOST}:6379)"
 fi
 
 # Password for the Bull Board dashboard (/admin/queues). Generated once and
