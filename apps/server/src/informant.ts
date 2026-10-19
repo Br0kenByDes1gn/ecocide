@@ -2,6 +2,7 @@ import { INFORMANT_REWARD_UNITS, type Wallet } from '@ecocide/types';
 import type { Repositories } from './db/repositories.js';
 import { normalizeEmail } from './email/index.js';
 import type { JobDispatcher } from './jobs/index.js';
+import { informantTipEmailJobId } from './jobs/job-ids.js';
 
 /**
  * Submitting a verdict as evidence against another household (the informant act).
@@ -95,7 +96,7 @@ export async function submitInformantTip(
     .enqueue(
       'email:informant-tip',
       { dossierId, to: subjectEmail },
-      { jobId: `email:informant-tip:${dossierId}` }
+      { jobId: informantTipEmailJobId(dossierId) }
     )
     .catch((err) => console.warn('[Informant] tip email enqueue failed:', err?.message || err));
 

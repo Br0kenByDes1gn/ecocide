@@ -28,6 +28,7 @@ import {
 import { createRepositories, initDb, runMigrations } from './db/index.js';
 import { createMailer, loadMailConfig, normalizeEmail } from './email/index.js';
 import { createJobSystem } from './jobs/index.js';
+import { appealRulingEmailJobId, verdictEmailJobId } from './jobs/job-ids.js';
 import { createAuth } from './auth/index.js';
 import { loadAuthConfig } from './auth/config.js';
 import type { AuthVariables } from './auth/middleware.js';
@@ -326,7 +327,11 @@ app.post('/api/oracle/scan', async (c) => {
     // Optional: deliver the verdict to the address supplied with the scan
     const email = normalizeEmail(body.email);
     if (email) {
-      await jobs.enqueue('email:verdict', { dossierId: id, to: email }, { jobId: `email:verdict:${id}` });
+      await jobs.enqueue(
+        'email:verdict',
+        { dossierId: id, to: email },
+        { jobId: verdictEmailJobId(id) }
+      );
     }
 
     return c.json({
@@ -538,7 +543,7 @@ app.post('/api/citizen/:id/appeal', async (c) => {
       await jobs.enqueue(
         'email:appeal-ruling',
         { dossierId: id, appealId, to: email },
-        { jobId: `email:appeal-ruling:${appealId}` }
+        { jobId: appealRulingEmailJobId(appealId) }
       );
     }
 

@@ -15,12 +15,28 @@ export interface JobDispatcher {
   schedule(id: string, pattern: string, name: JobName, data: JobPayloads[JobName]): Promise<void>;
 }
 
+/**
+ * Make a custom job id acceptable to BullMQ.
+ *
+ * BullMQ v6 validates custom ids when it writes a job and throws
+ * `Custom Id cannot contain :` — except for the legacy repeatable-job shape that
+ * happens to split into exactly three parts. Job *names* are unrestricted; ids
+ * are not. A rejected id is a thrown `enqueue`, which at a best-effort call site
+ * (the injunction) looks exactly like a queue that is down: the request still
+ * succeeds and the work silently never happens. That is the production incident
+ * this normalisation ends — the dispatcher is the one place every id passes
+ * through, so no future caller can take a job down with a colon.
+ */
+export function bullJobId(id: string): string {
+  return id.replace(/:/g, '-');
+}
+
 export function createBullmqDispatcher(queue: Queue): JobDispatcher {
   return {
     mode: 'bullmq',
     async enqueue<K extends JobName>(name: K, data: JobPayloads[K], options?: JobOptions) {
       await queue.add(name, data as never, {
-        ...(options?.jobId ? { jobId: options.jobId } : {}),
+        ...(options?.jobId ? { jobId: bullJobId(options.jobId) } : {}),
         ...(options?.delay ? { delay: options.delay } : {}),
         ...(options?.removeOnComplete !== undefined
           ? { removeOnComplete: options.removeOnComplete }

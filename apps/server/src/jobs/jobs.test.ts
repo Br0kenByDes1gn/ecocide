@@ -8,6 +8,7 @@ import type { EmailMessage, Mailer } from '../email/index.js';
 import { createInlineDispatcher } from './dispatcher.js';
 import { createHandlers } from './handlers/index.js';
 import { createJobSystem } from './index.js';
+import { appealRulingEmailJobId, verdictEmailJobId } from './job-ids.js';
 import type { JobContext } from './types.js';
 
 interface FakeMailer extends Mailer {
@@ -103,7 +104,7 @@ describe('job dispatch (inline mode)', () => {
     await makeDispatcher(mailer).enqueue(
       'email:verdict',
       { dossierId, to: 'citizen@example.com' },
-      { jobId: `email:verdict:${dossierId}` }
+      { jobId: verdictEmailJobId(dossierId) }
     );
 
     expect(mailer.sent).toHaveLength(1);
@@ -131,7 +132,7 @@ describe('job dispatch (inline mode)', () => {
     await makeDispatcher(mailer).enqueue(
       'email:appeal-ruling',
       { dossierId, appealId, to: 'citizen@example.com' },
-      { jobId: `email:appeal-ruling:${appealId}` }
+      { jobId: appealRulingEmailJobId(appealId) }
     );
 
     expect(mailer.sent).toHaveLength(1);

@@ -19,7 +19,13 @@ export interface JobPayloads {
 }
 
 export interface JobOptions {
-  /** Deterministic id used to dedupe enqueues (e.g. one email per dossier). */
+  /**
+   * Deterministic id used to dedupe enqueues (e.g. one email per dossier).
+   *
+   * Must not contain `:` — BullMQ refuses it (see `bullJobId`, which normalises
+   * anything the dispatcher receives, and `job-ids.ts`, which never emits one).
+   * Job *names* are the ones that use colons.
+   */
   jobId?: string;
   /** Delay before the job becomes available, in milliseconds. */
   delay?: number;

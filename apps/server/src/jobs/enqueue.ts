@@ -1,4 +1,5 @@
 import type { JobDispatcher } from './dispatcher.js';
+import { injunctionJobId } from './job-ids.js';
 
 /**
  * Ask for a verdict's environmental injunction to be issued.
@@ -35,7 +36,7 @@ export async function enqueueInjunction(
     'injunction:issue',
     { dossierId, userId },
     {
-      jobId: `injunction:${dossierId}`,
+      jobId: injunctionJobId(dossierId),
       removeOnComplete: true,
       removeOnFail: true,
     }
