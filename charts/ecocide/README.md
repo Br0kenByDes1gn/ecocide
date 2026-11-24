@@ -164,6 +164,62 @@ but know it.
 Helm (External Secrets, SealedSecrets, SOPS, `scripts/sync-k8s-secrets.sh`); it
 wins over `create`, and then the chart renders nothing secret.
 
+## Evidence storage
+
+Photos are never database blobs: the DB stores only `evidence_filename`, and the
+API streams the bytes at `/api/evidence/<name>`. The storage backend is never
+exposed to browsers — no bucket policy, no CORS, no hostname in the URL — and
+responses are `Cache-Control: immutable` because names are written once.
+
+`evidence.store` chooses where the bytes live:
+
+| `evidence.store` | Where | Consequences |
+| --- | --- | --- |
+| `fs` (default) | the evidence PVC at `/data/evidence` | `replicaCount: 1` (a ReadWriteOnce volume mounts on one node); back the PVC up |
+| `s3` | any S3-compatible bucket | no PVC; raise `replicaCount` and `maxSurge` freely; back the bucket up yourself |
+
+```yaml
+evidence:
+  store: s3
+  s3:
+    endpoint: https://minio.example:9000   # empty → AWS
+    region: us-east-1
+    bucket: ecocide-evidence
+    prefix: evidence
+    forcePathStyle: true                    # true for MinIO / most self-hosted gateways
+```
+
+AWS S3, MinIO, Cloudflare R2, Backblaze B2, Wasabi and Ceph RGW all work, and so
+does GCS through its S3 XML interop (HMAC keys, `endpoint:
+https://storage.googleapis.com`). The app only ever calls `PutObject` and
+`GetObject` — no listing, no ACLs, no bucket policy.
+
+Credentials go in the same Secret as everything else,
+`secrets.data.S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY`. Leave both empty when
+the nodes have an instance profile or role and the AWS SDK's default provider
+chain should be used instead.
+
+`/api/health` reports the active store, e.g. `"storage": "s3:ecocide-evidence/evidence"`,
+so a chart that says `s3` and a pod still writing to a volume is visible.
+
+**The bucket must already exist.** The chart does not create it (and cannot: it
+holds no AWS credentials of its own), so:
+
+```bash
+mc mb myminio/ecocide-evidence            # MinIO
+aws s3 mb s3://ecocide-evidence           # AWS
+```
+
+Switching a running release from `fs` to `s3` does **not** move existing photos.
+Copy them first — `scripts/copy-from-gcp.sh` detects the target from the release
+(`--evidence-target` overrides), or move the volume by hand:
+
+```bash
+kubectl exec ecocide-<pod> -- tar -cf - -C /data/evidence . \
+  | tar -xf - -C /tmp/evidence
+mc mirror --overwrite /tmp/evidence myminio/ecocide-evidence/evidence
+```
+
 ## Values that matter
 
 | Key | Default | Notes |
@@ -179,7 +235,10 @@ wins over `create`, and then the chart renders nothing secret.
 | `postgres.backup.enabled` | `false` | CronJob `pg_dump` onto `<release>-backup` (keep 7 days). **The only safety net** for the bundled database |
 | `redis.mode` | `bundled` | Valkey with `noeviction` + AOF. `external` → set `redis.external.url` |
 | `migrations.mode` | `init` | `init` (initContainer, works on a fresh install), `hook` (pre-upgrade Job, external DB only), `off` |
-| `persistence.evidence.size` | `5Gi` | Photos are files (never DB blobs) and are kept on `helm uninstall`; PVCs cannot shrink, so a later reduction is rejected |
+| `persistence.evidence.size` | `5Gi` | Photos are files (never DB blobs) and are kept on `helm uninstall`; PVCs cannot shrink, so a later reduction is rejected. Only used when `evidence.store=fs` |
+| `evidence.store` | `fs` | `fs` = the volume above (one replica); `s3` = bucket (no PVC, any replica count) |
+| `evidence.s3.endpoint` / `region` / `bucket` / `prefix` | `""` / `us-east-1` / `""` / `""` | S3-compatible target; the bucket must exist. See [Evidence storage](#evidence-storage) |
+| `evidence.s3.forcePathStyle` | `false` | `true` for MinIO and most self-hosted gateways |
 | `ingress.*` | disabled | proxy body 20m, 300s read timeout, `limit-rps: 5` (no Cloud Run concurrency cap anymore) |
 
 ## Migrations
@@ -279,6 +338,20 @@ The mode comes from the environment, the connection from the client: check the
 **413 on a photo upload.** The ingress annotation `proxy-body-size: 20m` did not
 apply — check `ingress.className` matches the controller that is actually
 installed.
+
+**`The specified bucket does not exist` on a scan.** The bucket was never
+created, or `evidence.s3.prefix` is fine but the bucket name is wrong. The chart
+does not create buckets. For MinIO, `forcePathStyle: true` is also required,
+otherwise the SDK addresses `bucket.host` and the request never reaches the
+gateway.
+
+**Old photos 404 after switching to `s3`.** They are still on the volume; nothing
+moved them. Copy them (see [Evidence storage](#evidence-storage)) — the copy
+script's verification pass reports exactly which files are missing.
+
+**Health says `storage: fs:…` while `evidence.store` is `s3`.** The pod predates
+the ConfigMap change, or `S3_BUCKET` is empty (the chart fails the render for
+that). Roll the deployment.
 
 **Rollout stuck at `0 of 1 updated replicas are available`.** With `maxSurge: 0`
 the old pod must terminate first; if it hangs, the grace period (45s) plus the

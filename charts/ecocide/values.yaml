@@ -9,9 +9,10 @@
 
 replicaCount: 1
 
-# maxSurge 0: a second pod cannot mount the ReadWriteOnce evidence volume on
-# another node, so the update is kill-then-start (a few seconds of downtime).
-# With an RWX volume and `replicaCount > 1`, raise maxSurge to 1 instead.
+# maxSurge 0: with evidence.store=fs a second pod cannot mount the
+# ReadWriteOnce evidence volume on another node, so the update is
+# kill-then-start (a few seconds of downtime). With evidence.store=s3 there is no
+# volume — raise replicaCount and set maxSurge: 1.
 updateStrategy:
   maxSurge: 0
   maxUnavailable: 1
@@ -100,10 +101,34 @@ extraEnvFrom: []
 
 persistence:
   evidence:
+    # Only used when `evidence.store: fs`. With store: s3 there is no volume, and
+    # the deployment is free to run more than one replica.
     enabled: true
     size: 5Gi
     storageClass: ""
     accessMode: ReadWriteOnce
+
+evidence:
+  # fs → photos are files on the evidence volume (EVIDENCE_DIR=/data/evidence).
+  # s3 → photos go to an S3-compatible bucket: AWS S3, MinIO, Cloudflare R2,
+  #      Backblaze B2, Wasabi, Ceph RGW (GCS via its S3 interop + HMAC keys).
+  # Either way the DB stores only the file name and the API serves the bytes at
+  # /api/evidence/:name — the bucket stays private and browsers never see it.
+  store: fs
+
+  s3:
+    # Empty → AWS. Set for MinIO/R2/B2/Wasabi, e.g. https://minio.example:9000
+    endpoint: ""
+    region: "us-east-1"
+    bucket: ""
+    # Key prefix inside the bucket (e.g. evidence). Empty → bucket root.
+    prefix: ""
+    # MinIO and most self-hosted gateways need path-style addressing
+    # (http(s)://host/bucket/key) rather than virtual-hosted.
+    forcePathStyle: false
+    # Credentials live in the Secret (secrets.data.S3_ACCESS_KEY_ID /
+    # S3_SECRET_ACCESS_KEY). Leave both empty on a node with an instance
+    # profile / role and the SDK will use it.
 
 secrets:
   # The chart renders one Secret holding every runtime credential. Put them in
@@ -141,6 +166,10 @@ secrets:
     SMTP_USER: ""
     SMTP_PASS: ""
     BULL_BOARD_PASS: ""
+    # Only for evidence.store=s3. Both empty → the AWS SDK's default provider
+    # chain (instance profile / role) is used instead.
+    S3_ACCESS_KEY_ID: ""
+    S3_SECRET_ACCESS_KEY: ""
     # Empty → derived: postgres://USER:PASSWORD@HOST:PORT/DB from postgres.* and
     # POSTGRES_PASSWORD. Set it to point at an external database.
     DATABASE_URL: ""

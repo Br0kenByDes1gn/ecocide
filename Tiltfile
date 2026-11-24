@@ -60,9 +60,11 @@ helm_resource(
     ] + (
         ['--set', 'secrets.data.GEMINI_API_KEY=' + gemini_key] if gemini_key else []
     ) + (
-        # A real values file (credentials included) can drive the dev loop too:
-        #   ECOCIDE_VALUES=~/.config/ecocide/values.yaml tilt up
-        ['--values', os.path.expanduser(os.getenv('ECOCIDE_VALUES'))]
+        # A real values file (credentials included) can drive the dev loop too.
+        # Starlark has no `expanduser`; `~` is expanded by the shell before Tilt
+        # sees the value, so `ECOCIDE_VALUES=~/x.yaml tilt up` works.
+        #   ECOCIDE_VALUES=/absolute/path/values.yaml tilt up
+        ['--values', os.getenv('ECOCIDE_VALUES')]
         if os.getenv('ECOCIDE_VALUES') else []
     ),
 )

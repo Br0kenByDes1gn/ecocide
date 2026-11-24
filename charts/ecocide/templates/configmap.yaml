@@ -5,6 +5,9 @@ Only what the server reads at boot, and nothing that varies per replica: this is
 one process serving both the API and the built SPA (`STATIC_DIR`), same-origin,
 which is why there is no separate web deployment.
 */ -}}
+{{- if and (eq .Values.evidence.store "s3") (not .Values.evidence.s3.bucket) }}
+{{- fail "evidence.store=s3 needs evidence.s3.bucket (and usually endpoint/region). Set evidence.store=fs to keep photos on the volume." }}
+{{- end }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -16,10 +19,24 @@ data:
   PORT: {{ .Values.app.port | quote }}
   # Baked into the image at /app/web/dist (see the Dockerfile).
   STATIC_DIR: "/app/web/dist"
+  # Evidence: files on the volume by default, an S3-compatible bucket when the
+  # store is s3 (the DB only ever holds the file name).
+  EVIDENCE_STORE: {{ .Values.evidence.store | quote }}
+  EVIDENCE_DIR: "/data/evidence"
+  {{- if eq .Values.evidence.store "s3" }}
+  S3_REGION: {{ .Values.evidence.s3.region | quote }}
+  S3_BUCKET: {{ .Values.evidence.s3.bucket | quote }}
+  S3_FORCE_PATH_STYLE: {{ .Values.evidence.s3.forcePathStyle | quote }}
+  {{- with .Values.evidence.s3.endpoint }}
+  S3_ENDPOINT: {{ . | quote }}
+  {{- end }}
+  {{- with .Values.evidence.s3.prefix }}
+  S3_PREFIX: {{ . | quote }}
+  {{- end }}
+  {{- end }}
   # DDL belongs to the migration init container (or hook), never to a cold boot.
   AUTO_MIGRATE: "false"
   # Evidence photos are files on the volume, never DB blobs.
-  EVIDENCE_DIR: "/data/evidence"
   DB_POOL_MAX: {{ .Values.app.dbPoolMax | quote }}
 
   BETTER_AUTH_URL: {{ .Values.app.publicUrl | quote }}

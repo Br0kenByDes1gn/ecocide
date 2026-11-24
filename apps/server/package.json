@@ -15,6 +15,7 @@
     "db:reset-allowance": "tsx scripts/reset-allowance.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1176.0",
     "@bull-board/api": "^9.10.2",
     "@bull-board/hono": "^9.10.2",
     "@ecocide/compliance": "workspace:*",

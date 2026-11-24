@@ -47,11 +47,15 @@ verdict), so `pnpm test`, the dev bench and local development cost nothing.
    display copy. The taxonomy is data-driven: `packages/lore/src/factions.ts`
    defines the six tiers with `minScore` bands; thresholds, colors, stamps and
    titles are derived — never duplicate them.
-4. **Evidence photos are files, not DB blobs.** The archived audit photo lives
-   at `apps/server/data/evidence/<dossierId>.<ext>` (env `EVIDENCE_DIR`); the
-   database stores only `evidence_filename` and serves it via
-   `GET /api/evidence/<name>` (extension whitelist). No base64 images in the
-   DB or emails.
+4. **Evidence photos are files or objects, never DB blobs.** The archived audit
+   photo lives in the store chosen by `EVIDENCE_STORE`: `fs` (default) writes
+   `EVIDENCE_DIR/<dossierId>.<ext>`, `s3` puts the same name in an S3-compatible
+   bucket. Either way the database stores only `evidence_filename` and the API
+   streams it via `GET /api/evidence/<name>` (extension whitelist, immutable
+   cache, backend never exposed to browsers). No base64 images in the DB or
+   emails. Both drivers are behind `EvidenceStore` in
+   `apps/server/src/evidence.ts` (`evidence-s3.ts` is imported lazily) — never
+   call `fs` directly from a route.
 5. **React components must never render a raw tier id**: use
    `getFaction(caste).name`. Display vocab comes from the pack.
 6. **Markdown links** to files in responses: `[file](file:///path)`.
@@ -437,8 +441,15 @@ plus bundled PostgreSQL and Redis, so `helm install` works on a bare cluster.
   sends traffic to the database pods (no `:3000`) and `kubectl logs deploy/…`
   picks the wrong pod.
 - `/api/health` drives the probes (readiness/liveness) and the release smoke
-  test. `EVIDENCE_DIR=/data/evidence` on a PVC — photos stay **files**
-  (rule 4), never DB blobs.
+  test. `EVIDENCE_DIR=/data/evidence` on a PVC — photos stay **files** (rule 4),
+  never DB blobs.
+- **Evidence storage is switchable**: `evidence.store: fs` keeps the PVC (one
+  replica, ReadWriteOnce); `evidence.store: s3` writes to an S3-compatible bucket
+  with `PutObject`/`GetObject` only — no PVC, and `replicaCount`/`maxSurge` may be
+  raised. The bucket must pre-exist (the chart holds no cloud credentials), the
+  keys ride in `secrets.data.S3_*`, and `/api/health` reports
+  `storage: s3:<bucket>/<prefix>` so a mis-set chart is visible. The API is the
+  only reader either way: browsers never see the bucket.
 - `migrations.mode: init` (default) uses an initContainer; `hook` renders a
   pre-upgrade Job for an external database, where a pre-install hook can reach
   the server. `off` leaves DDL to the operator.
@@ -451,9 +462,10 @@ plus bundled PostgreSQL and Redis, so `helm install` works on a bare cluster.
 - `scripts/copy-from-gcp.sh` migrates the old deployment's data: Cloud SQL export
   (server-side, no local `pg_dump`) → `psql` restore after dropping **both**
   `public` and `drizzle` (the dump recreates the migration journal, and restoring
-  over an existing `drizzle` schema fails), then the GCS evidence bucket streamed
-  into the volume with a verification pass that the DB's `evidence_filename`
-  column is the authority for.
+  over an existing `drizzle` schema fails), then the GCS evidence bucket into
+  whichever store the release uses — the volume, or the S3 bucket via `mc`
+  (`--evidence-target` overrides the auto-detection) — with a verification pass
+  that the DB's `evidence_filename` column is the authority for.
 
 ## 4. Commands
 

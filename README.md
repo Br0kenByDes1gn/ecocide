@@ -171,7 +171,8 @@ backups, upgrade/rollback and troubleshooting.
 
 The chart bundles PostgreSQL and Redis (no operators) and runs drizzle-kit
 migrations in an init container before the new pod serves traffic. Audit photos
-stay files on a volume, never database blobs. See
+stay out of the database — files on a volume by default, or objects in any
+S3-compatible bucket (`evidence.store: s3`). See
 [`charts/ecocide/README.md`](charts/ecocide/README.md) for values, backups,
 upgrade/rollback and troubleshooting.
 

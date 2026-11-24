@@ -7,3 +7,6 @@ helm = "3.18.2"
 "kubectl" = "1.36.2"
 "minikube" = "1.38.1"
 "tilt" = "0.37.3"
+# MinIO client — scripts/copy-from-gcp.sh uses it to upload evidence photos when
+# the release stores them in S3 (evidence.store=s3).
+mc = "2025-05-21T01-59-54Z"

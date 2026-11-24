@@ -20,6 +20,13 @@ Health:
   "connected". "engine": "offline simulation" is a valid dev state and a
   misconfiguration in production.
 
+{{ if and (eq .Values.image.tag "latest") (eq .Values.image.pullPolicy "IfNotPresent") }}
+!! image.tag is `latest` with pullPolicy IfNotPresent. Kubernetes reuses an image
+   already cached on the node for the same mutable tag, so an upgrade can leave
+   the OLD build running while the chart, env and ConfigMap all look new. Pin an
+   immutable tag (sha-<7>, or a released X.Y.Z), or set pullPolicy=Always.
+{{- end }}
+
 {{ if eq .Values.app.gemini.mode "off" }}
 !! Gemini engine is OFF: every audit is the deterministic simulation.
    Set app.gemini.mode=api and secrets.data.GEMINI_API_KEY in your values file.

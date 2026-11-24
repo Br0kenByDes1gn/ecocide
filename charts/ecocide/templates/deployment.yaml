@@ -162,9 +162,12 @@ spec:
             {{- toYaml .Values.securityContext | nindent 12 }}
           resources:
             {{- toYaml .Values.app.resources | nindent 12 }}
+          {{- if eq .Values.evidence.store "fs" }}
           volumeMounts:
             - name: evidence
               mountPath: /data
+          {{- end }}
+      {{- if eq .Values.evidence.store "fs" }}
       volumes:
         - name: evidence
           {{- if .Values.persistence.evidence.enabled }}
@@ -173,6 +176,7 @@ spec:
           {{- else }}
           emptyDir: {}
           {{- end }}
+      {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

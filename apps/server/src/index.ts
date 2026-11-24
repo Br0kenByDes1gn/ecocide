@@ -37,13 +37,11 @@ import { dossierAccessError } from './access.js';
 import { submitInformantTip } from './informant.js';
 import { geminiConfigured, geminiModeLabel } from './gemini/config.js';
 import {
+  createEvidenceStore,
+  decodeEvidenceImage,
   evidenceFileNameFor,
   evidenceUrlFor,
   isValidEvidenceName,
-  mimeForEvidenceName,
-  readEvidenceFile,
-  saveEvidenceBase64,
-  splitBase64DataUrl,
 } from './evidence.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -88,6 +86,12 @@ console.log(`[Oracle] Gemini engine ${geminiConfigured() ? `online — ${geminiM
 // mail is logged via nodemailer's jsonTransport instead of sent.
 const mailConfig = loadMailConfig();
 const mailer = createMailer(mailConfig);
+
+// Evidence photos: files on a volume (default) or an S3-compatible bucket.
+// Built once at boot: the S3 driver is imported only when configured, and a
+// bad configuration fails here rather than on the first household scan.
+const evidenceStore = await createEvidenceStore();
+console.log(`[Evidence] Store ${evidenceStore.describe}`);
 
 /**
  * Mail-delivery status reported by `/api/health`.
@@ -186,6 +190,10 @@ app.get('/api/health', (c) => {
     // is the failure this field exists for: the mode comes from the environment, so
     // a wrong port or a blocked VPC path would otherwise look healthy forever.
     queue: jobSystem.queueState(),
+    // Where archived photos live: `fs:<dir>` or `s3:<bucket>/<prefix>`. The
+    // release smoke test asserts it, so a chart that says s3 and a pod still
+    // writing to a volume cannot ship quietly.
+    storage: evidenceStore.describe,
     timestamp: new Date().toISOString(),
   });
 });
@@ -239,11 +247,12 @@ app.post('/api/oracle/scan', async (c) => {
       payload = simulated.payload;
     }
 
-    // Persist the evidence photo as a file (DB keeps only the file name).
+    // Persist the evidence photo (DB keeps only the file name). Files on a
+    // volume by default, an S3-compatible object when EVIDENCE_STORE=s3.
     const dossierId = nanoid(10);
-    const [head] = splitBase64DataUrl(image);
-    const evidenceName = evidenceFileNameFor(dossierId, head.match(/^data:([^;]+);/)?.[1] || 'image/jpeg');
-    saveEvidenceBase64(image, dossierId);
+    const { bytes, mimeType } = decodeEvidenceImage(image);
+    const evidenceName = evidenceFileNameFor(dossierId, mimeType);
+    await evidenceStore.put(evidenceName, bytes, mimeType);
 
     const id = await repositories.saveDossier(payload, {
       id: dossierId,
@@ -422,19 +431,19 @@ app.get('/api/census', async (c) => {
   return c.json(await repositories.getCensusReport());
 });
 
-// Archived evidence photos (file on disk, DB stores only the name)
-app.get('/api/evidence/:name', (c) => {
+// Archived evidence photos — streamed from the store; the DB stores only the name
+app.get('/api/evidence/:name', async (c) => {
   const name = c.req.param('name');
   if (!isValidEvidenceName(name)) {
     return c.json({ error: 'Invalid evidence reference' }, 400);
   }
-  const buffer = readEvidenceFile(name);
-  if (!buffer) {
+  const object = await evidenceStore.get(name);
+  if (!object) {
     return c.json({ error: 'Evidence not found in the archive' }, 404);
   }
-  c.header('Content-Type', mimeForEvidenceName(name));
+  c.header('Content-Type', object.contentType);
   c.header('Cache-Control', 'public, max-age=31536000, immutable');
-  return c.body(buffer);
+  return c.body(object.body);
 });
 
 // Citizen Appeal Arbitration Endpoint
