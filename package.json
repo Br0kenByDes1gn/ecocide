@@ -14,7 +14,10 @@
     "bench": "pnpm --filter @ecocide/server bench",
     "bench:matrix": "pnpm bench --db=pglite --mode=offline && pnpm bench --db=postgres --mode=offline",
     "bench:report": "pnpm --filter @ecocide/server bench:report",
-    "screenshots": "node scripts/screenshots.mjs"
+    "screenshots": "node scripts/screenshots.mjs",
+    "chart:lint": "helm lint charts/ecocide",
+    "chart:template": "helm template ecocide charts/ecocide",
+    "data:copy-from-gcp": "./scripts/copy-from-gcp.sh"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

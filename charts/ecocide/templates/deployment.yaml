@@ -1,0 +1,187 @@
+{{- /*
+The whole application: Hono API + built SPA in one container, same-origin, with
+the BullMQ worker running in-process (so a replica also consumes jobs).
+
+Consequences baked into this template:
+  • one replica by default — the evidence volume is ReadWriteOnce and the worker
+    lives in this process, so a second pod adds neither HA nor throughput;
+  • kill-then-start rolling updates (maxSurge 0) — a second pod cannot mount the
+    same block volume on another node;
+  • a long grace period — SIGTERM drains the queue and closes the pool
+    (apps/server/src/index.ts), which takes a few seconds of ingress drain plus
+    whatever job is in flight.
+*/ -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ecocide.fullname" . }}
+  labels:
+    {{- include "ecocide.labels" . | nindent 4 }}
+    app.kubernetes.io/component: app
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: {{ .Values.updateStrategy.maxSurge }}
+      maxUnavailable: {{ .Values.updateStrategy.maxUnavailable }}
+  selector:
+    matchLabels:
+      {{- include "ecocide.selectorLabels" . | nindent 6 }}
+      # The component labels matter: postgres and redis carry the same
+      # name/instance pair, so without this the Service would also send traffic
+      # to their pods (which have no :3000) and `kubectl logs deploy/…` would
+      # pick a database pod.
+      app.kubernetes.io/component: app
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include "ecocide.configChecksum" . }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "ecocide.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: app
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "ecocide.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      initContainers:
+        # The database may be a fresh StatefulSet (or an external server that is
+        # still starting): wait for it before asking drizzle to run DDL.
+        - name: wait-for-postgres
+          image: {{ .Values.postgres.image | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - sh
+            - -c
+            - |
+              echo "waiting for postgres (up to {{ .Values.migrations.waitTimeoutSeconds }}s)..."
+              for i in $(seq 1 {{ .Values.migrations.waitTimeoutSeconds }}); do
+                if pg_isready -q -d "$DATABASE_URL"; then
+                  echo "postgres is accepting connections"
+                  exit 0
+                fi
+                sleep 1
+              done
+              echo "postgres did not accept connections in time" >&2
+              exit 1
+          envFrom:
+            - secretRef:
+                name: {{ include "ecocide.secretName" . }}
+          securityContext:
+            # The postgres image defaults to root (its entrypoint gosu-drops);
+            # this container runs `sh` directly, so pin the uid that owns the
+            # server's data instead of asking kubelet to verify a root image.
+            runAsUser: 999
+            runAsGroup: 999
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            {{- toYaml .Values.migrations.resources | nindent 12 }}
+        {{- if eq .Values.migrations.mode "init" }}
+        # DDL runs exactly once per rollout, before the new code serves traffic.
+        # The migrations ship inside the image (apps/server/drizzle), so the
+        # release that migrates is always the release that ships.
+        - name: migrate
+          image: {{ include "ecocide.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["node", "dist/migrate-cli.js"]
+          envFrom:
+            - configMapRef:
+                name: {{ include "ecocide.configMapName" . }}
+            - secretRef:
+                name: {{ include "ecocide.secretName" . }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          resources:
+            {{- toYaml .Values.migrations.resources | nindent 12 }}
+        {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: {{ include "ecocide.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.app.port }}
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: {{ include "ecocide.configMapName" . }}
+            - secretRef:
+                name: {{ include "ecocide.secretName" . }}
+            {{- with .Values.extraEnvFrom }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with .Values.extraEnv }}
+          env:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          # Boot does a real `select 1` before it listens, so give it room: a
+          # slow Postgres would otherwise be killed by the liveness probe
+          # before it ever became ready.
+          startupProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            periodSeconds: 3
+            failureThreshold: {{ .Values.app.probes.startupFailureThreshold }}
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            periodSeconds: {{ .Values.app.probes.readinessPeriodSeconds }}
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            periodSeconds: {{ .Values.app.probes.livenessPeriodSeconds }}
+            timeoutSeconds: 5
+            failureThreshold: 3
+          # Let the ingress remove this pod from its endpoints before the
+          # process starts draining.
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh", "-c", "sleep 10"]
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          resources:
+            {{- toYaml .Values.app.resources | nindent 12 }}
+          volumeMounts:
+            - name: evidence
+              mountPath: /data
+      volumes:
+        - name: evidence
+          {{- if .Values.persistence.evidence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "ecocide.fullname" . }}-evidence
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

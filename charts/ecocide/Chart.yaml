@@ -1,0 +1,20 @@
+apiVersion: v2
+name: ecocide
+description: >-
+  ECOCIDE — the AI Supreme Arbiter of Consumption. One container serves the API
+  and the built SPA; PostgreSQL holds the registry and Redis/BullMQ backs the
+  injunction queue.
+type: application
+version: 0.2.0
+appVersion: "1.0.0"
+keywords:
+  - ecocide
+  - ai-arbiter
+  - gemini
+  - pwa
+home: https://ecocide.quest
+sources:
+  - https://github.com/Br0kenByDes1gn/ecocide
+maintainers:
+  - name: Broken By Design
+    url: https://broken-by-design.art/

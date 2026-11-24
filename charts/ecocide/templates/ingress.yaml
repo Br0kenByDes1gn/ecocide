@@ -1,0 +1,46 @@
+{{- if .Values.ingress.enabled }}
+{{- /*
+The SPA and the API share one origin on purpose: the session cookie is a
+same-origin cookie and the web app calls /api/* relative paths.
+*/}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "ecocide.fullname" . }}
+  labels:
+    {{- include "ecocide.labels" . | nindent 4 }}
+  annotations:
+    # A base64 room photo is a few MB; nginx defaults to 1m and answers 413.
+    nginx.ingress.kubernetes.io/proxy-body-size: "20m"
+    # One audit is two Gemini calls at 15-30s, and an injunction filing can add
+    # a third; nginx's 60s default would cut the request off mid-audit.
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    {{- if and .Values.ingress.tls.enabled .Values.ingress.tls.clusterIssuer }}
+    cert-manager.io/cluster-issuer: {{ .Values.ingress.tls.clusterIssuer | quote }}
+    {{- end }}
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  {{- with .Values.ingress.className }}
+  ingressClassName: {{ . | quote }}
+  {{- end }}
+  {{- if .Values.ingress.tls.enabled }}
+  tls:
+    - hosts:
+        - {{ .Values.ingress.host | quote }}
+      secretName: {{ .Values.ingress.tls.secretName }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.ingress.host | quote }}
+      http:
+        paths:
+          - path: {{ .Values.ingress.path }}
+            pathType: {{ .Values.ingress.pathType }}
+            backend:
+              service:
+                name: {{ include "ecocide.fullname" . }}
+                port:
+                  name: http
+{{- end }}

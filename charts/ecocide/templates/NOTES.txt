@@ -1,0 +1,64 @@
+ECOCIDE — release {{ .Release.Name }} in namespace {{ .Release.Namespace }}
+{{ if .Values.ingress.enabled }}
+  Public origin: http{{ if .Values.ingress.tls.enabled }}s{{ end }}://{{ .Values.ingress.host }}/
+  (app.publicUrl is {{ .Values.app.publicUrl }} — it must match the origin the
+   browser is actually on, or the Carbon Registry fails with a CORS/401 error.)
+{{- else }}
+  No ingress. Reach the app with:
+
+    kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "ecocide.fullname" . }} 8080:{{ .Values.service.port }}
+
+  then open http://localhost:8080
+  (keep app.publicUrl={{ .Values.app.publicUrl }} in step with that port)
+{{- end }}
+
+Health:
+
+  curl -s http://localhost:8080/api/health | jq
+
+  Expect "database": "PostgreSQL Active", "jobs": "bullmq" and "queue":
+  "connected". "engine": "offline simulation" is a valid dev state and a
+  misconfiguration in production.
+
+{{ if eq .Values.app.gemini.mode "off" }}
+!! Gemini engine is OFF: every audit is the deterministic simulation.
+   Set app.gemini.mode=api and secrets.data.GEMINI_API_KEY in your values file.
+{{- end }}
+
+{{ if .Values.secrets.existingSecret }}
+Credentials come from secret/{{ .Values.secrets.existingSecret }}
+(secrets.existingSecret). Rotating it needs a rollout so the pods pick it up:
+
+  kubectl -n {{ .Release.Namespace }} rollout restart deployment/{{ include "ecocide.fullname" . }}
+{{- else if .Values.secrets.generateMissing }}
+!! This release GENERATES any empty credential and keeps it only in
+   secret/{{ include "ecocide.secretName" . }}. Fine for a throwaway cluster —
+   dangerous for anything lasting: a reinstall mints a new POSTGRES_PASSWORD and
+   leaves you locked out of an existing data volume. Put every credential in a
+   values file and set secrets.generateMissing=false. To save what was generated:
+
+  kubectl -n {{ .Release.Namespace }} get secret {{ include "ecocide.secretName" . }} -o yaml > ecocide-secret.yaml
+{{- else }}
+Credentials come from secrets.data in the values file passed with -f
+(secret/{{ include "ecocide.secretName" . }}). Keep a copy of
+POSTGRES_PASSWORD and BETTER_AUTH_SECRET elsewhere: they are the only way back
+into an existing data volume and into existing sessions.
+{{- end }}
+{{ if eq .Values.postgres.mode "bundled" }}
+!! PostgreSQL is bundled: one pod, no failover, no PITR.
+   {{- if .Values.postgres.backup.enabled }}
+   Backups: nightly pg_dump onto {{ include "ecocide.fullname" . }}-backup
+   ({{ .Values.postgres.backup.retentionDays }} days kept). Copy it off-cluster.
+   {{- else }}
+   Backups are DISABLED. Set postgres.backup.enabled=true, or point
+   postgres.mode=external at a managed server.
+   {{- end }}
+{{- end }}
+{{ if eq .Values.redis.mode "bundled" }}
+!! Redis is bundled ({{ .Values.redis.image }}). The worker runs inside the app
+   process, so keep at least one replica up — with none, queued jobs wait.
+{{- end }}
+
+Moving an existing deployment's data into this cluster:
+
+  ./scripts/copy-from-gcp.sh --namespace {{ .Release.Namespace }} --apply

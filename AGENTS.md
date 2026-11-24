@@ -74,10 +74,18 @@ apps/server/          # Hono + PostgreSQL (Drizzle; PGlite locally) + Gemini
                       # + BullMQ + Better Auth + nodemailer + evidence file store
 apps/web/             # React 19 + Vite + Tailwind v4 + PWA
                       # (intro → scan → verdict → claim/appeal → vault)
-deploy/gcp/           # Cloud Run + Cloud SQL deploy: setup.sh (one-time IAM/SQL/
-                      # bucket/secrets), sync-env.sh (.env.production → Secret
-                      # Manager + service), env.production.example, runbook
-                      # (release workflow: .github/workflows/deploy-gcp.yml)
+deploy/gcp/           # LEGACY: Cloud Run + Cloud SQL deploy (setup.sh, sync-env.sh,
+                      # env.production.example, runbook). Reference until the
+                      # Kubernetes cutover is done; the release workflow it feeds
+                      # is .github/workflows/deploy-gcp.yml
+charts/ecocide/       # THE DEPLOYMENT: one-chart Kubernetes install of the whole
+                      # app (Deployment + bundled postgres/redis + evidence PVC +
+                      # ingress + migration init container); README has the runbook
+Tiltfile              # dev loop: builds the image into minikube and drives a real
+                      # `helm upgrade --install` of charts/ecocide
+.github/workflows/    # build-image.yml publishes the image to GHCR on push to
+                      # main (sha-<7>, main, latest) and on v* tags (X.Y.Z);
+                      # deploy-gcp.yml is the legacy Cloud Run release
 apps/server/scripts/  # scan-cost audit
 ```
 
@@ -243,7 +251,8 @@ apps/server/scripts/  # scan-cost audit
   when unset — one schema, one repository implementation, both drivers extending
   Drizzle's `PgAsyncDatabase` (see `db/client.ts`). Explicit
   `initDb()`/`createRepositories()` factories; migrations via drizzle-kit, applied
-  at boot (`AUTO_MIGRATE=false` to defer to the Cloud Run migrate job); never
+  at boot (`AUTO_MIGRATE=false` to defer to the deployment's migration step — the
+  chart's `migrate` init container, or the Cloud Run migrate job); never
   commit `*.db*`, `data/pgdata*` or `data/evidence/` files.
 - Local DB caveats: PGlite is single-process (advisory `pgdata.lock`, readable
   error instead of corruption) and a directory initialized twice is unopenable —
@@ -393,6 +402,59 @@ apps/server/scripts/  # scan-cost audit
   `screenshots` (real PNGs in `public/screenshots/`, exact declared sizes) feed
   Android's richer install dialog.
 
+### charts/ecocide
+
+The deployment, as one Helm chart. One container (API + built SPA, same-origin)
+plus bundled PostgreSQL and Redis, so `helm install` works on a bare cluster.
+
+- `values.yaml` is the **development** shape: `GEMINI_MODE=off` (simulation),
+  ingress disabled, bundled dependencies, a fixed dev Postgres password (a
+  generated one would break `tilt down`/`up` against a surviving volume),
+  `secrets.create: true` so the chart renders its own Secret.
+- `values.production.example.yaml` is the template for the real thing; the
+  filled-in file lives **outside the repo** and is gitignored
+  (`charts/ecocide/values.*.yaml`, with the example as the single exception).
+  Every credential goes in `secrets.data` — the chart renders one Secret from it.
+  `secrets.generateMissing: false` in that file turns a missing or misspelled key
+  into a render failure instead of a silently random value, and the chart fails
+  the render for the combinations that would otherwise lock the app out of its
+  own database (`POSTGRES_PASSWORD` empty while a bundled `DATABASE_URL` is set,
+  external Postgres with neither, `create=false` with no `existingSecret`).
+  `secrets.existingSecret` still exists for a Secret managed outside Helm; it
+  wins over `create`. Never add a values file with credentials to the repo — and
+  note that `POSTGRES_PASSWORD` is a one-way door: initdb bakes it into the data
+  volume, so rotating it in the file requires rotating the role.
+- `templates/deployment.yaml` — `replicaCount: 1` by design: the evidence volume
+  is ReadWriteOnce and the BullMQ worker runs **in this process**
+  (`createJobSystem` in `apps/server/src/index.ts`), so a second replica adds
+  neither HA nor throughput. Updates are `maxSurge: 0` (kill-then-start): two pods
+  cannot mount the same block volume. Start-up order is
+  `wait-for-postgres` → `migrate` (`node dist/migrate-cli.js`) → app, which is why
+  a fresh install needs no separate migration step.
+- **Component labels are load-bearing**: Postgres and Redis pods carry the same
+  `app.kubernetes.io/name`/`instance` as the app, so every selector that targets
+  the app also carries `app.kubernetes.io/component: app`. Without it the Service
+  sends traffic to the database pods (no `:3000`) and `kubectl logs deploy/…`
+  picks the wrong pod.
+- `/api/health` drives the probes (readiness/liveness) and the release smoke
+  test. `EVIDENCE_DIR=/data/evidence` on a PVC — photos stay **files**
+  (rule 4), never DB blobs.
+- `migrations.mode: init` (default) uses an initContainer; `hook` renders a
+  pre-upgrade Job for an external database, where a pre-install hook can reach
+  the server. `off` leaves DDL to the operator.
+- No Vertex AI here: `GEMINI_PROJECT`/`GEMINI_LOCATION`/`REDIS_CA_CERT` are gone.
+  An in-cluster `redis://` needs no CA; the app only attaches TLS for `rediss://`
+  (`src/jobs/connection.ts`).
+- The bundled database has **no PITR** — `postgres.backup` is the safety net
+  (CronJob `pg_dump -Fc` onto a separate PVC). Point `postgres.mode` at a managed
+  server for anything that matters.
+- `scripts/copy-from-gcp.sh` migrates the old deployment's data: Cloud SQL export
+  (server-side, no local `pg_dump`) → `psql` restore after dropping **both**
+  `public` and `drizzle` (the dump recreates the migration journal, and restoring
+  over an existing `drizzle` schema fails), then the GCS evidence bucket streamed
+  into the volume with a verification pass that the DB's `evidence_filename`
+  column is the authority for.
+
 ## 4. Commands
 
 | Command | Action |
@@ -407,6 +469,10 @@ apps/server/scripts/  # scan-cost audit
 | `pnpm --filter @ecocide/server db:reset-allowance` | One-off repair: re-base every wallet onto the current allowance, writing a reconciling ledger entry |
 | `pnpm wireframes` | Convert `models-src/*.obj` → `apps/web/src/lib/asset-wireframes.ts` (face meshes **and** `l` line elements, e.g. the earth graticule) |
 | `pnpm --filter @ecocide/server db:generate` | drizzle-kit generate (schema → `apps/server/drizzle`) |
+| `pnpm chart:lint` / `pnpm chart:template` | Lint / render `charts/ecocide` |
+| `tilt up` | Dev loop on minikube: build the image, `helm upgrade --install` the chart, forward :8080 (Gemini off unless `ECOCIDE_GEMINI_MODE=api GEMINI_API_KEY=…`) |
+| `./scripts/copy-from-gcp.sh` | Dry run of the GCP → cluster data migration (DB + evidence photos); `--apply` performs it |
+| `./scripts/sync-k8s-secrets.sh` | Dry run of the Secret build from `.env.production`; `--apply` writes `ecocide-secrets` (alternative to `secrets.data` in a values file) |
 
 Dev without AI tokens: `/debug` bench (six exhibit rooms, one per tier),
 simulated audits (no `GEMINI_API_KEY`), OTP printed to the server console,
@@ -446,8 +512,11 @@ rg -i -n "carbon minded|aipocalypse|neon grid|mainframe|biocarbon(?!_ratio)|redu
 - [`STORY.md`](STORY.md) — lore-pack authoring handbook (every slot, tier
   mechanics, prompts, art, workflow).
 - [`README.md`](README.md) — user-facing overview + quick start.
-- [`deploy/gcp/README.md`](deploy/gcp/README.md) — Cloud Run + Cloud SQL
-  deployment runbook (setup, releases, rollback).
+- [`charts/ecocide/README.md`](charts/ecocide/README.md) — the Kubernetes
+  deployment runbook (install, values, migrations, backups, data migration,
+  upgrade/rollback, troubleshooting).
+- [`deploy/gcp/README.md`](deploy/gcp/README.md) — LEGACY Cloud Run + Cloud SQL
+  runbook, kept as the reference for the cluster being migrated off.
 - `art_directions.md` — visual style bible (§-numbered; the source of truth
   for colors, tiers, stamps, lenses, motion, copy rules).
 - `compliance_formula.md` — the base item-level formula implemented verbatim

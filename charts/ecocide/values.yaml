@@ -1,0 +1,262 @@
+# Default values — the *development* shape: everything runs inside the cluster
+# (PostgreSQL + Redis as plain workloads, no operators), ingress off, and the
+# Gemini engine in its deterministic offline simulation. `helm install` with no
+# flags therefore works on a fresh minikube and costs nothing.
+#
+# For a real deployment start from `values.production.example.yaml` and keep the
+# filled-in copy outside the repo (ingress + TLS, API-mode Gemini, secrets in
+# `secrets.data`; the whole file is gitignored). See charts/ecocide/README.md.
+
+replicaCount: 1
+
+# maxSurge 0: a second pod cannot mount the ReadWriteOnce evidence volume on
+# another node, so the update is kill-then-start (a few seconds of downtime).
+# With an RWX volume and `replicaCount > 1`, raise maxSurge to 1 instead.
+updateStrategy:
+  maxSurge: 0
+  maxUnavailable: 1
+
+image:
+  repository: ghcr.io/br0kenbydes1gn/ecocide
+  pullPolicy: IfNotPresent
+  # Defaults to .Chart.AppVersion when empty.
+  tag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+podSecurityContext:
+  fsGroup: 1000
+
+securityContext:
+  # Numeric on purpose: kubelet cannot verify a named image user ("node")
+  # against runAsNonRoot, and refuses to start the container.
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+app:
+  port: 3000
+  # Public origin. Feeds Better Auth's trustedOrigins *and* the permalinks in
+  # emails, so it must be the exact origin the browser is on — a mismatch shows
+  # up as a confusing CORS/401 in the Carbon Registry, never as a crash.
+  publicUrl: http://localhost:8080
+
+  gemini:
+    # off | api. Vertex AI mode is gone with GCP; `api` bills an AI Studio key
+    # supplied as GEMINI_API_KEY. `off` runs the deterministic simulation.
+    mode: "off"
+    model: gemini-3.8-flash
+
+  smtp:
+    host: ""
+    port: 587
+    secure: false
+    from: 'ECOCIDE <no-reply@ecocide.local>'
+    replyTo: ""
+
+  bullBoard:
+    # The queue dashboard mounts only when BOTH user and password are set.
+    user: ""
+
+  dbPoolMax: 10
+
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+  # A scan is two paid vision calls; Cloud Run capped concurrency at 8 and
+  # Kubernetes does not. If the ingress is public, keep an rps limit so a
+  # crawler cannot turn into a bill.
+  probes:
+    startupFailureThreshold: 40
+    readinessPeriodSeconds: 10
+    livenessPeriodSeconds: 20
+
+# Arbitrary env appended to the app container (rarely needed).
+extraEnv: []
+extraEnvFrom: []
+
+persistence:
+  evidence:
+    enabled: true
+    size: 5Gi
+    storageClass: ""
+    accessMode: ReadWriteOnce
+
+secrets:
+  # The chart renders one Secret holding every runtime credential. Put them in
+  # `secrets.data` — in a values file that is NOT committed (see
+  # values.production.example.yaml for the shape).
+  create: true
+
+  # Alternative: name a Secret you manage outside Helm (External Secrets,
+  # SealedSecrets, SOPS, scripts/sync-k8s-secrets.sh). `create` and this are
+  # mutually exclusive; the render fails if both are empty.
+  existingSecret: ""
+
+  # Empty values are generated once and reused on upgrade (via `lookup`), so
+  # sessions and the database survive a `helm upgrade`. Set this to false in a
+  # values file you maintain by hand: a missing or misspelled key then fails
+  # `helm template` instead of silently minting a random value that breaks the
+  # next reinstall.
+  generateMissing: true
+
+  # Keep the Secret across `helm uninstall`. Off by default: the values file is
+  # the source of truth, so a reinstall rebuilds the same credentials. Turn it on
+  # only if the values do NOT carry the generated values (and then back the
+  # Secret up — losing POSTGRES_PASSWORD locks you out of the data volume).
+  keepOnUninstall: false
+
+  data:
+    # The bundled database's superuser password (the `POSTGRES_PASSWORD` key in
+    # the Secret, read by the StatefulSet). initdb bakes it into the volume, so
+    # changing it later without also rotating the role locks the app out.
+    POSTGRES_PASSWORD: "ecocide-dev-password"
+    # Signs session cookies. Changing it signs every citizen out (accounts and
+    # wallets survive).
+    BETTER_AUTH_SECRET: ""
+    GEMINI_API_KEY: ""
+    SMTP_USER: ""
+    SMTP_PASS: ""
+    BULL_BOARD_PASS: ""
+    # Empty → derived: postgres://USER:PASSWORD@HOST:PORT/DB from postgres.* and
+    # POSTGRES_PASSWORD. Set it to point at an external database.
+    DATABASE_URL: ""
+    # Empty → derived: redis://<release>-redis:6379 for the bundled queue. With
+    # redis.mode=external, set redis.external.url instead.
+    REDIS_URL: ""
+
+  # Any further Secret key, verbatim (e.g. REDIS_CA_CERT for an external
+  # `rediss://` endpoint). Rendered alongside the keys above.
+  extra: {}
+
+postgres:
+  # bundled → a single-replica StatefulSet in this release (default; no operator
+  #           required, which is what makes minikube and a plain cluster work).
+  # external → set `external.*` and bring your own server (managed, replicated,
+  #           PITR…). Then this chart only consumes DATABASE_URL.
+  mode: bundled
+  image: postgres:17
+  # Used by the readiness probe and the migration wait loop, so it must match
+  # the server's major version.
+  database: ecocide
+  username: ecocide
+  port: 5432
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  persistence:
+    size: 5Gi
+    storageClass: ""
+  external:
+    host: ""
+    port: 5432
+    database: ecocide
+    username: ecocide
+    # Password for the external server: consumed from the Secret
+    # (POSTGRES_PASSWORD) when `secrets.create` is on, else from existingSecret.
+  backup:
+    # A CronJob pg_dump onto a *separate* PVC. The bundled database has no PITR
+    # and no off-site copy, so this is the whole safety net — point the backup
+    # PVC at durable storage (or snapshot it) and enable it in production.
+    enabled: false
+    schedule: "17 3 * * *"
+    retentionDays: 7
+    size: 10Gi
+    storageClass: ""
+
+redis:
+  # bundled → a Deployment with AOF on a PVC, `noeviction` as BullMQ requires.
+  # external → set `external.url` (e.g. redis://host:6379 or rediss://... with
+  #   a trusted CA; a private CA would need REDIS_CA_CERT, which this chart
+  #   does not wire — prefer a publicly-trusted-managed endpoint).
+  mode: bundled
+  image: valkey/valkey:8-alpine
+  args:
+    - "--maxmemory-policy"
+    - "noeviction"
+    - "--appendonly"
+    - "yes"
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+  persistence:
+    enabled: true
+    size: 1Gi
+    storageClass: ""
+  external:
+    url: ""
+
+migrations:
+  # init → an initContainer runs `node dist/migrate-cli.js` before the app starts
+  #        (works on a fresh install, including the bundled database).
+  # hook → a Helm pre-upgrade Job instead; only for an external database that
+  #        already exists on first install.
+  # off  → the operator owns DDL.
+  mode: init
+  # The wait-for-postgres init container gives up after this many seconds.
+  waitTimeoutSeconds: 120
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+service:
+  type: ClusterIP
+  port: 3000
+
+ingress:
+  enabled: false
+  className: nginx
+  host: ecocide.local
+  path: /
+  pathType: Prefix
+  annotations:
+    # A base64 room photo is a few MB; nginx defaults to 1m and answers 413.
+    nginx.ingress.kubernetes.io/proxy-body-size: "20m"
+    # One audit is two Gemini calls at 15-30s. nginx's 60s default would cut
+    # the request off mid-audit.
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    # No Cloud Run concurrency cap in front of the model calls anymore.
+    nginx.ingress.kubernetes.io/limit-rps: "5"
+  tls:
+    enabled: false
+    secretName: ecocide-tls
+    # Rendered as the cert-manager.io/cluster-issuer annotation when set.
+    clusterIssuer: ""
+
+terminationGracePeriodSeconds: 45

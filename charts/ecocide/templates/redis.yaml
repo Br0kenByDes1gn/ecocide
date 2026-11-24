@@ -1,0 +1,109 @@
+{{- if eq .Values.redis.mode "bundled" }}
+{{- /*
+The BullMQ queue. `noeviction` is mandatory (BullMQ's blocking commands), and
+AOF on a PVC keeps queued jobs across a pod restart — an injunction that was
+enqueued but not yet issued must not vanish because a node was drained.
+
+No TLS in-cluster, so REDIS_CA_CERT is not needed: the app only attaches TLS for
+a `rediss://` URL (apps/server/src/jobs/connection.ts).
+*/}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "ecocide.redisHost" . }}
+  labels:
+    {{- include "ecocide.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+spec:
+  type: ClusterIP
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: redis
+      protocol: TCP
+  selector:
+    {{- include "ecocide.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ecocide.fullname" . }}-redis
+  labels:
+    {{- include "ecocide.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "ecocide.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: redis
+  template:
+    metadata:
+      labels:
+        {{- include "ecocide.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: redis
+    spec:
+      securityContext:
+        fsGroup: 999
+      containers:
+        - name: redis
+          image: {{ .Values.redis.image | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            {{- toYaml .Values.redis.args | nindent 12 }}
+          ports:
+            - name: redis
+              containerPort: 6379
+              protocol: TCP
+          # tcpSocket, not `redis-cli ping`: it works no matter which of the
+          # redis/valkey images the values point at.
+          readinessProbe:
+            tcpSocket:
+              port: redis
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            tcpSocket:
+              port: redis
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 3
+          resources:
+            {{- toYaml .Values.redis.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          {{- if .Values.redis.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "ecocide.fullname" . }}-redis
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+{{- if .Values.redis.persistence.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "ecocide.fullname" . }}-redis
+  labels:
+    {{- include "ecocide.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+  annotations:
+    helm.sh/resource-policy: keep
+spec:
+  accessModes:
+    - ReadWriteOnce
+  {{- with .Values.redis.persistence.storageClass }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.redis.persistence.size }}
+{{- end }}
+{{- end }}

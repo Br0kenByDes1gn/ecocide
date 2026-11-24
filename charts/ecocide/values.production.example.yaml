@@ -1,0 +1,135 @@
+# Production overlay — EXAMPLE ONLY. This file is committed and holds no real
+# credentials. Copy it somewhere outside the repository, fill it in, and pass it
+# with -f:
+#
+#   mkdir -p ~/.config/ecocide
+#   cp charts/ecocide/values.production.example.yaml ~/.config/ecocide/values.production.yaml
+#   chmod 600 ~/.config/ecocide/values.production.yaml     # it holds credentials
+#   $EDITOR ~/.config/ecocide/values.production.yaml
+#
+#   kubectl create namespace ecocide
+#   helm upgrade --install ecocide charts/ecocide -n ecocide \
+#     -f ~/.config/ecocide/values.production.yaml --atomic --wait --timeout 15m
+#
+# Any file matching `charts/ecocide/values.*.yaml` is gitignored (this example is
+# the one exception), so a filled-in copy dropped next to the chart cannot be
+# committed by accident.
+#
+# Keep a copy of the two generated credentials somewhere else too (a password
+# manager): POSTGRES_PASSWORD is the only way into an existing data volume, and
+# BETTER_AUTH_SECRET is the only way to keep sessions valid.
+#
+# The REPLACE_ME placeholders below are deliberate: the chart refuses to render a
+# release that still carries them (a published database password is worse than a
+# failed deploy), so fill every one of them before installing.
+
+replicaCount: 1
+
+image:
+  repository: ghcr.io/br0kenbydes1gn/ecocide
+  pullPolicy: IfNotPresent
+  # CI publishes `sha-<7>`, `X.Y.Z` (from a vX.Y.Z tag), `main` and `latest`.
+  # Pin sha-… or X.Y.Z for a real deployment; `latest` is the convenient first
+  # deploy.
+  tag: "latest"
+
+# Set when the GHCR package is private (the default), e.g. `ghcr-pull` created
+# with `kubectl create secret docker-registry`. Ignored when the package is
+# public.
+imagePullSecrets: []
+
+app:
+  # The exact origin the browser is on. Feeds Better Auth's trustedOrigins and the
+  # permalinks in emails; a mismatch shows up as a CORS/401 in the registry.
+  publicUrl: https://ecocide.quest
+  gemini:
+    # api = AI Studio key below. Vertex AI is not available outside GCP.
+    mode: api
+    model: gemini-3.8-flash
+  smtp:
+    host: smtp-relay.brevo.com
+    port: 587
+    secure: false
+    from: "ECOCIDE <no-reply@ecocide.quest>"
+  bullBoard:
+    # Must match BULL_BOARD_PASS below; the dashboard mounts only when both exist.
+    user: arbiter
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+secrets:
+  # Every credential lives here. `generateMissing: false` turns a missing or
+  # misspelled key into a render failure instead of a silently random value.
+  create: true
+  existingSecret: ""
+  generateMissing: false
+  # Credits stay in this file, so a reinstall rebuilds the same Secret.
+  keepOnUninstall: false
+
+  data:
+    # openssl rand -hex 24 — must match the volume; changing it on a running
+    # database locks the app out until the role is rotated to match.
+    POSTGRES_PASSWORD: "REPLACE_ME_openssl_rand_hex_24"
+    # openssl rand -hex 32 — changing it signs every citizen out.
+    BETTER_AUTH_SECRET: "REPLACE_ME_openssl_rand_hex_32"
+    GEMINI_API_KEY: "REPLACE_ME_aistudio_key"
+    # Your Brevo LOGIN address, and a Brevo SMTP key (not the API key).
+    SMTP_USER: "REPLACE_ME_brevo_login"
+    SMTP_PASS: "REPLACE_ME_brevo_smtp_key"
+    BULL_BOARD_PASS: "REPLACE_ME_a_long_password"
+    # Leave both empty to derive them from postgres.* / redis.* — which is what a
+    # bundled install wants.
+    DATABASE_URL: ""
+    REDIS_URL: ""
+
+  # Any extra Secret key, verbatim — e.g. REDIS_CA_CERT for an external
+  # `rediss://` endpoint.
+  extra: {}
+
+persistence:
+  evidence:
+    enabled: true
+    size: 20Gi
+    # Empty → the cluster default StorageClass. Evidence photos are write-once
+    # and read forever: snapshot or back this volume up.
+    storageClass: ""
+
+postgres:
+  # bundled → the chart's own single-replica database (what this example uses).
+  # external → set external.* and either DATABASE_URL or POSTGRES_PASSWORD in
+  #            secrets.data.
+  mode: bundled
+  persistence:
+    size: 10Gi
+  backup:
+    # The bundled database has no PITR: this CronJob is the whole safety net.
+    enabled: true
+    schedule: "17 3 * * *"
+    retentionDays: 14
+    size: 20Gi
+
+redis:
+  mode: bundled
+  persistence:
+    enabled: true
+    size: 1Gi
+
+migrations:
+  mode: init
+
+ingress:
+  enabled: true
+  className: nginx
+  host: ecocide.quest
+  tls:
+    enabled: true
+    secretName: ecocide-tls
+    # Your ClusterIssuer (cert-manager).
+    clusterIssuer: letsencrypt-prod
+
+terminationGracePeriodSeconds: 45

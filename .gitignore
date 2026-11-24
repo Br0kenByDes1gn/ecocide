@@ -17,3 +17,11 @@ apps/server/data/pgdata*
 # Source 3D models for the scanner wireframe animation (only the converted
 # data in apps/web/src/lib/asset-wireframes.ts is committed)
 /models-src/
+
+# Chart values that carry credentials. `values.yaml` stays tracked; the example
+# is the one overlay allowed in the repo — copy it outside, never fill it in here.
+charts/ecocide/values.*.yaml
+!charts/ecocide/values.production.example.yaml
+
+# Helm package artifacts
+charts/**/*.tgz

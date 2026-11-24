@@ -1,0 +1,86 @@
+{{- if and (eq .Values.postgres.mode "bundled") .Values.postgres.backup.enabled }}
+{{- /*
+Nightly logical backup of the bundled database onto a separate PVC.
+
+This is NOT a substitute for PITR: it is a `pg_dump -Fc` per night, kept for
+`retentionDays`. Point the backup volume at storage that survives losing this
+PVC (a different pool, a snapshot policy, or a node with a real disk) and copy
+it off-cluster if the registry matters to you.
+*/}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "ecocide.fullname" . }}-backup
+  labels:
+    {{- include "ecocide.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backup
+  annotations:
+    helm.sh/resource-policy: keep
+spec:
+  accessModes:
+    - ReadWriteOnce
+  {{- with .Values.postgres.backup.storageClass }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.postgres.backup.size }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "ecocide.fullname" . }}-postgres-backup
+  labels:
+    {{- include "ecocide.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backup
+spec:
+  schedule: {{ .Values.postgres.backup.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            {{- include "ecocide.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: backup
+        spec:
+          restartPolicy: Never
+          securityContext:
+            fsGroup: 999
+          containers:
+            - name: pg-dump
+              image: {{ .Values.postgres.image | quote }}
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              command:
+                - sh
+                - -c
+                - |
+                  set -eu
+                  stamp=$(date -u +%Y%m%dT%H%M%SZ)
+                  pg_dump -Fc -d "$DATABASE_URL" -f "/backup/ecocide-${stamp}.dump"
+                  echo "wrote /backup/ecocide-${stamp}.dump"
+                  # Retention: drop dumps older than the configured window.
+                  find /backup -maxdepth 1 -name 'ecocide-*.dump' \
+                    -mtime +{{ .Values.postgres.backup.retentionDays }} -print -delete
+                  ls -lh /backup
+              envFrom:
+                - secretRef:
+                    name: {{ include "ecocide.secretName" . }}
+              volumeMounts:
+                - name: backup
+                  mountPath: /backup
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 128Mi
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
+          volumes:
+            - name: backup
+              persistentVolumeClaim:
+                claimName: {{ include "ecocide.fullname" . }}-backup
+{{- end }}

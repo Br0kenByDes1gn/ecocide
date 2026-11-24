@@ -1,0 +1,31 @@
+{{- /*
+Evidence photos are FILES (AGENTS.md rule 4): the database stores only
+`evidence_filename`, and the server serves the bytes from EVIDENCE_DIR.
+
+One volume per release, mounted at /data (EVIDENCE_DIR=/data/evidence). Kept on
+`helm uninstall` — the archived photos are the product, not cache.
+
+Scale-out note: a ReadWriteOnce volume only mounts on one node, which is why the
+chart ships replicaCount 1. Move this to RWX (or an object-store adapter in
+apps/server/src/evidence.ts) before raising replicas.
+*/ -}}
+{{- if .Values.persistence.evidence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "ecocide.fullname" . }}-evidence
+  labels:
+    {{- include "ecocide.labels" . | nindent 4 }}
+    app.kubernetes.io/component: evidence
+  annotations:
+    helm.sh/resource-policy: keep
+spec:
+  accessModes:
+    - {{ .Values.persistence.evidence.accessMode }}
+  {{- with .Values.persistence.evidence.storageClass }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.evidence.size }}
+{{- end }}

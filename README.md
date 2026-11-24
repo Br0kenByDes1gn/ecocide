@@ -142,22 +142,61 @@ apps/
                # Gemini two-pass engine, evidence file store, BullMQ jobs,
                # nodemailer, Better Auth registry
   web/         # React PWA: intro → audit → verdict → claim/appeal → registry
-deploy/gcp/    # Cloud Run + Cloud SQL deployment: setup.sh, runbook, and the
-               # tag-triggered GitHub Actions release in .github/workflows/
+charts/ecocide/  # the deployment: one Helm chart (app + Postgres + Redis + evidence
+                 # volume + ingress), installable on any cluster
+Tiltfile       # dev loop on minikube: build the image, `helm upgrade --install`
+deploy/gcp/    # LEGACY Cloud Run + Cloud SQL setup, kept as the migration source
 ```
 
 ## Deploy
 
-Production is **Cloud Run + Cloud SQL (PostgreSQL)**, with audit photos on a
-mounted Cloud Storage bucket and migrations applied by a Cloud Run job. Pushing a
-`v*` tag builds the image, runs the migrations, deploys a revision with no
-traffic, smoke-tests `/api/health`, and only then shifts traffic — see
-[`deploy/gcp/README.md`](deploy/gcp/README.md) for the runbook (one-time
-`deploy/gcp/setup.sh`, first deploy, domain mapping, rollback).
+The app ships as **one container** that serves the API and the built SPA on the
+same origin (the session cookie is same-origin and the web app calls `/api/*`
+relative paths), so it is one Deployment plus its data:
 
-The old Helm chart is gone: this app ships as a single container that serves the
-API and the SPA on one origin, and Kubernetes was only ever buying the PVC that
-SQLite needed.
+```bash
+kubectl create namespace ecocide
+cp charts/ecocide/values.production.example.yaml ~/.config/ecocide/values.production.yaml
+$EDITOR ~/.config/ecocide/values.production.yaml   # chmod 600 — it holds the credentials
+helm upgrade --install ecocide charts/ecocide -n ecocide \
+  -f ~/.config/ecocide/values.production.yaml --set image.tag=v0.1.0 \
+  --atomic --wait --timeout 15m
+```
+
+Every credential (database password, auth secret, Gemini key, SMTP) lives in
+`secrets.data` in that file, which is gitignored and kept outside the repo — the
+chart renders the Secret from it. See
+[`charts/ecocide/README.md`](charts/ecocide/README.md) for values, secrets,
+backups, upgrade/rollback and troubleshooting.
+
+The chart bundles PostgreSQL and Redis (no operators) and runs drizzle-kit
+migrations in an init container before the new pod serves traffic. Audit photos
+stay files on a volume, never database blobs. See
+[`charts/ecocide/README.md`](charts/ecocide/README.md) for values, backups,
+upgrade/rollback and troubleshooting.
+
+Images are built and published to GitHub Container Registry by
+[`.github/workflows/build-image.yml`](.github/workflows/build-image.yml): every
+push to `main` publishes `sha-<7>`, `main` and `latest`; a `v*` tag also publishes
+`X.Y.Z` and `X.Y`. Pin `image.tag` in your values file — a private package also
+needs an `imagePullSecrets` entry.
+
+For the local loop: `tilt up` builds the image into minikube and drives a real
+`helm upgrade --install` (`GEMINI_MODE=off`, so audits are the deterministic
+simulation until you pass `ECOCIDE_GEMINI_MODE=api GEMINI_API_KEY=…`).
+
+Moving an existing deployment's data in:
+
+```bash
+./scripts/copy-from-gcp.sh --namespace ecocide            # dry run
+./scripts/copy-from-gcp.sh --namespace ecocide --apply
+```
+
+That exports the Cloud SQL database, restores it into the release, streams the
+evidence bucket onto the volume and verifies every dossier's photo is present.
+The previous **Cloud Run + Cloud SQL** deployment is still described in
+[`deploy/gcp/README.md`](deploy/gcp/README.md) — it is the source those scripts
+read from, not the target.
 
 See [`AGENTS.md`](AGENTS.md) for the developer/agent brief,
 [`STORY.md`](STORY.md) for the lore-pack authoring guide,

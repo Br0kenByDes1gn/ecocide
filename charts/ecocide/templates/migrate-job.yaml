@@ -1,0 +1,48 @@
+{{- if eq .Values.migrations.mode "hook" }}
+{{- /*
+Migration as a release hook instead of an init container: DDL runs once, before
+any new pod exists, and `helm upgrade --atomic` aborts on failure.
+
+Only usable when the database already exists at install time — i.e.
+`postgres.mode: external`. With the bundled database a pre-install hook would
+run before the StatefulSet that provides it, which is exactly why `init` is the
+default.
+*/}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "ecocide.fullname" . }}-migrate
+  labels:
+    {{- include "ecocide.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migrate
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-5"
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  backoffLimit: 1
+  activeDeadlineSeconds: 600
+  template:
+    metadata:
+      labels:
+        {{- include "ecocide.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: migrate
+    spec:
+      restartPolicy: Never
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: migrate
+          image: {{ include "ecocide.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["node", "dist/migrate-cli.js"]
+          envFrom:
+            - configMapRef:
+                name: {{ include "ecocide.configMapName" . }}
+            - secretRef:
+                name: {{ include "ecocide.secretName" . }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          resources:
+            {{- toYaml .Values.migrations.resources | nindent 12 }}
+{{- end }}

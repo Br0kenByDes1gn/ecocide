@@ -1,0 +1,8 @@
+.DS_Store
+*.tgz
+.git/
+.gitignore
+.dockerignore
+node_modules/
+*.local
+.vscode/

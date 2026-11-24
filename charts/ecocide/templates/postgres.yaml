@@ -1,0 +1,133 @@
+{{- if eq .Values.postgres.mode "bundled" }}
+{{- /*
+A single-replica PostgreSQL, deliberately plain: no operator, no extensions, no
+replication. It exists so `helm install` produces a working app on any cluster
+(minikube included).
+
+What it does NOT give you: failover, PITR, or an off-site copy of the data. The
+CronJob in postgres-backup.yaml is the whole safety net — see charts/README.md.
+For anything that matters, set `postgres.mode: external` and point at a managed
+server.
+
+The data volume is a volumeClaimTemplate: StatefulSet PVCs outlive both the pod
+and `helm uninstall`, which is what makes a reinstall reattach the same data.
+*/}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "ecocide.postgresHost" . }}
+  labels:
+    {{- include "ecocide.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: postgres
+      port: {{ .Values.postgres.port }}
+      targetPort: postgres
+      protocol: TCP
+  selector:
+    {{- include "ecocide.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "ecocide.fullname" . }}-postgres
+  labels:
+    {{- include "ecocide.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+spec:
+  serviceName: {{ include "ecocide.postgresHost" . }}
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "ecocide.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: postgres
+  template:
+    metadata:
+      labels:
+        {{- include "ecocide.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: postgres
+    spec:
+      securityContext:
+        # The postgres image runs as uid/gid 999 and wants its data directory
+        # owned by that group.
+        fsGroup: 999
+      containers:
+        - name: postgres
+          image: {{ .Values.postgres.image | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: postgres
+              containerPort: {{ .Values.postgres.port }}
+              protocol: TCP
+          env:
+            - name: POSTGRES_DB
+              value: {{ .Values.postgres.database | quote }}
+            - name: POSTGRES_USER
+              value: {{ .Values.postgres.username | quote }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "ecocide.secretName" . }}
+                  key: POSTGRES_PASSWORD
+            # A subdirectory, so the volume's lost+found (ext4) does not stop
+            # initdb from initialising.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          # `pg_isready` against the socket: no password needed, and it fails
+          # while the server is replaying WAL.
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -q -h 127.0.0.1 -p {{ .Values.postgres.port }} -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 6
+          livenessProbe:
+            exec:
+              # Same -U/-d as readiness: without them pg_isready connects as the
+              # container's OS user and postgres logs a FATAL for "postgres"
+              # every period.
+              command: ["sh", "-c", "pg_isready -q -h 127.0.0.1 -p {{ .Values.postgres.port }} -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""]
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6
+          resources:
+            {{- toYaml .Values.postgres.resources | nindent 12 }}
+          securityContext:
+            runAsUser: 999
+            runAsGroup: 999
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            # k8s gives every container a 64Mi /dev/shm; parallel query workers
+            # resize it and fail ("could not resize shared memory segment")
+            # once shared_buffers is the 128MB default.
+            - name: shm
+              mountPath: /dev/shm
+      volumes:
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 256Mi
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        {{- with .Values.postgres.persistence.storageClass }}
+        storageClassName: {{ . | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.postgres.persistence.size }}
+{{- end }}

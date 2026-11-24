@@ -1,0 +1,41 @@
+{{- /*
+Non-secret runtime configuration.
+
+Only what the server reads at boot, and nothing that varies per replica: this is
+one process serving both the API and the built SPA (`STATIC_DIR`), same-origin,
+which is why there is no separate web deployment.
+*/ -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ecocide.configMapName" . }}
+  labels:
+    {{- include "ecocide.labels" . | nindent 4 }}
+data:
+  NODE_ENV: "production"
+  PORT: {{ .Values.app.port | quote }}
+  # Baked into the image at /app/web/dist (see the Dockerfile).
+  STATIC_DIR: "/app/web/dist"
+  # DDL belongs to the migration init container (or hook), never to a cold boot.
+  AUTO_MIGRATE: "false"
+  # Evidence photos are files on the volume, never DB blobs.
+  EVIDENCE_DIR: "/data/evidence"
+  DB_POOL_MAX: {{ .Values.app.dbPoolMax | quote }}
+
+  BETTER_AUTH_URL: {{ .Values.app.publicUrl | quote }}
+  APP_BASE_URL: {{ .Values.app.publicUrl | quote }}
+
+  GEMINI_MODE: {{ .Values.app.gemini.mode | quote }}
+  GEMINI_MODEL: {{ .Values.app.gemini.model | quote }}
+
+  SMTP_HOST: {{ .Values.app.smtp.host | quote }}
+  SMTP_PORT: {{ .Values.app.smtp.port | quote }}
+  SMTP_SECURE: {{ .Values.app.smtp.secure | quote }}
+  MAIL_FROM: {{ .Values.app.smtp.from | quote }}
+  {{- with .Values.app.smtp.replyTo }}
+  MAIL_REPLY_TO: {{ . | quote }}
+  {{- end }}
+
+  {{- with .Values.app.bullBoard.user }}
+  BULL_BOARD_USER: {{ . | quote }}
+  {{- end }}
