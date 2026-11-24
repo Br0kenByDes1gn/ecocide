@@ -57,6 +57,12 @@ generates a deterministic archetype room, inventory and verdict. `pnpm test`, th
 
 ## 3. GCP infrastructure (overview)
 
+> **Retired.** This section and the next describe the Cloud Run + Cloud SQL
+> deployment the site ran on before the Kubernetes cutover, kept as the record of
+> how the migration was done. The site now runs `charts/ecocide`; the release
+> workflow these sections mention (`.github/workflows/deploy-gcp.yml`) has been
+> deleted, so nothing here is live.
+
 ![ECOCIDE GCP infrastructure overview](./architecture/gcp-infrastructure-overview.svg)
 
 Two planes, and it is worth reading them separately:
@@ -104,6 +110,10 @@ either a hard "permission denied on secret" or, worse, a *quiet* drop into offli
 simulation because `aiplatform.user` is missing.
 
 ### Release sequence
+
+> **Retired** — `.github/workflows/deploy-gcp.yml` has been deleted; a `v*` tag
+> now only builds and publishes the image. Kept as the record of how releases
+> worked on Cloud Run.
 
 `.github/workflows/deploy-gcp.yml`, on a `v*` tag push:
 

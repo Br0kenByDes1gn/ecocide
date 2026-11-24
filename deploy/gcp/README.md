@@ -294,6 +294,12 @@ instead of redirecting.
 
 ## 6. Releasing
 
+> **Retired.** `deploy/gcp/` is kept as the reference for the Cloud Run era; the
+> site now runs on Kubernetes (`charts/ecocide`). The workflow described below
+> (`.github/workflows/deploy-gcp.yml`) has been deleted, so a `v*` tag only
+> builds and publishes the image. Release instructions live in
+> [`../../charts/ecocide/README.md`](../../charts/ecocide/README.md).
+
 Tag and push: `git tag v0.1.0 && git push --tags`. `.github/workflows/deploy-gcp.yml` then
 verifies (`pnpm build && pnpm test`), builds and pushes the image, runs the migrate job on
 the new tag, deploys a revision with **no traffic**, smoke-tests `/api/health` on the

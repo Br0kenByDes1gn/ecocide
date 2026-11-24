@@ -78,18 +78,17 @@ apps/server/          # Hono + PostgreSQL (Drizzle; PGlite locally) + Gemini
                       # + BullMQ + Better Auth + nodemailer + evidence file store
 apps/web/             # React 19 + Vite + Tailwind v4 + PWA
                       # (intro → scan → verdict → claim/appeal → vault)
-deploy/gcp/           # LEGACY: Cloud Run + Cloud SQL deploy (setup.sh, sync-env.sh,
-                      # env.production.example, runbook). Reference until the
-                      # Kubernetes cutover is done; the release workflow it feeds
-                      # is .github/workflows/deploy-gcp.yml
+deploy/gcp/           # RETIRED reference: the Cloud Run + Cloud SQL deploy that
+                      # served the site before the Kubernetes cutover (setup.sh,
+                      # sync-env.sh, env.production.example, runbook). Its release
+                      # workflow has been deleted — nothing here runs in CI.
 charts/ecocide/       # THE DEPLOYMENT: one-chart Kubernetes install of the whole
                       # app (Deployment + bundled postgres/redis + evidence PVC +
                       # ingress + migration init container); README has the runbook
 Tiltfile              # dev loop: builds the image into minikube and drives a real
                       # `helm upgrade --install` of charts/ecocide
 .github/workflows/    # build-image.yml publishes the image to GHCR on push to
-                      # main (sha-<7>, main, latest) and on v* tags (X.Y.Z);
-                      # deploy-gcp.yml is the legacy Cloud Run release
+                      # main (sha-<7>, main, latest) and on v* tags (X.Y.Z)
 apps/server/scripts/  # scan-cost audit
 ```
 

@@ -2,6 +2,11 @@
 #
 # One-time Google Cloud setup for ECOCIDE (Cloud Run + Cloud SQL + GCS + Memorystore).
 #
+# RETIRED: this is the reference for the deployment the site ran on before the
+# Kubernetes cutover; the live deployment is charts/ecocide. The release workflow
+# it fed (.github/workflows/deploy-gcp.yml) has been deleted, so nothing here is
+# wired into CI any more. Kept for the migration record.
+#
 # Creates everything the tag-triggered workflow in .github/workflows/deploy-gcp.yml
 # expects to already exist. Idempotent-ish: re-running reports "already exists"
 # for resources that are present rather than failing the whole script.
